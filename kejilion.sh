@@ -3577,6 +3577,8 @@ linux_ldnmp() {
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/Dyxs2.php /home/web/html/$yuming/application/admin/controller
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/dycms.html /home/web/html/$yuming/application/admin/view/system
       mv /home/web/html/$yuming/admin.php /home/web/html/$yuming/vip.php && wget -O /home/web/html/$yuming/application/extra/maccms.php https://raw.githubusercontent.com/kejilion/Website_source_code/main/maccms.php
+      sed -i 's/127\.0\.0\.1/redis/g' /home/web/html/$yuming/thinkphp/library/think/cache/driver/Redis.php
+      sed -i 's/127\.0\.0\.1/redis/g' /home/web/html/$yuming/thinkphp/library/think/session/driver/Redis.php
       set_maccms
       restart_ldnmp
       ldnmp_web_on
