@@ -3726,7 +3726,7 @@ linux_ldnmp() {
       # 使用官方一键脚本安装最新版流式检测版雷池
       install_leichi
       # nginx添加挂载
-           - /data/safeline/resources/detector:/opt/detector
+      sed -i '16a\      - /data/safeline/resources/detector:/opt/detector' /home/web/docker-compose.yml
       # nginx安装lua组件
       docker exec nginx sh -c "luarocks install lua-resty-t1k "
       # nginx引入t1k配置
