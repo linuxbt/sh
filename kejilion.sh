@@ -607,8 +607,8 @@ install_ldnmp() {
           "docker exec -u 0 php74 mkdir -p /usr/local/bin/ > /dev/null 2>&1"
           "docker cp /usr/local/bin/install-php-extensions php:/usr/local/bin/ > /dev/null 2>&1"
           "docker cp /usr/local/bin/install-php-extensions php74:/usr/local/bin/ > /dev/null 2>&1"
-	  "docker exec -u 0 php chown -R www-data:www-data /usr/local/bin/install-php-extensions"
-          "docker exec -u 0 php74 chown -R www-data:www-data /usr/local/bin/install-php-extensions"
+	  "docker exec -u 0 php chown -R www-data:www-data /usr/local/bin/install-php-extensions > /dev/null 2>&1"
+          "docker exec -u 0 php74 chown -R www-data:www-data /usr/local/bin/install-php-extensions > /dev/null 2>&1"
           "docker exec -u 0 php chmod +x /usr/local/bin/install-php-extensions > /dev/null 2>&1"
           "docker exec -u 0 php74 chmod +x /usr/local/bin/install-php-extensions > /dev/null 2>&1"
 
