@@ -592,7 +592,7 @@ install_ldnmp() {
 
       # 定义要执行的命令
       commands=(
-          "docker exec nginx chmod -R 777 /var/www/html"
+          #"docker exec nginx chmod -R 777 /var/www/html"
           "docker restart nginx > /dev/null 2>&1"
 
           # "docker exec php sed -i "s/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g" /etc/apk/repositories > /dev/null 2>&1"
@@ -631,7 +631,7 @@ install_ldnmp() {
           "docker exec php sh -c 'echo \"max_input_time=600\" > /usr/local/etc/php/conf.d/max_input_time.ini' > /dev/null 2>&1"
 
           # php重启
-          "docker exec php chmod -R 777 /var/www/html"
+          #"docker exec php chmod -R 777 /var/www/html"
           "docker restart php > /dev/null 2>&1"
 
           # php7.4安装扩展
@@ -654,7 +654,7 @@ install_ldnmp() {
           "docker exec php74 sh -c 'echo \"max_input_time=600\" > /usr/local/etc/php/conf.d/max_input_time.ini' > /dev/null 2>&1"
 
           # php7.4重启
-          "docker exec php74 chmod -R 777 /var/www/html"
+          #"docker exec php74 chmod -R 777 /var/www/html"
           "docker restart php74 > /dev/null 2>&1"
 
           # redis调优
@@ -888,9 +888,9 @@ reverse_proxy() {
 }
 
 restart_ldnmp() {
-      docker exec nginx chmod -R 777 /var/www/html
-      docker exec php chmod -R 777 /var/www/html
-      docker exec php74 chmod -R 777 /var/www/html
+      #docker exec nginx chmod -R 777 /var/www/html
+      #docker exec php chmod -R 777 /var/www/html
+      #docker exec php74 chmod -R 777 /var/www/html
 
       docker restart nginx
       docker restart php
@@ -3965,7 +3965,7 @@ linux_ldnmp() {
       sed -i "s#root /var/www/html/$yuming/#root $index_lujing#g" /home/web/conf.d/$yuming.conf
       sed -i "s#/home/web/#/var/www/#g" /home/web/conf.d/$yuming.conf
 
-      docker exec nginx chmod -R 777 /var/www/html
+      #docker exec nginx chmod -R 777 /var/www/html
       docker restart nginx
 
       nginx_web_on
@@ -4424,7 +4424,7 @@ linux_ldnmp() {
           wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/default10.conf
           default_server_ssl
           docker run -d --name nginx --restart always --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/etc/nginx/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/etc/nginx/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/nginx nginx:alpine
-          docker exec -it nginx chmod -R 777 /var/www/html
+          #docker exec -it nginx chmod -R 777 /var/www/html
 
           f2b_install_sshd
 
