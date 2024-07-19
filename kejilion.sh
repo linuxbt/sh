@@ -3436,7 +3436,7 @@ linux_ldnmp() {
       default_server_ssl
 
       # 下载 docker-compose.yml 文件并进行替换
-      wget -O /home/web/docker-compose.yml https://raw.githubusercontent.com/kejilion/docker/main/LNMP-docker-compose-10.yml
+      wget -O /home/web/docker-compose.yml https://raw.githubusercontent.com/jonathan2218/docker/main/LNMP-docker-compose-10.yml
 
       dbrootpasswd=$(openssl rand -base64 16) && dbuse=$(openssl rand -hex 4) && dbusepasswd=$(openssl rand -base64 8)
 
@@ -3555,7 +3555,7 @@ linux_ldnmp() {
       ldnmp_install_status
       add_yuming
       add_db
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/maccms.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/maccms.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 	  # 注释掉SSL相关配置
 	  sed -i 's/^\s*listen 443 ssl;/#&/' /home/web/conf.d/$yuming.conf
@@ -3571,7 +3571,7 @@ linux_ldnmp() {
       mkdir $yuming
       cd $yuming
       wget https://github.com/magicblack/maccms_down/raw/master/maccms10.zip && unzip maccms10.zip && mv maccms10-*/* . && rm -r maccms10-* && rm maccms10.zip
-      cd /home/web/html/$yuming/template/ && wget https://github.com/kejilion/Website_source_code/raw/main/DYXS2.zip && unzip DYXS2.zip && rm /home/web/html/$yuming/template/DYXS2.zip
+      cd /home/web/html/$yuming/template/ && wget https://github.com/jonathan2218/Website_source_code/raw/main/DYXS2.zip && unzip DYXS2.zip && rm /home/web/html/$yuming/template/DYXS2.zip
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/Dyxs2.php /home/web/html/$yuming/application/admin/controller
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/dycms.html /home/web/html/$yuming/application/admin/view/system
       mv /home/web/html/$yuming/admin.php /home/web/html/$yuming/vip.php && wget -O /home/web/html/$yuming/application/extra/maccms.php https://raw.githubusercontent.com/kejilion/Website_source_code/main/maccms.php
