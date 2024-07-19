@@ -900,7 +900,9 @@ restart_ldnmp() {
 
 }
 
-
+install_leichi() {
+      STREAM=1 bash -c "$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)"
+}
 
 
 has_ipv4_has_ipv6() {
@@ -3393,6 +3395,7 @@ linux_ldnmp() {
     echo  "6. 安装独角数发卡网"
     echo  "7. 安装flarum论坛网站"
     echo  "8. 安装typecho轻量博客网站"
+    echo  "9. 安装雷池WAF"
     echo  "20. 自定义动态站点"
     echo  "------------------------"
     echo  "21. 仅安装nginx"
@@ -3713,6 +3716,24 @@ linux_ldnmp() {
       echo "密码: $dbusepasswd"
       echo "数据库名: $dbname"
       nginx_status
+        ;;
+      8)
+      clear
+      # 雷池WAF
+      webname="雷池WAF"
+      send_stats "安装$webname"
+      ldnmp_install_status
+      # 使用官方一键脚本安装最新版流式检测版雷池
+      install_leichi
+      # nginx添加挂载
+           - /data/safeline/resources/detector:/opt/detector
+      # nginx安装lua组件
+      docker exec nginx sh -c "luarocks install lua-resty-t1k "
+      # nginx引入t1k配置
+      add_t1k
+      # 重启nginx
+      restart_nginx
+
         ;;
 
       20)
