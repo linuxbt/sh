@@ -43,9 +43,9 @@ send_stats() {
     country=$(curl -s ipinfo.io/country)
     os_info=$(grep PRETTY_NAME /etc/os-release | cut -d '=' -f2 | tr -d '"')
     cpu_arch=$(uname -m)
-    curl -s -X POST "https://api.kejilion.pro/api/log" \
-         -H "Content-Type: application/json" \
-         -d "{\"action\":\"$1\",\"timestamp\":\"$(date -u '+%Y-%m-%d %H:%M:%S')\",\"country\":\"$country\",\"os_info\":\"$os_info\",\"cpu_arch\":\"$cpu_arch\",\"version\":\"$sh_v\"}" &>/dev/null &
+#    curl -s -X POST "https://api.kejilion.pro/api/log" \
+#         -H "Content-Type: application/json" \
+#         -d "{\"action\":\"$1\",\"timestamp\":\"$(date -u '+%Y-%m-%d %H:%M:%S')\",\"country\":\"$country\",\"os_info\":\"$os_info\",\"cpu_arch\":\"$cpu_arch\",\"version\":\"$sh_v\"}" &>/dev/null &
 }
 
 
@@ -1196,6 +1196,25 @@ nginx_install_status() {
    fi
 
 }
+
+
+set_maccms() {
+# 创建用户和组（使用 UID 33 和 GID 33）
+#groupadd -g 33 www-data || true
+#useradd -u 33 -g www-data -s /bin/bash www-data || true
+# 设置文件权限
+WEB_ROOT="/home/web/html/$yuming"
+find $WEB_ROOT -type d -exec chmod 755 {} \;
+find $WEB_ROOT -type f -exec chmod 644 {} \;
+chmod -R 755 $WEB_ROOT/runtime/
+chmod -R 755 $WEB_ROOT/upload/
+chmod -R 755 $WEB_ROOT/application/
+chmod -R 755 $WEB_ROOT/addons/
+chown -R 33:33 $WEB_ROOT
+#确保nginx相关目录权限
+chown -R 33:33 /home/web/conf.d /home/web/certs /home/web/html /home/web/log
+}
+
 
 
 ldnmp_web_on() {
@@ -3535,26 +3554,29 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
       add_db
-
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/maccms.com.conf
-
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+	  # 注释掉SSL相关配置
+	  sed -i 's/^\s*listen 443 ssl;/#&/' /home/web/conf.d/$yuming.conf
+	  sed -i 's/^\s*listen\s*\[::\]:443\s*ssl;/#&/' /home/web/conf.d/$yuming.conf
+	  sed -i 's/^\s*ssl_certificate/#ssl_certificate/' /home/web/conf.d/$yuming.conf
+	  sed -i 's/^\s*ssl_certificate_key/#ssl_certificate_key/' /home/web/conf.d/$yuming.conf
+	  sed -i 's/^\s*return 301 https/#return 301 https/' /home/web/conf.d/$yuming.conf
+      sed -i '/server_name/i\    listen 80;\n    listen [::]:80;' /home/web/conf.d/$yuming.conf	  
+	  sed -i '1,8s/^/#/' /home/web/conf.d/$yuming.conf
+
 
       cd /home/web/html
       mkdir $yuming
       cd $yuming
-      # wget https://github.com/magicblack/maccms_down/raw/master/maccms10.zip && unzip maccms10.zip && rm maccms10.zip
       wget https://github.com/magicblack/maccms_down/raw/master/maccms10.zip && unzip maccms10.zip && mv maccms10-*/* . && rm -r maccms10-* && rm maccms10.zip
       cd /home/web/html/$yuming/template/ && wget https://github.com/kejilion/Website_source_code/raw/main/DYXS2.zip && unzip DYXS2.zip && rm /home/web/html/$yuming/template/DYXS2.zip
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/Dyxs2.php /home/web/html/$yuming/application/admin/controller
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/dycms.html /home/web/html/$yuming/application/admin/view/system
       mv /home/web/html/$yuming/admin.php /home/web/html/$yuming/vip.php && wget -O /home/web/html/$yuming/application/extra/maccms.php https://raw.githubusercontent.com/kejilion/Website_source_code/main/maccms.php
-
+      set_maccms
       restart_ldnmp
-
-
       ldnmp_web_on
       echo "数据库地址: mysql"
       echo "数据库端口: 3306"
@@ -3564,9 +3586,13 @@ linux_ldnmp() {
       echo "数据库前缀: mac_"
       echo "------------------------"
       echo "安装成功后登录后台地址"
-      echo "https://$yuming/vip.php"
+      echo "http://$yuming/vip.php"
+      echo "------------------------"
+      echo "请确保已经在本地hosts文件中添加了以下内容："
+      echo "服务器IP $yuming"
       nginx_status
         ;;
+
 
       6)
       clear
