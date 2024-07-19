@@ -555,7 +555,7 @@ ldnmp_v() {
 
       # 获取nginx版本
       nginx_version=$(docker exec nginx nginx -v 2>&1)
-      nginx_version=$(echo "$nginx_version" | grep -oP "nginx/\K[0-9]+\.[0-9]+\.[0-9]+")
+      nginx_version=$(echo "$nginx_version" | grep -oP '(?:openresty|nginx)/\K[\d.]+')
       echo -n -e "nginx : ${huang}v$nginx_version${bai}"
 
       # 获取mysql版本
