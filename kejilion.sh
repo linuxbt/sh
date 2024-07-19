@@ -1200,8 +1200,8 @@ nginx_install_status() {
 
 set_maccms() {
 # 创建用户和组（使用 UID 33 和 GID 33）
-#groupadd -g 33 www-data || true
-#useradd -u 33 -g www-data -s /bin/bash www-data || true
+groupadd -g 82 www-data || true
+useradd -u 82 -g www-data -s /bin/bash www-data || true
 # 设置文件权限
 WEB_ROOT="/home/web/html/$yuming"
 find $WEB_ROOT -type d -exec chmod 755 {} \;
@@ -1210,9 +1210,9 @@ chmod -R 755 $WEB_ROOT/runtime/
 chmod -R 755 $WEB_ROOT/upload/
 chmod -R 755 $WEB_ROOT/application/
 chmod -R 755 $WEB_ROOT/addons/
-chown -R 33:33 $WEB_ROOT
+chown -R 82:82 $WEB_ROOT
 #确保nginx相关目录权限
-chown -R 33:33 /home/web/conf.d /home/web/certs /home/web/html /home/web/log
+chown -R 82:82 /home/web/conf.d /home/web/certs /home/web/html /home/web/log
 }
 
 
