@@ -3555,6 +3555,7 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
+      #install_ssltls
       add_db
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/maccms.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
