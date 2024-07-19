@@ -3458,7 +3458,7 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/wordpress.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/wordpress.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
@@ -3843,8 +3843,8 @@ linux_ldnmp() {
 
       cd /home && mkdir -p web/html web/mysql web/certs web/conf.d web/redis web/log/nginx && touch web/docker-compose.yml
 
-      wget -O /home/web/nginx.conf https://raw.githubusercontent.com/kejilion/nginx/main/nginx10.conf
-      wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/kejilion/nginx/main/default10.conf
+      wget -O /home/web/nginx.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/nginx10.conf
+      wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/default10.conf
       default_server_ssl
       docker rm -f nginx >/dev/null 2>&1
       docker rmi nginx nginx:alpine >/dev/null 2>&1
@@ -4420,8 +4420,8 @@ linux_ldnmp() {
           install_docker
 
           docker rm -f nginx
-          wget -O /home/web/nginx.conf https://raw.githubusercontent.com/kejilion/nginx/main/nginx10.conf
-          wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/kejilion/nginx/main/default10.conf
+          wget -O /home/web/nginx.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/nginx10.conf
+          wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/default10.conf
           default_server_ssl
           docker run -d --name nginx --restart always --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/etc/nginx/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/etc/nginx/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/nginx nginx:alpine
           docker exec -it nginx chmod -R 777 /var/www/html
