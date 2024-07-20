@@ -1465,8 +1465,12 @@ echo "------------------------"
 restart_ssh() {
     restart sshd
 }
-
-
+restart_nginx() {
+docker restart nginx
+}
+add_t1k() {
+cd /home/web/conf.d/ && wget https://github.com/jonathan2218/nginx/raw/main/t1k.conf
+}
 new_ssh_port() {
 
 
@@ -3717,7 +3721,7 @@ linux_ldnmp() {
       echo "数据库名: $dbname"
       nginx_status
         ;;
-      8)
+      9)
       clear
       # 雷池WAF
       webname="雷池WAF"
