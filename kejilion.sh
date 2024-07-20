@@ -1236,7 +1236,18 @@ nginx_web_on() {
 
 }
 
-
+leichi_waf_on() {
+      clear
+       echo "雷池WAF面板已经安装完成"
+       echo "------------------------"
+       echo "您可以使用以下地址访问:"
+       ip_address
+       echo "https:$ipv4_address:9443"       
+       docker exec safeline-mgt resetadmin
+       echo "------------------------"
+       echo "记得登录修改默认密码，和设置两步验证" 
+       echo "测试旁入nginx是否成功，使用：http://你的站点域名/shell.php  提示403则说明对接成功"       
+}
 
 install_panel() {
             send_stats "搭建$panelname "
@@ -3739,7 +3750,7 @@ linux_ldnmp() {
       add_t1k
       # 重启nginx
       restart_nginx
-
+      leichi_waf_on
         ;;
 
       20)
