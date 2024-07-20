@@ -3731,6 +3731,7 @@ linux_ldnmp() {
       install_leichi
       # nginx添加挂载
       sed -i '16a\      - /data/safeline/resources/detector:/opt/detector' /home/web/docker-compose.yml
+      cd /home/web/ && docker compose down nginx && docker compose up nginx -d
       # nginx安装lua组件
       docker exec nginx sh -c "luarocks install lua-resty-t1k --force-lock"
       # nginx引入t1k配置
