@@ -1223,7 +1223,7 @@ chown -R 82:82 $WEB_ROOT
 ldnmp_web_on() {
       clear
       echo "您的 $webname 搭建好了！"
-      echo "https://$yuming"
+      echo "http://$yuming"
       echo "------------------------"
       echo "$webname 安装信息如下: "
 
