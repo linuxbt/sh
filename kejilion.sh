@@ -3732,7 +3732,7 @@ linux_ldnmp() {
       # nginx添加挂载
       sed -i '16a\      - /data/safeline/resources/detector:/opt/detector' /home/web/docker-compose.yml
       # nginx安装lua组件
-      docker exec -u 0 nginx sh -c "luarocks install lua-resty-t1k --force-lock"
+      docker exec nginx sh -c "luarocks install lua-resty-t1k --force-lock"
       # nginx引入t1k配置
       add_t1k
       # 重启nginx
