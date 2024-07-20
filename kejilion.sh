@@ -3572,7 +3572,7 @@ linux_ldnmp() {
 	  sed -i 's/^\s*ssl_certificate/#ssl_certificate/' /home/web/conf.d/$yuming.conf
 	  sed -i 's/^\s*ssl_certificate_key/#ssl_certificate_key/' /home/web/conf.d/$yuming.conf
 	  sed -i 's/^\s*return 301 https/#return 301 https/' /home/web/conf.d/$yuming.conf
-      sed -i '/server_name/i\    listen 80;\n    listen [::]:80;' /home/web/conf.d/$yuming.conf	  
+          sed -i '/server_name/i\    listen 80;\n    listen [::]:80;' /home/web/conf.d/$yuming.conf	  
 	  sed -i '1,8s/^/#/' /home/web/conf.d/$yuming.conf
 
 
