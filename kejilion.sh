@@ -3399,7 +3399,7 @@ linux_ldnmp() {
     echo  "6. 安装独角数发卡网"
     echo  "7. 安装flarum论坛网站"
     echo  "8. 安装typecho轻量博客网站"
-    echo  "9. 安装雷池WAF"
+    echo  "9. 安装雷池WAF旁入版"
     echo  "20. 自定义动态站点"
     echo  "------------------------"
     echo  "21. 仅安装nginx"
@@ -3723,8 +3723,8 @@ linux_ldnmp() {
         ;;
       9)
       clear
-      # 雷池WAF
-      webname="雷池WAF"
+      # 雷池WAF-ldnmp旁入版
+      webname="雷池WAF旁入版"
       send_stats "安装$webname"
       ldnmp_install_status
       # 使用官方一键脚本安装最新版流式检测版雷池
