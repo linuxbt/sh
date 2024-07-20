@@ -1242,7 +1242,7 @@ leichi_waf_on() {
        echo "------------------------"
        echo "您可以使用以下地址访问:"
        ip_address
-       echo "https:$ipv4_address:9443"       
+       echo "https://$ipv4_address:9443"       
        docker exec safeline-mgt resetadmin
        echo "------------------------"
        echo "记得登录修改默认密码，和设置两步验证" 
