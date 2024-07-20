@@ -3751,7 +3751,7 @@ linux_ldnmp() {
       # 重启nginx
       restart_nginx
       leichi_waf_on
-        ;;
+      #  ;;
 
       20)
       clear
