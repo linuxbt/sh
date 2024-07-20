@@ -1244,9 +1244,10 @@ leichi_waf_on() {
        ip_address
        echo "https://$ipv4_address:9443"       
        docker exec safeline-mgt resetadmin
-       echo "------------------------"
-       echo "记得登录修改默认密码，和设置两步验证" 
-       echo "测试旁入nginx是否成功，使用：http://你的站点域名/shell.php  提示403则说明对接成功"       
+       echo "---------------------------------------------"
+       echo "------记得登录修改默认密码，和设置两步验证---------" 
+       echo "测试旁入nginx是否成功，使用：http://你的站点域名/shell.php  提示403则说明对接成功"
+       echo "-------------------------------------------------------------------------"
 }
 
 install_panel() {
