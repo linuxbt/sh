@@ -901,7 +901,7 @@ restart_ldnmp() {
 }
 
 install_leichi() {
-      STREAM=1 bash -c "$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)"
+      STREAM=1 bash -c "$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)"    
 }
 
 
