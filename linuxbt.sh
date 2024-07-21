@@ -17,7 +17,7 @@ permission_granted="false"
 
 CheckFirstRun_true() {
     if grep -q '^permission_granted="true"' /usr/local/bin/k > /dev/null 2>&1; then
-        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/kejilion.sh
+        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/linuxbt.sh
         sed -i 's/^permission_granted="false"/permission_granted="true"/' /usr/local/bin/k
     fi
 }
@@ -43,7 +43,7 @@ send_stats() {
     country=$(curl -s ipinfo.io/country)
     os_info=$(grep PRETTY_NAME /etc/os-release | cut -d '=' -f2 | tr -d '"')
     cpu_arch=$(uname -m)
-#    curl -s -X POST "https://api.kejilion.pro/api/log" \
+#    curl -s -X POST "https://api.linuxbt.pro/api/log" \
 #         -H "Content-Type: application/json" \
 #         -d "{\"action\":\"$1\",\"timestamp\":\"$(date -u '+%Y-%m-%d %H:%M:%S')\",\"country\":\"$country\",\"os_info\":\"$os_info\",\"cpu_arch\":\"$cpu_arch\",\"version\":\"$sh_v\"}" &>/dev/null &
 }
@@ -65,7 +65,7 @@ fi
 yinsiyuanquan2() {
 
 if grep -q '^ENABLE_STATS="false"' /usr/local/bin/k > /dev/null 2>&1; then
-    sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ./kejilion.sh
+    sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ./linuxbt.sh
     sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' /usr/local/bin/k
 fi
 
@@ -74,7 +74,7 @@ fi
 
 
 yinsiyuanquan2
-cp ./kejilion.sh /usr/local/bin/k > /dev/null 2>&1
+cp ./linuxbt.sh /usr/local/bin/k > /dev/null 2>&1
 
 
 
@@ -91,14 +91,14 @@ UserLicenseAgreement() {
     clear
     echo -e "${kjlan}欢迎使用科技lion脚本工具箱${bai}"
     echo "首次使用脚本，请先阅读并同意用户许可协议:"
-    echo "用户许可协议: https://blog.kejilion.pro/user-license-agreement/"
+    echo "用户许可协议: https://blog.linuxbt.pro/user-license-agreement/"
     echo -e "----------------------"
     read -r -p "是否同意以上条款？(y/n): " user_input
 
 
     if [ "$user_input" = "y" ] || [ "$user_input" = "Y" ]; then
         send_stats "许可同意"
-        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/kejilion.sh
+        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/linuxbt.sh
         sed -i 's/^permission_granted="false"/permission_granted="true"/' /usr/local/bin/k
     else
         send_stats "许可拒绝"
@@ -271,7 +271,7 @@ break_end() {
       clear
 }
 
-kejilion() {
+linuxbt() {
             k
             exit
 }
@@ -295,7 +295,7 @@ check_port() {
             echo -e "${hong}注意：${bai}端口 ${huang}$PORT${hong} 已被占用，无法安装环境，卸载以下程序后重试！"
             echo "$result"
             break_end
-            kejilion
+            linuxbt
 
         fi
     fi
@@ -307,7 +307,7 @@ install_add_docker_guanfang() {
 country=$(curl -s ipinfo.io/country)
 if [ "$country" = "CN" ]; then
     cd ~
-    curl -sS -O https://raw.githubusercontent.com/kejilion/docker/main/install && chmod +x install
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/docker/main/install && chmod +x install
     sh install --mirror Aliyun
     rm -f install
     cat > /etc/docker/daemon.json << EOF
@@ -709,7 +709,7 @@ install_certbot() {
     cd ~
 
     # 下载并使脚本可执行
-    curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/auto_cert_renewal.sh
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/auto_cert_renewal.sh
     chmod +x auto_cert_renewal.sh
 
     # 设置定时任务字符串
@@ -849,13 +849,13 @@ if [[ $yuming =~ $domain_regex ]]; then
 else
   echo -e "${huang}注意：${bai}域名格式不正确，请重新输入"
   break_end
-  kejilion
+  linuxbt
 fi
 
 if [ -e /home/web/conf.d/$yuming.conf ]; then
     echo -e "${huang}注意：${bai}当前 ${yuming} 域名已被使用，请前往31站点管理，删除站点，再部署 ${webname} ！"
     break_end
-    kejilion
+    linuxbt
 fi
 
 }
@@ -882,7 +882,7 @@ add_db() {
 
 reverse_proxy() {
       ip_address
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/reverse-proxy.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/reverse-proxy.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
       sed -i "s/0.0.0.0/$ipv4_address/g" /home/web/conf.d/$yuming.conf
       sed -i "s/0000/$duankou/g" /home/web/conf.d/$yuming.conf
@@ -1021,7 +1021,7 @@ fi
 
 cluster_python3() {
     cd ~/cluster/
-    curl -sS -O https://raw.githubusercontent.com/kejilion/python-for-vps/main/cluster/$py_task
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/python-for-vps/main/cluster/$py_task
     python3 ~/cluster/$py_task
 }
 
@@ -1092,19 +1092,19 @@ f2b_install_sshd() {
     sleep 3
     if grep -q 'Alpine' /etc/issue; then
         cd /path/to/fail2ban/config/fail2ban/filter.d
-        curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/alpine-sshd.conf
-        curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/alpine-sshd-ddos.conf
+        curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/alpine-sshd.conf
+        curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/alpine-sshd-ddos.conf
         cd /path/to/fail2ban/config/fail2ban/jail.d/
-        curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/alpine-ssh.conf
+        curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/alpine-ssh.conf
     elif command -v dnf &>/dev/null; then
         cd /path/to/fail2ban/config/fail2ban/jail.d/
-        curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/centos-ssh.conf
+        curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/centos-ssh.conf
     else
         install rsyslog
         systemctl start rsyslog
         systemctl enable rsyslog
         cd /path/to/fail2ban/config/fail2ban/jail.d/
-        curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/linux-ssh.conf
+        curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/linux-ssh.conf
     fi
 }
 
@@ -1170,7 +1170,7 @@ ldnmp_install_status_one() {
    if docker inspect "php" &>/dev/null; then
     echo -e "${huang}LDNMP环境已安装。无法再次安装。可以使用37. 更新LDNMP环境${bai}"
     break_end
-    kejilion
+    linuxbt
    else
     echo
    fi
@@ -1185,7 +1185,7 @@ ldnmp_install_status() {
    else
     echo -e "${huang}LDNMP环境未安装，请先安装LDNMP环境，再部署网站${bai}"
     break_end
-    kejilion
+    linuxbt
 
    fi
 
@@ -1199,7 +1199,7 @@ nginx_install_status() {
    else
     echo -e "${huang}nginx未安装，请先安装nginx环境，再部署网站${bai}"
     break_end
-    kejilion
+    linuxbt
 
    fi
 
@@ -1548,7 +1548,7 @@ echo -e "${lv}ROOT登录设置完毕！${bai}"
 
 root_use() {
 clear
-[ "$EUID" -ne 0 ] && echo -e "${huang}注意：${bai}该功能需要root用户才能运行！" && break_end && kejilion
+[ "$EUID" -ne 0 ] && echo -e "${huang}注意：${bai}该功能需要root用户才能运行！" && break_end && linuxbt
 }
 
 
@@ -1881,13 +1881,13 @@ bbrv3() {
                         update-grub
 
                         # wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
-                        wget -qO - https://raw.githubusercontent.com/kejilion/sh/main/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
+                        wget -qO - https://raw.githubusercontent.com/linuxbt/sh/main/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
 
                         # 步骤3：添加存储库
                         echo 'deb [signed-by=/usr/share/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org releases main' | tee /etc/apt/sources.list.d/xanmod-release.list
 
                         # version=$(wget -q https://dl.xanmod.org/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
-                        version=$(wget -q https://raw.githubusercontent.com/kejilion/sh/main/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
+                        version=$(wget -q https://raw.githubusercontent.com/linuxbt/sh/main/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
 
                         apt update -y
                         apt install -y linux-xanmod-x64v$version
@@ -1933,12 +1933,12 @@ bbrv3() {
                 if [ "$ID" != "debian" ] && [ "$ID" != "ubuntu" ]; then
                     echo "当前环境不支持，仅支持Debian和Ubuntu系统"
                     break_end
-                    kejilion
+                    linuxbt
                 fi
             else
                 echo "无法确定操作系统类型"
                 break_end
-                kejilion
+                linuxbt
             fi
 
             # 检查系统架构
@@ -1953,13 +1953,13 @@ bbrv3() {
             install wget gnupg
 
             # wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
-            wget -qO - https://raw.githubusercontent.com/kejilion/sh/main/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
+            wget -qO - https://raw.githubusercontent.com/linuxbt/sh/main/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
 
             # 步骤3：添加存储库
             echo 'deb [signed-by=/usr/share/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org releases main' | tee /etc/apt/sources.list.d/xanmod-release.list
 
             # version=$(wget -q https://dl.xanmod.org/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
-            version=$(wget -q https://raw.githubusercontent.com/kejilion/sh/main/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
+            version=$(wget -q https://raw.githubusercontent.com/linuxbt/sh/main/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
 
             apt update -y
             apt install -y linux-xanmod-x64v$version
@@ -1997,7 +1997,7 @@ elrepo_install() {
     if [[ "$os_name" != *"Red Hat"* && "$os_name" != *"AlmaLinux"* && "$os_name" != *"Rocky"* && "$os_name" != *"Oracle"* && "$os_name" != *"CentOS"* ]]; then
         echo "不支持的操作系统：$os_name"
         break_end
-        kejilion
+        linuxbt
     fi
     # 打印检测到的操作系统信息
     echo "检测到的操作系统: $os_name $os_version"
@@ -2011,7 +2011,7 @@ elrepo_install() {
     else
         echo "不支持的系统版本：$os_version"
         break_end
-        kejilion
+        linuxbt
     fi
     # 启用 ELRepo 内核仓库并安装最新的主线内核
     echo "启用 ELRepo 内核仓库并安装最新的主线内核..."
@@ -2590,7 +2590,7 @@ linux_tools() {
               ;;
 
           0)
-              kejilion
+              linuxbt
 
               ;;
 
@@ -3074,7 +3074,7 @@ linux_docker() {
               ;;
 
           0)
-              kejilion
+              linuxbt
               ;;
           *)
               echo "无效的输入!"
@@ -3236,7 +3236,7 @@ linux_test() {
               ;;
 
           0)
-              kejilion
+              linuxbt
 
               ;;
           *)
@@ -3375,7 +3375,7 @@ linux_Oracle() {
 
               ;;
           0)
-              kejilion
+              linuxbt
 
               ;;
           *)
@@ -3462,8 +3462,8 @@ linux_ldnmp() {
 
       # 在 docker-compose.yml 文件中进行替换
       sed -i "s#webroot#$dbrootpasswd#g" /home/web/docker-compose.yml
-      sed -i "s#kejilionYYDS#$dbusepasswd#g" /home/web/docker-compose.yml
-      sed -i "s#kejilion#$dbuse#g" /home/web/docker-compose.yml
+      sed -i "s#linuxbtYYDS#$dbusepasswd#g" /home/web/docker-compose.yml
+      sed -i "s#linuxbt#$dbuse#g" /home/web/docker-compose.yml
 
       install_ldnmp
 
@@ -3512,14 +3512,14 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/discuz.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/discuz.com.conf
 
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
       mkdir $yuming
       cd $yuming
-      wget -O latest.zip https://github.com/kejilion/Website_source_code/raw/main/Discuz_X3.5_SC_UTF8_20240520.zip
+      wget -O latest.zip https://github.com/linuxbt/Website_source_code/raw/main/Discuz_X3.5_SC_UTF8_20240520.zip
       unzip latest.zip
       rm latest.zip
 
@@ -3546,7 +3546,7 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/kdy.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/kdy.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
@@ -3595,7 +3595,7 @@ linux_ldnmp() {
       cd /home/web/html/$yuming/template/ && wget https://github.com/jonathan2218/Website_source_code/raw/main/DYXS2.zip && unzip DYXS2.zip && rm /home/web/html/$yuming/template/DYXS2.zip
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/Dyxs2.php /home/web/html/$yuming/application/admin/controller
       cp /home/web/html/$yuming/template/DYXS2/asset/admin/dycms.html /home/web/html/$yuming/application/admin/view/system
-      mv /home/web/html/$yuming/admin.php /home/web/html/$yuming/vip.php && wget -O /home/web/html/$yuming/application/extra/maccms.php https://raw.githubusercontent.com/kejilion/Website_source_code/main/maccms.php
+      mv /home/web/html/$yuming/admin.php /home/web/html/$yuming/vip.php && wget -O /home/web/html/$yuming/application/extra/maccms.php https://raw.githubusercontent.com/linuxbt/Website_source_code/main/maccms.php
       sed -i 's/127\.0\.0\.1/redis/g' /home/web/html/$yuming/thinkphp/library/think/cache/driver/Redis.php
       sed -i 's/127\.0\.0\.1/redis/g' /home/web/html/$yuming/thinkphp/library/think/session/driver/Redis.php
       set_maccms
@@ -3627,7 +3627,7 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/dujiaoka.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/dujiaoka.com.conf
 
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
@@ -3672,7 +3672,7 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/flarum.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/flarum.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
@@ -3711,7 +3711,7 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/typecho.com.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/typecho.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
@@ -3764,7 +3764,7 @@ linux_ldnmp() {
       install_ssltls
       add_db
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/index_php.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/index_php.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
@@ -3914,7 +3914,7 @@ linux_ldnmp() {
 
       install_ssltls
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/rewrite.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/rewrite.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
       sed -i "s/baidu.com/$reverseproxy/g" /home/web/conf.d/$yuming.conf
 
@@ -3937,7 +3937,7 @@ linux_ldnmp() {
 
       install_ssltls
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/reverse-proxy.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/reverse-proxy.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
       sed -i "s/0.0.0.0/$reverseproxy/g" /home/web/conf.d/$yuming.conf
       sed -i "s/0000/$port/g" /home/web/conf.d/$yuming.conf
@@ -3960,7 +3960,7 @@ linux_ldnmp() {
 
       install_ssltls
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/reverse-proxy-domain.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/reverse-proxy-domain.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
       sed -i "s|fandaicom|$fandai_yuming|g" /home/web/conf.d/$yuming.conf
 
@@ -3979,7 +3979,7 @@ linux_ldnmp() {
       add_yuming
       install_ssltls
 
-      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/kejilion/nginx/main/html.conf
+      wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/html.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
 
       cd /home/web/html
@@ -4234,7 +4234,7 @@ linux_ldnmp() {
       read -p "输入远程服务器密码: " usepasswd
 
       cd ~
-      wget -O ${useip}_beifen.sh https://raw.githubusercontent.com/kejilion/sh/main/beifen.sh > /dev/null 2>&1
+      wget -O ${useip}_beifen.sh https://raw.githubusercontent.com/linuxbt/sh/main/beifen.sh > /dev/null 2>&1
       chmod +x ${useip}_beifen.sh
 
       sed -i "s/0.0.0.0/$useip/g" ${useip}_beifen.sh
@@ -4381,16 +4381,16 @@ linux_ldnmp() {
                       read -p "输入CF的账号: " cfuser
                       read -p "输入CF的Global API Key: " cftoken
 
-                      wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/kejilion/nginx/main/default11.conf
+                      wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/linuxbt/nginx/main/default11.conf
                       docker restart nginx
 
                       cd /path/to/fail2ban/config/fail2ban/jail.d/
-                      curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/nginx-docker-cc.conf
+                      curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/nginx-docker-cc.conf
 
                       cd /path/to/fail2ban/config/fail2ban/action.d
-                      curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/cloudflare-docker.conf
+                      curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/cloudflare-docker.conf
 
-                      sed -i "s/kejilion@outlook.com/$cfuser/g" /path/to/fail2ban/config/fail2ban/action.d/cloudflare-docker.conf
+                      sed -i "s/linuxbt@outlook.com/$cfuser/g" /path/to/fail2ban/config/fail2ban/action.d/cloudflare-docker.conf
                       sed -i "s/APIKEY00000/$cftoken/g" /path/to/fail2ban/config/fail2ban/action.d/cloudflare-docker.conf
                       f2b_status
 
@@ -4413,7 +4413,7 @@ linux_ldnmp() {
                       cd ~
                       install jq bc
                       check_crontab_installed
-                      curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/CF-Under-Attack.sh
+                      curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/CF-Under-Attack.sh
                       chmod +x CF-Under-Attack.sh
                       sed -i "s/AAAA/$cfuser/g" ~/CF-Under-Attack.sh
                       sed -i "s/BBBB/$cftoken/g" ~/CF-Under-Attack.sh
@@ -4474,9 +4474,9 @@ linux_ldnmp() {
           f2b_install_sshd
 
           cd /path/to/fail2ban/config/fail2ban/filter.d
-          curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/fail2ban-nginx-cc.conf
+          curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/fail2ban-nginx-cc.conf
           cd /path/to/fail2ban/config/fail2ban/jail.d/
-          curl -sS -O https://raw.githubusercontent.com/kejilion/config/main/fail2ban/nginx-docker-cc.conf
+          curl -sS -O https://raw.githubusercontent.com/linuxbt/config/main/fail2ban/nginx-docker-cc.conf
           sed -i "/cloudflare/d" /path/to/fail2ban/config/fail2ban/jail.d/nginx-docker-cc.conf
 
           cd ~
@@ -4505,19 +4505,19 @@ linux_ldnmp() {
                   sed -i 's/worker_connections.*/worker_connections 1024;/' /home/web/nginx.conf
 
                   # php调优
-                  wget -O /home/optimized_php.ini https://raw.githubusercontent.com/kejilion/sh/main/optimized_php.ini
+                  wget -O /home/optimized_php.ini https://raw.githubusercontent.com/linuxbt/sh/main/optimized_php.ini
                   docker cp /home/optimized_php.ini php:/usr/local/etc/php/conf.d/optimized_php.ini
                   docker cp /home/optimized_php.ini php74:/usr/local/etc/php/conf.d/optimized_php.ini
                   rm -rf /home/optimized_php.ini
 
                   # php调优
-                  wget -O /home/www.conf https://raw.githubusercontent.com/kejilion/sh/main/www-1.conf
+                  wget -O /home/www.conf https://raw.githubusercontent.com/linuxbt/sh/main/www-1.conf
                   docker cp /home/www.conf php:/usr/local/etc/php-fpm.d/www.conf
                   docker cp /home/www.conf php74:/usr/local/etc/php-fpm.d/www.conf
                   rm -rf /home/www.conf
 
                   # mysql调优
-                  wget -O /home/custom_mysql_config.cnf https://raw.githubusercontent.com/kejilion/sh/main/custom_mysql_config-1.cnf
+                  wget -O /home/custom_mysql_config.cnf https://raw.githubusercontent.com/linuxbt/sh/main/custom_mysql_config-1.cnf
                   docker cp /home/custom_mysql_config.cnf mysql:/etc/mysql/conf.d/
                   rm -rf /home/custom_mysql_config.cnf
 
@@ -4538,13 +4538,13 @@ linux_ldnmp() {
                   sed -i 's/worker_connections.*/worker_connections 10240;/' /home/web/nginx.conf
 
                   # php调优
-                  wget -O /home/www.conf https://raw.githubusercontent.com/kejilion/sh/main/www.conf
+                  wget -O /home/www.conf https://raw.githubusercontent.com/linuxbt/sh/main/www.conf
                   docker cp /home/www.conf php:/usr/local/etc/php-fpm.d/www.conf
                   docker cp /home/www.conf php74:/usr/local/etc/php-fpm.d/www.conf
                   rm -rf /home/www.conf
 
                   # mysql调优
-                  wget -O /home/custom_mysql_config.cnf https://raw.githubusercontent.com/kejilion/sh/main/custom_mysql_config.cnf
+                  wget -O /home/custom_mysql_config.cnf https://raw.githubusercontent.com/linuxbt/sh/main/custom_mysql_config.cnf
                   docker cp /home/custom_mysql_config.cnf mysql:/etc/mysql/conf.d/
                   rm -rf /home/custom_mysql_config.cnf
 
@@ -4618,7 +4618,7 @@ linux_ldnmp() {
         ;;
 
     0)
-        kejilion
+        linuxbt
       ;;
 
     *)
@@ -5154,7 +5154,7 @@ linux_panel() {
                             docker rmi -f p3terx/aria2-pro
 
                             cd /home/ && mkdir -p docker/cloud && cd docker/cloud && mkdir temp_data && mkdir -vp cloudreve/{uploads,avatar} && touch cloudreve/conf.ini && touch cloudreve/cloudreve.db && mkdir -p aria2/config && mkdir -p data/aria2 && chmod -R 777 data/aria2
-                            curl -o /home/docker/cloud/docker-compose.yml https://raw.githubusercontent.com/kejilion/docker/main/cloudreve-docker-compose.yml
+                            curl -o /home/docker/cloud/docker-compose.yml https://raw.githubusercontent.com/linuxbt/docker/main/cloudreve-docker-compose.yml
                             cd /home/docker/cloud/ && docker compose up -d
 
 
@@ -5204,7 +5204,7 @@ linux_panel() {
                     clear
                     install_docker
                     cd /home/ && mkdir -p docker/cloud && cd docker/cloud && mkdir temp_data && mkdir -vp cloudreve/{uploads,avatar} && touch cloudreve/conf.ini && touch cloudreve/cloudreve.db && mkdir -p aria2/config && mkdir -p data/aria2 && chmod -R 777 data/aria2
-                    curl -o /home/docker/cloud/docker-compose.yml https://raw.githubusercontent.com/kejilion/docker/main/cloudreve-docker-compose.yml
+                    curl -o /home/docker/cloud/docker-compose.yml https://raw.githubusercontent.com/linuxbt/docker/main/cloudreve-docker-compose.yml
                     cd /home/docker/cloud/ && docker compose up -d
 
 
@@ -5707,7 +5707,7 @@ linux_panel() {
             curl -L https://raw.githubusercontent.com/oneclickvirt/pve/main/scripts/install_pve.sh -o install_pve.sh && chmod +x install_pve.sh && bash install_pve.sh
               ;;
           0)
-              kejilion
+              linuxbt
               ;;
           *)
               echo "无效的输入!"
@@ -5861,7 +5861,7 @@ linux_work() {
 
               ;;
           0)
-              kejilion
+              linuxbt
               ;;
           *)
               echo "无效的输入!"
@@ -5915,7 +5915,7 @@ linux_Settings() {
           1)
               clear
               read -p "请输入你的快捷按键: " kuaijiejian
-              echo "alias $kuaijiejian='~/kejilion.sh'" >> ~/.bashrc
+              echo "alias $kuaijiejian='~/linuxbt.sh'" >> ~/.bashrc
               source ~/.bashrc
               echo "快捷键已设置"
               send_stats "脚本快捷键已设置"
@@ -6879,7 +6879,7 @@ EOF
 
                   case $host_dns in
                       1)
-                          read -p "请输入新的解析记录 格式: 110.25.5.33 kejilion.pro : " addhost
+                          read -p "请输入新的解析记录 格式: 110.25.5.33 linuxbt.pro : " addhost
                           echo "$addhost" >> /etc/hosts
                           send_stats "本地host解析新增"
 
@@ -7026,7 +7026,7 @@ EOF
                 read -p "请输入进站流量阈值（单位为GB）: " rx_threshold_gb
                 read -p "请输入出站流量阈值（单位为GB）: " tx_threshold_gb
                 cd ~
-                curl -Ss -o ~/Limiting_Shut_down.sh https://raw.githubusercontent.com/kejilion/sh/main/Limiting_Shut_down1.sh
+                curl -Ss -o ~/Limiting_Shut_down.sh https://raw.githubusercontent.com/linuxbt/sh/main/Limiting_Shut_down1.sh
                 chmod +x ~/Limiting_Shut_down.sh
                 sed -i "s/110/$rx_threshold_gb/g" ~/Limiting_Shut_down.sh
                 sed -i "s/120/$tx_threshold_gb/g" ~/Limiting_Shut_down.sh
@@ -7100,7 +7100,7 @@ EOF
                       chmod +x ~/TG-check-notify.sh
                       nano ~/TG-check-notify.sh
                   else
-                      curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/TG-check-notify.sh
+                      curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/TG-check-notify.sh
                       chmod +x ~/TG-check-notify.sh
                       nano ~/TG-check-notify.sh
                   fi
@@ -7109,7 +7109,7 @@ EOF
                   crontab -l | grep -v '~/TG-check-notify.sh' | crontab - > /dev/null 2>&1
                   (crontab -l ; echo "@reboot tmux new -d -s TG-check-notify '~/TG-check-notify.sh'") | crontab - > /dev/null 2>&1
 
-                  curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/TG-SSH-check-notify.sh > /dev/null 2>&1
+                  curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/TG-SSH-check-notify.sh > /dev/null 2>&1
                   sed -i "3i$(grep '^TELEGRAM_BOT_TOKEN=' ~/TG-check-notify.sh)" TG-SSH-check-notify.sh > /dev/null 2>&1
                   sed -i "4i$(grep '^CHAT_ID=' ~/TG-check-notify.sh)" TG-SSH-check-notify.sh
                   chmod +x ~/TG-SSH-check-notify.sh
@@ -7142,7 +7142,7 @@ EOF
               root_use
               send_stats "修复SSH高危漏洞"
               cd ~
-              curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/upgrade_openssh9.8p1.sh
+              curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/upgrade_openssh9.8p1.sh
               chmod +x ~/upgrade_openssh9.8p1.sh
               ~/upgrade_openssh9.8p1.sh
               rm -f ~/upgrade_openssh9.8p1.sh
@@ -7238,7 +7238,7 @@ EOF
             remote_ip="66.42.61.110"
             remote_user="liaotian123"
             remote_file="/home/liaotian123/liaotian.txt"
-            password="kejilionYYDS"  # 替换为您的密码
+            password="linuxbtYYDS"  # 替换为您的密码
 
             clear
             echo "科技lion留言板"
@@ -7387,14 +7387,14 @@ EOF
                   1)
                       cd ~
                       sed -i 's/^ENABLE_STATS="false"/ENABLE_STATS="true"/' /usr/local/bin/k
-                      sed -i 's/^ENABLE_STATS="false"/ENABLE_STATS="true"/' ~/kejilion.sh
+                      sed -i 's/^ENABLE_STATS="false"/ENABLE_STATS="true"/' ~/linuxbt.sh
                       echo "已开启采集"
                       send_stats "隐私与安全已开启采集"
                       ;;
                   2)
                       cd ~
                       sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' /usr/local/bin/k
-                      sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ~/kejilion.sh
+                      sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ~/linuxbt.sh
                       echo "已关闭采集"
                       send_stats "隐私与安全已关闭采集"
                       ;;
@@ -7413,14 +7413,14 @@ EOF
               send_stats "卸载科技lion脚本"
               echo "卸载科技lion脚本"
               echo "------------------------------------------------"
-              echo "将彻底卸载kejilion脚本，不影响你其他功能"
+              echo "将彻底卸载linuxbt脚本，不影响你其他功能"
               read -p "确定继续吗？(Y/N): " choice
 
               case "$choice" in
                 [Yy])
                   clear
                   rm -f /usr/local/bin/k
-                  rm ~/kejilion.sh
+                  rm ~/linuxbt.sh
                   echo "脚本已卸载，再见！"
                   break_end
                   clear
@@ -7436,7 +7436,7 @@ EOF
               ;;
 
           0)
-              kejilion
+              linuxbt
 
               ;;
           *)
@@ -7536,7 +7536,7 @@ EOF
                           nano ~/cluster/servers.py
                           ;;
                       11)
-                          py_task=install_kejilion.py
+                          py_task=install_linuxbt.py
                           cluster_python3
                           ;;
                       12)
@@ -7572,7 +7572,7 @@ EOF
                           read -p "请输入批量执行的命令: " mingling
                           py_task=custom_tasks.py
                           cd ~/cluster/
-                          curl -sS -O https://raw.githubusercontent.com/kejilion/python-for-vps/main/cluster/$py_task
+                          curl -sS -O https://raw.githubusercontent.com/linuxbt/python-for-vps/main/cluster/$py_task
                           sed -i "s#Customtasks#$mingling#g" ~/cluster/$py_task
                           python3 ~/cluster/$py_task
                           ;;
@@ -7629,7 +7629,7 @@ EOF
               ;;
 
           0)
-              kejilion
+              linuxbt
               ;;
           *)
               echo "无效的输入!"
@@ -7645,18 +7645,18 @@ EOF
 
 
 
-kejilion_update() {
+linuxbt_update() {
 
     send_stats "脚本更新"
     cd ~
     clear
     echo "更新日志"
     echo "------------------------"
-    echo "全部日志: https://raw.githubusercontent.com/kejilion/sh/main/kejilion_sh_log.txt"
+    echo "全部日志: https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt_sh_log.txt"
     echo "------------------------"
 
-    curl -s https://raw.githubusercontent.com/kejilion/sh/main/kejilion_sh_log.txt | tail -n 35
-    sh_v_new=$(curl -s https://raw.githubusercontent.com/kejilion/sh/main/kejilion.sh | grep -o 'sh_v="[0-9.]*"' | cut -d '"' -f 2)
+    curl -s https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt_sh_log.txt | tail -n 35
+    sh_v_new=$(curl -s https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt.sh | grep -o 'sh_v="[0-9.]*"' | cut -d '"' -f 2)
 
     if [ "$sh_v" = "$sh_v_new" ]; then
         echo -e "${lv}你已经是最新版本！${huang}v$sh_v${bai}"
@@ -7670,16 +7670,16 @@ kejilion_update() {
                 clear
                 country=$(curl -s ipinfo.io/country)
                 if [ "$country" = "CN" ]; then
-                    curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/cn/kejilion.sh && chmod +x kejilion.sh
+                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/cn/linuxbt.sh && chmod +x linuxbt.sh
                 else
-                    curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/kejilion.sh && chmod +x kejilion.sh
+                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt.sh && chmod +x linuxbt.sh
                 fi
                 CheckFirstRun_true
                 yinsiyuanquan2
-                cp ./kejilion.sh /usr/local/bin/k > /dev/null 2>&1
+                cp ./linuxbt.sh /usr/local/bin/k > /dev/null 2>&1
                 echo -e "${lv}脚本已更新到最新版本！${huang}v$sh_v_new${bai}"
                 break_end
-                kejilion
+                linuxbt
                 ;;
             [Nn])
                 echo "已取消"
@@ -7694,7 +7694,7 @@ kejilion_update() {
 
 
 
-kejilion_sh() {
+linuxbt_sh() {
 while true; do
 clear
 
@@ -7799,13 +7799,13 @@ case $choice in
   p)
     send_stats "幻兽帕鲁开服脚本"
     cd ~
-    curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/palworld.sh && chmod +x palworld.sh && ./palworld.sh
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/palworld.sh && chmod +x palworld.sh && ./palworld.sh
     exit
     ;;
 
 
   00)
-    kejilion_update
+    linuxbt_update
     ;;
 
   0)
@@ -7827,7 +7827,7 @@ done
 
 if [ "$#" -eq 0 ]; then
     # 如果没有参数，运行交互式逻辑
-    kejilion_sh
+    linuxbt_sh
 else
     # 如果有参数，执行相应函数
     case $1 in
