@@ -312,7 +312,7 @@ if [ "$country" = "CN" ]; then
     rm -f install
     cat > /etc/docker/daemon.json << EOF
 {
-    "registry-mirrors": ["https://docker.kejilion.pro"]
+    "registry-mirrors": ["https://mirrors.aliyun.com/docker-ce"]
 }
 EOF
 
