@@ -12,7 +12,7 @@ hui='\e[37m'
 
 
 
-permission_granted="false"
+permission_granted="true"
 
 
 CheckFirstRun_true() {
