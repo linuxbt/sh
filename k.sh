@@ -3614,6 +3614,8 @@ linux_ldnmp() {
       echo "请确保已经在本地hosts文件中添加了以下内容："
       echo "服务器IP $yuming"
       nginx_status
+      break_end
+      linux_ldnmp
         ;;
 
 
