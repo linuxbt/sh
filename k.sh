@@ -7701,9 +7701,14 @@ while true; do
 clear
 
 echo -e "${kjlan}_  _ ____  _ _ _    _ ____ _  _ "
+echo "k_  *_*__  *     * ____ *  * "
 echo "|_/  |___  | | |    | |  | |\ | "
-echo "| \_ |___ _| | |___ | |__| | \| "
+echo "| \_ |___ *| | |*__ | |__| | \| "
 echo "                                "
+echo "k__   __   _    _    _   _   "
+echo "|__) /  \ |_   |_)  |_) |_)  "
+echo "|__) \__/ |__  |    | \ | \  "
+echo "                             "
 echo -e "${kjlan}K脚本工具箱 v$sh_v 只为更简单的Linux的使用！"
 echo -e "适配Ubuntu/Debian/CentOS/Alpine/Kali/Arch/RedHat/Fedora/Alma/Rocky系统"
 echo -e "-输入${huang}k${kjlan}可快速启动此脚本-${bai}"
