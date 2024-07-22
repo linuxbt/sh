@@ -7654,10 +7654,10 @@ linuxbt_update() {
     clear
     echo "更新日志"
     echo "------------------------"
-    echo "全部日志: https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt_sh_log.txt"
+    echo "全部日志: https://raw.githubusercontent.com/linuxbt/sh/main/k_sh_log.txt"
     echo "------------------------"
 
-    curl -s https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt_sh_log.txt | tail -n 35
+    curl -s https://raw.githubusercontent.com/linuxbt/sh/main/k_sh_log.txt | tail -n 35
     sh_v_new=$(curl -s https://raw.githubusercontent.com/linuxbt/sh/main/k.sh | grep -o 'sh_v="[0-9.]*"' | cut -d '"' -f 2)
 
     if [ "$sh_v" = "$sh_v_new" ]; then
