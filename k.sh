@@ -17,7 +17,7 @@ permission_granted="false"
 
 CheckFirstRun_true() {
     if grep -q '^permission_granted="true"' /usr/local/bin/k > /dev/null 2>&1; then
-        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/linuxbt.sh
+        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/k.sh
         sed -i 's/^permission_granted="false"/permission_granted="true"/' /usr/local/bin/k
     fi
 }
@@ -65,7 +65,7 @@ fi
 yinsiyuanquan2() {
 
 if grep -q '^ENABLE_STATS="false"' /usr/local/bin/k > /dev/null 2>&1; then
-    sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ./linuxbt.sh
+    sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ./k.sh
     sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' /usr/local/bin/k
 fi
 
@@ -74,7 +74,7 @@ fi
 
 
 yinsiyuanquan2
-cp ./linuxbt.sh /usr/local/bin/k > /dev/null 2>&1
+cp ./k.sh /usr/local/bin/k > /dev/null 2>&1
 
 
 
@@ -98,7 +98,7 @@ UserLicenseAgreement() {
 
     if [ "$user_input" = "y" ] || [ "$user_input" = "Y" ]; then
         send_stats "许可同意"
-        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/linuxbt.sh
+        sed -i 's/^permission_granted="false"/permission_granted="true"/' ~/k.sh
         sed -i 's/^permission_granted="false"/permission_granted="true"/' /usr/local/bin/k
     else
         send_stats "许可拒绝"
@@ -5915,7 +5915,7 @@ linux_Settings() {
           1)
               clear
               read -p "请输入你的快捷按键: " kuaijiejian
-              echo "alias $kuaijiejian='~/linuxbt.sh'" >> ~/.bashrc
+              echo "alias $kuaijiejian='~/k.sh'" >> ~/.bashrc
               source ~/.bashrc
               echo "快捷键已设置"
               send_stats "脚本快捷键已设置"
@@ -7387,14 +7387,14 @@ EOF
                   1)
                       cd ~
                       sed -i 's/^ENABLE_STATS="false"/ENABLE_STATS="true"/' /usr/local/bin/k
-                      sed -i 's/^ENABLE_STATS="false"/ENABLE_STATS="true"/' ~/linuxbt.sh
+                      sed -i 's/^ENABLE_STATS="false"/ENABLE_STATS="true"/' ~/k.sh
                       echo "已开启采集"
                       send_stats "隐私与安全已开启采集"
                       ;;
                   2)
                       cd ~
                       sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' /usr/local/bin/k
-                      sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ~/linuxbt.sh
+                      sed -i 's/^ENABLE_STATS="true"/ENABLE_STATS="false"/' ~/k.sh
                       echo "已关闭采集"
                       send_stats "隐私与安全已关闭采集"
                       ;;
@@ -7420,7 +7420,7 @@ EOF
                 [Yy])
                   clear
                   rm -f /usr/local/bin/k
-                  rm ~/linuxbt.sh
+                  rm ~/k.sh
                   echo "脚本已卸载，再见！"
                   break_end
                   clear
@@ -7656,7 +7656,7 @@ linuxbt_update() {
     echo "------------------------"
 
     curl -s https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt_sh_log.txt | tail -n 35
-    sh_v_new=$(curl -s https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt.sh | grep -o 'sh_v="[0-9.]*"' | cut -d '"' -f 2)
+    sh_v_new=$(curl -s https://raw.githubusercontent.com/linuxbt/sh/main/k.sh | grep -o 'sh_v="[0-9.]*"' | cut -d '"' -f 2)
 
     if [ "$sh_v" = "$sh_v_new" ]; then
         echo -e "${lv}你已经是最新版本！${huang}v$sh_v${bai}"
@@ -7670,13 +7670,13 @@ linuxbt_update() {
                 clear
                 country=$(curl -s ipinfo.io/country)
                 if [ "$country" = "CN" ]; then
-                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/cn/linuxbt.sh && chmod +x linuxbt.sh
+                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/cn/k.sh && chmod +x k.sh
                 else
-                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/linuxbt.sh && chmod +x linuxbt.sh
+                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh
                 fi
                 CheckFirstRun_true
                 yinsiyuanquan2
-                cp ./linuxbt.sh /usr/local/bin/k > /dev/null 2>&1
+                cp ./k.sh /usr/local/bin/k > /dev/null 2>&1
                 echo -e "${lv}脚本已更新到最新版本！${huang}v$sh_v_new${bai}"
                 break_end
                 linuxbt
