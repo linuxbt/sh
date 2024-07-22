@@ -89,7 +89,7 @@ CheckFirstRun_false() {
 # 提示用户同意条款
 UserLicenseAgreement() {
     clear
-    echo -e "${kjlan}欢迎使用科技lion脚本工具箱${bai}"
+    echo -e "${kjlan}欢迎使用K脚本工具箱${bai}"
     echo "首次使用脚本，请先阅读并同意用户许可协议:"
     echo "用户许可协议: https://blog.linuxbt.pro/user-license-agreement/"
     echo -e "----------------------"
@@ -5905,7 +5905,7 @@ linux_Settings() {
       echo "------------------------"
       echo "99. 重启服务器                         100. 隐私与安全"
       echo "------------------------"
-      echo "101. 卸载科技lion脚本"
+      echo "101. 卸载K脚本"
       echo "------------------------"
       echo "0. 返回主菜单"
       echo "------------------------"
@@ -7241,7 +7241,7 @@ EOF
             password="linuxbtYYDS"  # 替换为您的密码
 
             clear
-            echo "科技lion留言板"
+            echo "linuxbt留言板"
             echo "------------------------"
             # 显示已有的留言内容
             sshpass -p "${password}" ssh -o StrictHostKeyChecking=no "${remote_user}@${remote_ip}" "cat '${remote_file}'"
@@ -7410,10 +7410,10 @@ EOF
 
           101)
               clear
-              send_stats "卸载科技lion脚本"
-              echo "卸载科技lion脚本"
+              send_stats "卸载K脚本"
+              echo "卸载K脚本"
               echo "------------------------------------------------"
-              echo "将彻底卸载linuxbt脚本，不影响你其他功能"
+              echo "将彻底卸K脚本，不影响你其他功能"
               read -p "确定继续吗？(Y/N): " choice
 
               case "$choice" in
@@ -7501,7 +7501,7 @@ EOF
                   echo "------------------------"
                   echo "1. 添加服务器                2. 删除服务器             3. 编辑服务器"
                   echo "------------------------"
-                  echo "11. 安装科技lion脚本         12. 更新系统              13. 清理系统"
+                  echo "11. 安装K脚本         12. 更新系统              13. 清理系统"
                   echo "14. 安装docker               15. 安装BBR3              16. 设置1G虚拟内存"
                   echo "17. 设置时区到上海           18. 开放所有端口"
                   echo "------------------------"
@@ -7702,7 +7702,7 @@ echo -e "${kjlan}_  _ ____  _ _ _    _ ____ _  _ "
 echo "|_/  |___  | | |    | |  | |\ | "
 echo "| \_ |___ _| | |___ | |__| | \| "
 echo "                                "
-echo -e "${kjlan}科技lion脚本工具箱 v$sh_v 只为更简单的Linux的使用！"
+echo -e "${kjlan}K脚本工具箱 v$sh_v 只为更简单的Linux的使用！"
 echo -e "适配Ubuntu/Debian/CentOS/Alpine/Kali/Arch/RedHat/Fedora/Alma/Rocky系统"
 echo -e "-输入${huang}k${kjlan}可快速启动此脚本-${bai}"
 echo "------------------------"
