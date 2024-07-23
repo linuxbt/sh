@@ -7876,8 +7876,7 @@ execute_command() {
     eval "$cmd"
 }
 
-# 函数：交互式菜单
-# 函数：交互式菜单
+# 函数：快捷键交互式菜单
 kjj_menu() {
     local menu="$(cat $kjj_file | jq .menu)"
     local path=()
