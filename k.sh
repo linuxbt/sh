@@ -7876,6 +7876,7 @@ execute_command() {
     eval "$cmd"
 }
 
+
 # 函数：快捷键交互式菜单
 kjj_menu() {
     local menu="$(cat $kjj_file | jq .menu)"
@@ -8017,7 +8018,6 @@ else
         esac
     fi
 fi
-
 
 
 
