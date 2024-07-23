@@ -549,6 +549,19 @@ add_swap() {
     echo -e "虚拟内存大小已调整为${huang}${new_swap}${bai}MB"
 }
 
+check_swap() {
+
+swap_total=$(free -m | awk 'NR==3{print $2}')
+
+ # 判断是否需要创建虚拟内存
+if [ "$swap_total" -gt 0 ]; then
+    :
+else
+    new_swap=1024
+    add_swap
+fi
+
+}
 
 
 ldnmp_v() {
@@ -579,7 +592,7 @@ ldnmp_v() {
 
 install_ldnmp() {
 
-      new_swap=1024
+      check_swap
       add_swap
       # 创建用户和组（使用 UID 82 和 GID 82）
       groupadd -g 82 www-data || true
@@ -1948,7 +1961,7 @@ bbrv3() {
               break
             fi
 
-            new_swap=1024
+            check_swap
             add_swap
             install wget gnupg
 
@@ -2081,7 +2094,7 @@ elrepo() {
 
           case "$choice" in
             [Yy])
-              new_swap=1024
+              check_swap
               add_swap
               elrepo_install
               send_stats "升级红帽内核"
@@ -3212,14 +3225,14 @@ linux_test() {
           21)
               clear
               send_stats "yabs性能测试"
-              new_swap=1024
+              check_swap
               add_swap
               curl -sL yabs.sh | bash -s -- -i -5
               ;;
           22)
               clear
               send_stats "icu/gb5 CPU性能测试脚本"
-              new_swap=1024
+              check_swap
               add_swap
               bash <(curl -sL bash.icu/gb5)
               ;;
