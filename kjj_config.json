@@ -1,0 +1,47 @@
+{
+  "menu": {
+    "1": {
+      "name": "系统管理",
+      "submenu": {
+        "1": {"name": "更新系统", "cmd": "sudo apt update && sudo apt upgrade -y"},
+        "2": {"name": "清理系统", "cmd": "sudo apt autoremove -y && sudo apt clean"},
+        "3": {"name": "查看磁盘空间", "cmd": "df -h"}
+      }
+    },
+    "2": {
+      "name": "服务管理",
+      "submenu": {
+        "1": {
+          "name": "Nginx",
+          "submenu": {
+            "1": {"name": "启动 Nginx", "cmd": "sudo systemctl start nginx"},
+            "2": {"name": "停止 Nginx", "cmd": "sudo systemctl stop nginx"},
+            "3": {"name": "重启 Nginx", "cmd": "sudo systemctl restart nginx"}
+          }
+        },
+        "2": {
+          "name": "Docker",
+          "submenu": {
+            "1": {"name": "启动 Docker", "cmd": "sudo systemctl start docker"},
+            "2": {"name": "停止 Docker", "cmd": "sudo systemctl stop docker"},
+            "3": {"name": "重启 Docker", "cmd": "sudo systemctl restart docker"}
+          }
+        }
+      }
+    }
+  },
+  "commands": {
+    "il": "iptables -L",
+    "fwl": "firewall-cmd --list-all",
+    "fwr": "systemctl restart firewalld",
+    "fws": "systemctl status firewalld",
+    "fwre": "firewall-cmd --reload",
+    "tj80": "firewall-cmd --zone=public --add-port=80/tcp --permanent && firewall-cmd --reload",
+    "update": "sudo apt update && sudo apt upgrade -y",
+    "clean": "sudo apt autoremove -y && sudo apt clean",
+    "dd": "echo '重装系统功能待实现'",
+    "bbr3": "echo 'BBR v3设置功能待实现'",
+    "ssl": "echo 'SSL证书申请功能待实现'",
+    "sslps": "echo '查看证书到期情况功能待实现'"
+  }
+}
