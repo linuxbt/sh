@@ -161,4 +161,5 @@
   "DDubuntu22": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -ubuntu 22.04 -pwd 'abcd1234'",
   "DDwin11": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -windows 11 -pwd 'Teddysun.com'",
   "azlc": "STREAM=1 bash -c \"$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)\""
+  }
 }
