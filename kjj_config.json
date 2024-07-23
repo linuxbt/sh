@@ -142,16 +142,6 @@
   "dcuphp": "docker compose up php -d",
   "dcuphp74": "docker compose up php74 -d",
   "dcumysql": "docker compose up mysql -d",
-  "dcuredis": "docker compose up redis -d",
-  "fx80": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --reload",
-  "fx443": "sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload",
-  "fx80443": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload",
-  "yc80": "sudo firewall-cmd --zone=public --remove-port=80/tcp --permanent && sudo firewall-cmd --reload",
-  "yc443": "sudo firewall-cmd --zone=public --remove-port=443/tcp --permanent && sudo firewall-cmd --reload",
-  "yccy": "sudo firewall-cmd --zone=public --remove-port=39000-40000/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=20/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=21/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=22/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=888/tcp --permanent && sudo firewall-cmd --reload",
-  "ghy": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --abroad",
-  "ghnh": "curl -O https://raw.githubusercontent.com/jinwyp/one_click_script/master/install_kernel.sh && chmod +x ./install_kernel.sh && ./install_kernel.sh",
-  "azdk": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/DockerInstallation.sh)",
-  "azpy": "curl -O https://raw.githubusercontent.com/lx969788249/lxspacepy/master/pyinstall.sh && chmod +x pyinstall.sh && ./pyinstall.sh"
+  "dcuredis": "docker compose up redis -d"
   }
 }
