@@ -7876,7 +7876,6 @@ execute_command() {
     eval "$cmd"
 }
 
-
 # 函数：快捷键交互式菜单
 kjj_menu() {
     local menu="$(cat $kjj_file | jq .menu)"
@@ -7895,14 +7894,8 @@ kjj_menu() {
             exit 0
         elif [[ "$choice" == "0" ]]; then
             if [[ ${#path[@]} -gt 0 ]]; then
-                unset path[${#path[@]}-1]  # 移除当前菜单
-                if [[ ${#path[@]} -gt 0 ]]; then
-                    # 返回上一级菜单
-                    menu=$(cat $kjj_file | jq ".menu${path:+.$(IFS=.; echo "${path[*]}")}.submenu")
-                else
-                    # 如果已经返回到最上层，获取根菜单
-                    menu=$(cat $kjj_file | jq ".menu")
-                fi
+                unset path[${#path[@]}-1]
+                menu=$(cat $kjj_file | jq ".menu${path:+.$(IFS=.; echo "${path[*]}")}.submenu")
             fi
         else
             local selected=$(echo "$menu" | jq ".\"$choice\"")
