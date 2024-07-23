@@ -7865,10 +7865,11 @@ show_menu() {
     local indent=$(printf '%*s' $((level*2)) '')
     local i=1
     for key in $(echo "${menu}" | jq -r 'keys[]' | sort); do
-        echo "${indent}${i}. ${key}"
+        echo "${indent}${i}. $(echo "$menu" | jq -r ".\"$key\".name")"
         i=$((i+1))
     done
 }
+
 
 # 函数：执行命令
 execute_command() {
@@ -7878,7 +7879,7 @@ execute_command() {
 
 # 函数：快捷键交互式菜单
 kjj_menu() {
-    local menu="$(cat $kjj_file | jq .menu)"
+    local menu=$(cat $kjj_file | jq .menu)
     local path=()
 
     while true; do
@@ -7886,7 +7887,8 @@ kjj_menu() {
         echo "当前位置: /${path[@]}"
         echo "选择一个选项 (输入数字选择, '0' 返回上一级, 'q' 退出):"
         
-        echo "$menu" | jq -r 'to_entries[] | "\(.key). \(.value.name)"'
+        # 显示当前菜单
+        show_menu "$menu" "${#path[@]}"
 
         read -p "> " choice
         
@@ -7897,7 +7899,7 @@ kjj_menu() {
                 unset path[${#path[@]}-1]  # 移除当前菜单
                 if [[ ${#path[@]} -gt 0 ]]; then
                     # 返回上一级菜单
-                    menu=$(cat $kjj_file | jq ".menu${path:+.$(IFS=.; echo "${path[*]}")}.submenu")
+                    menu=$(cat $kjj_file | jq ".menu$(IFS=. ; echo "${path[*]}").submenu")
                 else
                     # 如果已经返回到最上层，获取根菜单
                     menu=$(cat $kjj_file | jq ".menu")
@@ -7920,6 +7922,7 @@ kjj_menu() {
         fi
     done
 }
+
 
 download_kjj_config
 
