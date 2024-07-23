@@ -7858,18 +7858,6 @@ download_kjj_config() {
     fi
 }
 
-# 函数：显示菜单
-show_menu() {
-    local menu="$1"
-    local level="$2"
-    local indent=$(printf '%*s' $((level*2)) '')
-    local i=1
-    for key in $(echo "${menu}" | jq -r 'keys[]' | sort); do
-        echo "${indent}${i}. $(echo "$menu" | jq -r ".\"$key\".name")"
-        i=$((i+1))
-    done
-}
-
 
 # 函数：执行命令
 execute_command() {
@@ -7877,22 +7865,49 @@ execute_command() {
     eval "$cmd"
 }
 
+
+# 函数：显示菜单
+show_menu() {
+    local menu=$1
+    local path=$2
+
+    jq -r --arg path "$path" '
+        if $path | length > 0 then
+            $path | split(".") | .[] as $key |
+            reduce .[$key].submenu[]? as $item ({}; .[$item.key] = $item.value) |
+            to_entries[] | "\(.key). \(.value.name)"
+        else
+            to_entries[] | "\(.key). \(.value.name)"
+        end' <<< "$menu"
+}
+
+
+
 # 函数：快捷键交互式菜单
 kjj_menu() {
-    local kjj_file="kjj_config.json"
-    local menu=$(cat $kjj_file | jq .menu)
+    local kjj_file="/tmp/kjj_config.json"
+    local menu
     local path=()
+    local path_str
 
     while true; do
         clear
-        echo "当前位置: /${path[@]}"
+        echo "当前位置: /${path[*]}"
         echo "选择一个选项 (输入数字选择, '0' 返回上一级, 'q' 退出):"
-        
+
         # 显示当前菜单
-        show_menu "$menu" "${#path[@]}"
+        menu=$(jq -e .menu"$([[ ${#path[@]} -gt 0 ]] && echo "$(IFS=. ; echo "${path[*]}")")" "$kjj_file" 2>&1)
+        
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to parse JSON menu: $menu"
+            read -p "按回车键继续..."
+            continue
+        fi
+
+        show_menu "$menu" "${path[@]}"
 
         read -p "> " choice
-        
+
         if [[ "$choice" == "q" ]]; then
             exit 0
         elif [[ "$choice" == "0" ]]; then
@@ -7900,21 +7915,63 @@ kjj_menu() {
                 unset path[${#path[@]}-1]  # 移除当前菜单
                 if [[ ${#path[@]} -gt 0 ]]; then
                     # 返回上一级菜单
-                    menu=$(cat $kjj_file | jq ".menu$(IFS=. ; echo "${path[*]}").submenu")
+                    path_str=$(IFS=. ; echo "${path[*]}")
+                    menu=$(jq -e .menu"${path_str//./.submenu.}" "$kjj_file" 2>&1)
+                    
+                    if [[ $? -ne 0 ]]; then
+                        echo "Error: Failed to parse JSON submenu: $menu"
+                        read -p "按回车键继续..."
+                        continue
+                    fi
                 else
                     # 如果已经返回到最上层，获取根菜单
-                    menu=$(cat $kjj_file | jq ".menu")
+                    menu=$(jq -e .menu "$kjj_file" 2>&1)
+                    
+                    if [[ $? -ne 0 ]]; then
+                        echo "Error: Failed to parse root JSON menu: $menu"
+                        read -p "按回车键继续..."
+                        continue
+                    fi
                 fi
             fi
         else
-            local selected=$(echo "$menu" | jq -r ".\"$choice\"")
+            local selected
+            selected=$(jq -r ".menu.\"$choice\"" "$kjj_file" 2>&1)
+            
+            if [[ $? -ne 0 ]]; then
+                echo "Error: Failed to parse selected JSON item: $selected"
+                read -p "按回车键继续..."
+                continue
+            fi
+            
             if [[ -n "$selected" ]]; then
-                if echo "$selected" | jq -e '.cmd' > /dev/null; then
-                    eval "$(echo "$selected" | jq -r '.cmd')"
-                    read -p "按回车键继续..."
-                elif echo "$selected" | jq -e '.submenu' > /dev/null; then
+                if [[ $(jq -e '.submenu' <<< "$selected" 2>&1) == true ]]; then
                     path+=("$choice")
-                    menu=$(echo "$selected" | jq '.submenu')
+                    menu=$(jq -e .menu"${path[*]// /}.submenu" "$kjj_file" 2>&1)
+                    
+                    if [[ $? -ne 0 ]]; then
+                        echo "Error: Failed to parse submenu JSON: $menu"
+                        read -p "按回车键继续..."
+                        continue
+                    fi
+                else
+                    local cmd
+                    cmd=$(jq -r '.cmd' <<< "$selected" 2>&1)
+                    
+                    if [[ $? -ne 0 ]]; then
+                        echo "Error: Failed to parse command JSON: $cmd"
+                        read -p "按回车键继续..."
+                        continue
+                    fi
+
+                    if [[ -n "$cmd" ]]; then
+                        echo "Debug: Executing command: $cmd"
+                        eval "$cmd"
+                        read -p "按回车键继续..."
+                    else
+                        echo "无效选项，请重试"
+                        read -p "按回车键继续..."
+                    fi
                 fi
             else
                 echo "无效选项，请重试"
@@ -7923,6 +7980,7 @@ kjj_menu() {
         fi
     done
 }
+
 
 
 download_kjj_config
