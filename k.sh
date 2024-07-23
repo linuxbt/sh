@@ -7844,90 +7844,172 @@ done
 
 
 
+
+# 添加快捷键菜单部分
+kjj_url="https://raw.githubusercontent.com/linuxbt/sh/main/kjj_config.json"
+kjj_file="/tmp/kjj_config.json"
+
+# 下载配置文件
+download_kjj_config() {
+    curl -s -o "$kjj_file" "$kjj_url"
+    if [ $? -ne 0 ]; then
+        echo "无法下载配置文件，使用本地配置"
+        kjj_file="./kjj_config.json"
+    fi
+}
+
+# 函数：显示菜单
+show_menu() {
+    local menu="$1"
+    local level="$2"
+    local indent=$(printf '%*s' $((level*2)) '')
+    local i=1
+    for key in $(echo "${menu}" | jq -r 'keys[]' | sort); do
+        echo "${indent}${i}. ${key}"
+        i=$((i+1))
+    done
+}
+
+# 函数：执行命令
+execute_command() {
+    local cmd="$1"
+    eval "$cmd"
+}
+
+# 函数：交互式菜单
+kjj_menu() {
+    local menu="$(cat $kjj_file | jq .menu)"
+    local path=()
+
+    while true; do
+        clear
+        echo "当前位置: /${path[@]}"
+        echo "选择一个选项 (输入数字选择, '0' 返回上一级, 'q' 退出):"
+        
+        echo "$menu" | jq -r 'to_entries[] | "\(.key). \(.value.name)"'
+
+        read -p "> " choice
+        
+        if [[ "$choice" == "q" ]]; then
+            exit 0
+        elif [[ "$choice" == "0" ]]; then
+            if [[ ${#path[@]} -gt 0 ]]; then
+                unset path[${#path[@]}-1]
+                menu=$(cat $kjj_file | jq ".menu${path:+.$(IFS=.; echo "${path[*]}")}.submenu")
+            fi
+        else
+            local selected=$(echo "$menu" | jq ".\"$choice\"")
+            if [[ -n "$selected" ]]; then
+                if echo "$selected" | jq -e '.cmd' > /dev/null; then
+                    eval "$(echo "$selected" | jq -r '.cmd')"
+                    read -p "按回车键继续..."
+                elif echo "$selected" | jq -e '.submenu' > /dev/null; then
+                    path+=("$choice")
+                    menu=$(echo "$selected" | jq '.submenu')
+                fi
+            else
+                echo "无效选项，请重试"
+                read -p "按回车键继续..."
+            fi
+        fi
+    done
+}
+
+download_kjj_config
+
 if [ "$#" -eq 0 ]; then
-    # 如果没有参数，运行交互式逻辑
+    # 如果没有参数，运行原有的 linuxbt_sh 函数
     linuxbt_sh
+elif [ "$1" = "k" ]; then
+    # 如果参数为 k，运行快捷命令菜单
+    kjj_menu
 else
-    # 如果有参数，执行相应函数
-    case $1 in
-        install|add|安装)
-            shift
-            send_stats "安装软件"
-            install "$@"
-            ;;
-        remove|del|uninstall|卸载)
-            shift
-            send_stats "卸载软件"
-            remove "$@"
-            ;;
-        update|更新)
-            linux_update
-            ;;
-        clean|清理)
-            linux_clean
-            ;;
-        dd|重装)
-            dd_xitong
-            ;;
-        bbr3|bbrv3)
-            bbrv3
-            ;;
-        status|状态)
-            shift
-            send_stats "软件状态查看"
-            status "$@"
-            ;;
-        start|启动)
-            shift
-            send_stats "软件启动"
-            start "$@"
-            ;;
-        stop|停止)
-            shift
-            send_stats "软件暂停"
-            stop "$@"
-            ;;
-        restart|重启)
-            shift
-            send_stats "软件重启"
-            restart "$@"
-            ;;
-
-        enable|autostart|开机启动)
-            shift
-            send_stats "软件开机自启"
-            enable "$@"
-            ;;
-
-        ssl)
-            send_stats "快捷证书申请"
-            add_ssl
-            ;;
-
-        sslps)
-            send_stats "查看证书到期情况"
-            ssl_ps
-            ;;
-
-        *)
-            send_stats "k命令参考用例"
-            echo "无效参数，以下是k命令参考用例："
-            echo "启动脚本            k"
-            echo "安装软件包          k install nano wget | k add nano wget | k 安装 nano wget"
-            echo "卸载软件包          k remove nano wget | k del nano wget | k uninstall nano wget | k 卸载 nano wget"
-            echo "更新系统            k update | k 更新"
-            echo "清理系统垃圾        k clean | k 清理"
-            echo "打开重装系统面板    k dd | k 重装"
-            echo "打开bbr3控制面板    k bbr3 | k bbrv3"
-            echo "软件启动            k start sshd | k 启动 sshd "
-            echo "软件停止            k stop sshd | k 停止 sshd "
-            echo "软件重启            k restart sshd | k 重启 sshd "
-            echo "软件状态查看        k status sshd | k 状态 sshd "
-            echo "软件开机启动        k enable docker | k autostart docke | k 开机启动 docker "
-            echo "域名证书申请        k ssl"
-            echo "域名证书到期查询    k sslps"
-            ;;
-    esac
+    # 检查是否是直接命令
+    cmd=$(jq -r ".commands.\"$1\"" $kjj_file)
+    if [ "$cmd" != "null" ]; then
+        execute_command "$cmd"
+    else
+        # 如果不是直接命令，执行原有的逻辑
+        case $1 in
+            install|add|安装)
+                shift
+                send_stats "安装软件"
+                install "$@"
+                ;;
+            remove|del|uninstall|卸载)
+                shift
+                send_stats "卸载软件"
+                remove "$@"
+                ;;
+            update|更新)
+                linux_update
+                ;;
+            clean|清理)
+                linux_clean
+                ;;
+            dd|重装)
+                dd_xitong
+                ;;
+            bbr3|bbrv3)
+                bbrv3
+                ;;
+            status|状态)
+                shift
+                send_stats "软件状态查看"
+                status "$@"
+                ;;
+            start|启动)
+                shift
+                send_stats "软件启动"
+                start "$@"
+                ;;
+            stop|停止)
+                shift
+                send_stats "软件暂停"
+                stop "$@"
+                ;;
+            restart|重启)
+                shift
+                send_stats "软件重启"
+                restart "$@"
+                ;;
+            enable|autostart|开机启动)
+                shift
+                send_stats "软件开机自启"
+                enable "$@"
+                ;;
+            ssl)
+                send_stats "快捷证书申请"
+                add_ssl
+                ;;
+            sslps)
+                send_stats "查看证书到期情况"
+                ssl_ps
+                ;;
+            *)
+                send_stats "k命令参考用例"
+                echo "无效参数"
+                echo "-------------------"
+                echo "以下是k命令参考用例："
+                echo "启动原有脚本        k"
+                echo "启动快捷命令菜单    k k"
+                echo "安装软件包          k install nano wget | k add nano wget | k 安装 nano wget"
+                echo "卸载软件包          k remove nano wget | k del nano wget | k uninstall nano wget | k 卸载 nano wget"
+                echo "更新系统            k update | k 更新"
+                echo "清理系统垃圾        k clean | k 清理"
+                echo "打开重装系统面板    k dd | k 重装"
+                echo "打开bbr3控制面板    k bbr3 | k bbrv3"
+                echo "软件启动            k start sshd | k 启动 sshd "
+                echo "软件停止            k stop sshd | k 停止 sshd "
+                echo "软件重启            k restart sshd | k 重启 sshd "
+                echo "软件状态查看        k status sshd | k 状态 sshd "
+                echo "软件开机启动        k enable docker | k autostart docker | k 开机启动 docker "
+                echo "域名证书申请        k ssl"
+                echo "域名证书到期查询    k sslps"
+                echo "防火墙相关命令      k fwl | k fwr | k fws | k fwre | k tj80"
+                ;;
+        esac
+    fi
 fi
 
 
