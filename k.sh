@@ -7879,6 +7879,7 @@ execute_command() {
 
 # 函数：快捷键交互式菜单
 kjj_menu() {
+    local kjj_file="kjj_config.json"
     local menu=$(cat $kjj_file | jq .menu)
     local path=()
 
@@ -7906,7 +7907,7 @@ kjj_menu() {
                 fi
             fi
         else
-            local selected=$(echo "$menu" | jq ".\"$choice\"")
+            local selected=$(echo "$menu" | jq -r ".\"$choice\"")
             if [[ -n "$selected" ]]; then
                 if echo "$selected" | jq -e '.cmd' > /dev/null; then
                     eval "$(echo "$selected" | jq -r '.cmd')"
