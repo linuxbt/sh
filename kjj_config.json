@@ -28,137 +28,20 @@
           }
         }
       }
-    },
-    "3": {
-      "name": "防火墙管理",
-      "submenu": {
-        "1": {"name": "查看防火墙规则", "cmd": "firewall-cmd --list-all"},
-        "2": {"name": "重启防火墙", "cmd": "systemctl restart firewalld"},
-        "3": {"name": "查看防火墙状态", "cmd": "systemctl status firewalld"},
-        "4": {"name": "重新加载防火墙", "cmd": "firewall-cmd --reload"},
-        "5": {"name": "添加80端口", "cmd": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --reload"},
-        "6": {"name": "添加443端口", "cmd": "sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload"},
-        "7": {"name": "添加80和443端口", "cmd": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload"},
-        "8": {"name": "移除80端口", "cmd": "sudo firewall-cmd --zone=public --remove-port=80/tcp --permanent && sudo firewall-cmd --reload"},
-        "9": {"name": "移除443端口", "cmd": "sudo firewall-cmd --zone=public --remove-port=443/tcp --permanent && sudo firewall-cmd --reload"},
-        "10": {"name": "移除常用废弃端口", "cmd": "sudo firewall-cmd --zone=public --remove-port=39000-40000/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=20/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=21/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=22/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=888/tcp --permanent && sudo firewall-cmd --reload"}
-      }
-    },
-    "4": {
-      "name": "Docker 管理",
-      "submenu": {
-        "1": {
-          "name": "启动服务",
-          "submenu": {
-            "1": {"name": "启动 Nginx", "cmd": "docker start nginx"},
-            "2": {"name": "启动 PHP", "cmd": "docker start php"},
-            "3": {"name": "启动 PHP 7.4", "cmd": "docker start php74"},
-            "4": {"name": "启动 MySQL", "cmd": "docker start mysql"},
-            "5": {"name": "启动 Redis", "cmd": "docker start redis"}
-          }
-        },
-        "2": {
-          "name": "重启服务",
-          "submenu": {
-            "1": {"name": "重启 Nginx", "cmd": "docker restart nginx"},
-            "2": {"name": "重启 PHP", "cmd": "docker restart php"},
-            "3": {"name": "重启 PHP 7.4", "cmd": "docker restart php74"},
-            "4": {"name": "重启 MySQL", "cmd": "docker restart mysql"},
-            "5": {"name": "重启 Redis", "cmd": "docker restart redis"}
-          }
-        },
-        "3": {
-          "name": "Docker Compose 管理",
-          "submenu": {
-            "1": {"name": "停止 Nginx", "cmd": "docker compose down nginx"},
-            "2": {"name": "停止 PHP", "cmd": "docker compose down php"},
-            "3": {"name": "停止 PHP 7.4", "cmd": "docker compose down php74"},
-            "4": {"name": "停止 MySQL", "cmd": "docker compose down mysql"},
-            "5": {"name": "停止 Redis", "cmd": "docker compose down redis"},
-            "6": {"name": "启动 Nginx", "cmd": "docker compose up nginx -d"},
-            "7": {"name": "启动 PHP", "cmd": "docker compose up php -d"},
-            "8": {"name": "启动 PHP 7.4", "cmd": "docker compose up php74 -d"},
-            "9": {"name": "启动 MySQL", "cmd": "docker compose up mysql -d"},
-            "10": {"name": "启动 Redis", "cmd": "docker compose up redis -d"}
-          }
-        }
-      }
-    },
-    "5": {
-      "name": "系统工具",
-      "submenu": {
-        "1": {"name": "更换 Linux 源", "cmd": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --abroad"},
-        "2": {"name": "升级 Linux 内核", "cmd": "curl -O https://raw.githubusercontent.com/jinwyp/one_click_script/master/install_kernel.sh && chmod +x ./install_kernel.sh && ./install_kernel.sh"},
-        "3": {"name": "安装最新版 Docker", "cmd": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/DockerInstallation.sh)"},
-        "4": {"name": "安装 Python", "cmd": "curl -O https://raw.githubusercontent.com/lx969788249/lxspacepy/master/pyinstall.sh && chmod +x pyinstall.sh && ./pyinstall.sh"},
-        "5": {"name": "放行宝塔面板端口", "cmd": "read -p \"Enter IP addresses (多个ip用空格隔开，ip段格式192.168.1.0/24): \" IPS && BT_PORT=$(cat /www/server/panel/data/port.pl) && for IP in $IPS; do firewall-cmd --permanent --add-rich-rule=\"rule family='ipv4' source address='$IP' port protocol='tcp' port='$BT_PORT' accept\"; done && firewall-cmd --reload && echo \"已放行宝塔面板白名单 IPs: $IPS\""},
-        "6": {"name": "安装流式检测-雷池", "cmd": "STREAM=1 bash -c \"$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)\""}
-      }
-    },
-    "6": {
-      "name": "系统重装",
-      "submenu": {
-        "1": {"name": "重装 CentOS 7", "cmd": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -centos 7 -pwd 'abcd1234'"},
-        "2": {"name": "重装 Debian 12", "cmd": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -debian 12 -pwd 'abcd1234'"},
-        "3": {"name": "重装 Rocky Linux 9", "cmd": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -rockylinux 9 -pwd 'abcd1234'"},
-        "4": {"name": "重装 AlmaLinux 9", "cmd": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -almalinux 9 -pwd 'abcd1234'"},
-        "5": {"name": "重装 Ubuntu 22.04", "cmd": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -ubuntu 22.04 -pwd 'abcd1234'"},
-        "6": {"name": "重装 Windows 11", "cmd": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -windows 11 -pwd 'Teddysun.com'"}
-      }
     }
   },
   "commands": {
-  "il": "iptables -L",
-  "fwl": "firewall-cmd --list-all",
-  "fwr": "systemctl restart firewalld",
-  "fws": "systemctl status firewalld",
-  "fwlist": "firewall-cmd --list-all",
-  "fwre": "firewall-cmd --reload",
-  "sr": "systemctl restart",
-  "srd": "systemctl restart docker",
-  "daere": "systemctl daemon-reload",
-  "daemonre": "systemctl daemon-reload",
-  "ds": "docker start",
-  "dsn": "docker start nginx",
-  "dsnginx": "docker start nginx",
-  "dsphp": "docker start php",
-  "dsphp74": "docker start php74",
-  "dsmysql": "docker start mysql",
-  "dsredis": "docker start redis",
-  "dr": "docker restart",
-  "drn": "docker restart nginx",
-  "drnginx": "docker restart nginx",
-  "drphp": "docker restart php",
-  "drphp74": "docker restart php74",
-  "drmysql": "docker restart mysql",
-  "drredis": "docker restart redis",
-  "dc": "docker compose",
-  "dcdnginx": "docker compose down nginx",
-  "dcdphp": "docker compose down php",
-  "dcdphp74": "docker compose down php74",
-  "dcdmysql": "docker compose down mysql",
-  "dcdredis": "docker compose down redis",
-  "dcunginx": "docker compose up nginx -d",
-  "dcuphp": "docker compose up php -d",
-  "dcuphp74": "docker compose up php74 -d",
-  "dcumysql": "docker compose up mysql -d",
-  "dcuredis": "docker compose up redis -d",
-  "fx80": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --reload",
-  "fx443": "sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload",
-  "fx80443": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload",
-  "yc80": "sudo firewall-cmd --zone=public --remove-port=80/tcp --permanent && sudo firewall-cmd --reload",
-  "yc443": "sudo firewall-cmd --zone=public --remove-port=443/tcp --permanent && sudo firewall-cmd --reload",
-  "yccy": "sudo firewall-cmd --zone=public --remove-port=39000-40000/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=20/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=21/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=22/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=888/tcp --permanent && sudo firewall-cmd --reload",
-  "ghy": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --abroad",
-  "ghnh": "curl -O https://raw.githubusercontent.com/jinwyp/one_click_script/master/install_kernel.sh && chmod +x ./install_kernel.sh && ./install_kernel.sh",
-  "azdk": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/DockerInstallation.sh)",
-  "azpy": "curl -O https://raw.githubusercontent.com/lx969788249/lxspacepy/master/pyinstall.sh && chmod +x pyinstall.sh && ./pyinstall.sh",
-  "fxbt": "read -p \"Enter IP addresses (多个ip用空格隔开，ip段格式192.168.1.0/24): \" IPS && BT_PORT=$(cat /www/server/panel/data/port.pl) && for IP in $IPS; do firewall-cmd --permanent --add-rich-rule=\"rule family='ipv4' source address='$IP' port protocol='tcp' port='$BT_PORT' accept\"; done && firewall-cmd --reload && echo \"已放行宝塔面板白名单 IPs: $IPS\"",
-  "DDcentos7": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -centos 7 -pwd 'abcd1234'",
-  "DDdebian12": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -debian 12 -pwd 'abcd1234'",
-  "DDrocky9": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -rockylinux 9 -pwd 'abcd1234'",
-  "DDalma9": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -almalinux 9 -pwd 'abcd1234'",
-  "DDubuntu22": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -ubuntu 22.04 -pwd 'abcd1234'",
-  "DDwin11": "wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' && chmod a+x InstallNET.sh && bash InstallNET.sh -windows 11 -pwd 'Teddysun.com'",
-  "azlc": "STREAM=1 bash -c \"$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)\""
+    "il": "iptables -L",
+    "fwl": "firewall-cmd --list-all",
+    "fwr": "systemctl restart firewalld",
+    "fws": "systemctl status firewalld",
+    "fwre": "firewall-cmd --reload",
+    "tj80": "firewall-cmd --zone=public --add-port=80/tcp --permanent && firewall-cmd --reload",
+    "update": "sudo apt update && sudo apt upgrade -y",
+    "clean": "sudo apt autoremove -y && sudo apt clean",
+    "dd": "echo '重装系统功能待实现'",
+    "bbr3": "echo 'BBR v3设置功能待实现'",
+    "ssl": "echo 'SSL证书申请功能待实现'",
+    "sslps": "echo '查看证书到期情况功能待实现'"
+  }
 }
