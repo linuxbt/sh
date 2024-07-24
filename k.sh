@@ -7869,13 +7869,11 @@ download_kjj_config() {
 }
 
 
-
 # 函数：执行命令
 execute_command() {
     local cmd="$1"
     eval "$cmd"
 }
-
 
 
 # 函数：显示快捷键菜单
@@ -7925,18 +7923,15 @@ kjj_menu() {
             # 构建 jq_filter 以获取选定的项
             local selected
             selected=$(jq -r "$jq_filter.\"$choice\"" "$kjj_file")
-            echo "Debug: Selected item: $selected"
             if [[ -n "$selected" && "$selected" != "null" ]]; then
                 if jq -e '.submenu' <<< "$selected" > /dev/null; then
                     path+=("$choice")
                 else
                     local cmd
                     cmd=$(jq -r '.cmd' <<< "$selected")
-                    echo "Debug: Extracted command: '$cmd'"
                     if [[ "$cmd" == "null" || -z "$cmd" ]]; then
                         echo "无效命令或命令为空，请重试"
                     else
-                        echo "Debug: Executing command: $cmd"
                         eval "$cmd"
                         if [[ $? -ne 0 ]]; then
                             echo "Error: Command failed with exit status $?"
@@ -7952,12 +7947,10 @@ kjj_menu() {
     done
 }
 
-
-
-
-
-
 download_kjj_config
+
+
+
 
 if [ "$#" -eq 0 ]; then
     # 如果没有参数，运行原有的 linuxbt_sh 函数
