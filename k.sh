@@ -151,7 +151,7 @@ install() {
                 return 1
             fi
         else
-            echo "$package 已经安装。"
+            echo
         fi
     done
 
