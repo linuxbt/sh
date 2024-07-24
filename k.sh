@@ -3458,7 +3458,7 @@ linux_ldnmp() {
       check_port
       install_dependency
       install_docker
-      install_certbot
+      #install_certbot
 
       # 创建必要的目录和文件
       cd /home && mkdir -p web/html web/mysql web/certs web/conf.d web/redis web/log/nginx && touch web/docker-compose.yml
@@ -3898,7 +3898,7 @@ linux_ldnmp() {
       check_port
       install_dependency
       install_docker
-      install_certbot
+      #install_certbot
 
       cd /home && mkdir -p web/html web/mysql web/certs web/conf.d web/redis web/log/nginx && touch web/docker-compose.yml
 
@@ -4288,7 +4288,7 @@ linux_ldnmp() {
       check_port
       install_dependency
       install_docker
-      install_certbot
+      #install_certbot
 
       install_ldnmp
 
@@ -4599,7 +4599,7 @@ linux_ldnmp() {
             check_port
             install_dependency
             install_docker
-            install_certbot
+            #install_certbot
             install_ldnmp
 
             ;;
