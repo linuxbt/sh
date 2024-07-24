@@ -32,16 +32,50 @@
     "3": {
       "name": "防火墙管理",
       "submenu": {
-        "1": {"name": "查看防火墙规则", "cmd": "firewall-cmd --list-all"},
-        "2": {"name": "重启防火墙", "cmd": "systemctl restart firewalld"},
-        "3": {"name": "查看防火墙状态", "cmd": "systemctl status firewalld"},
-        "4": {"name": "重新加载防火墙", "cmd": "firewall-cmd --reload"},
-        "5": {"name": "添加80端口", "cmd": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --reload"},
-        "6": {"name": "添加443端口", "cmd": "sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload"},
-        "7": {"name": "添加80和443端口", "cmd": "sudo firewall-cmd --permanent --zone=public --add-port=80/tcp && sudo firewall-cmd --permanent --zone=public --add-port=443/tcp && sudo firewall-cmd --reload"},
-        "8": {"name": "移除80端口", "cmd": "sudo firewall-cmd --zone=public --remove-port=80/tcp --permanent && sudo firewall-cmd --reload"},
-        "9": {"name": "移除443端口", "cmd": "sudo firewall-cmd --zone=public --remove-port=443/tcp --permanent && sudo firewall-cmd --reload"},
-        "10": {"name": "移除常用废弃端口", "cmd": "sudo firewall-cmd --zone=public --remove-port=39000-40000/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=20/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=21/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=22/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=888/tcp --permanent && sudo firewall-cmd --reload"}
+        "1": {
+          "name": "firewalld",
+          "submenu": {
+            "1": {"name": "查看防火墙规则", "cmd": "firewall-cmd --list-all"},
+            "2": {"name": "重启防火墙", "cmd": "systemctl restart firewalld"},
+            "3": {"name": "查看防火墙状态", "cmd": "systemctl status firewalld"},
+            "4": {"name": "重新加载防火墙", "cmd": "firewall-cmd --reload"},
+            "5": {"name": "添加80端口", "cmd": "firewall-cmd --permanent --zone=public --add-port=80/tcp && firewall-cmd --reload"},
+            "6": {"name": "添加443端口", "cmd": "firewall-cmd --permanent --zone=public --add-port=443/tcp && firewall-cmd --reload"},
+            "7": {"name": "添加80和443端口", "cmd": "firewall-cmd --permanent --zone=public --add-port=80/tcp && firewall-cmd --permanent --zone=public --add-port=443/tcp && firewall-cmd --reload"},
+            "8": {"name": "移除80端口", "cmd": "firewall-cmd --zone=public --remove-port=80/tcp --permanent && firewall-cmd --reload"},
+            "9": {"name": "移除443端口", "cmd": "firewall-cmd --zone=public --remove-port=443/tcp --permanent && firewall-cmd --reload"},
+            "10": {"name": "移除常用废弃端口", "cmd": "firewall-cmd --zone=public --remove-port=39000-40000/tcp --permanent && firewall-cmd --zone=public --remove-port=20/tcp --permanent && firewall-cmd --zone=public --remove-port=21/tcp --permanent && firewall-cmd --zone=public --remove-port=22/tcp --permanent && firewall-cmd --zone=public --remove-port=888/tcp --permanent && firewall-cmd --reload"}
+          }
+        },
+        "2": {
+          "name": "ufw",
+          "submenu": {
+            "1": {"name": "启用ufw", "cmd": "ufw enable"},
+            "2": {"name": "禁用ufw", "cmd": "ufw disable"},
+            "3": {"name": "查看ufw状态", "cmd": "ufw status"},
+            "4": {"name": "允许80端口", "cmd": "ufw allow 80/tcp"},
+            "5": {"name": "允许443端口", "cmd": "ufw allow 443/tcp"},
+            "6": {"name": "允许80和443端口", "cmd": "ufw allow 80/tcp && ufw allow 443/tcp"},
+            "7": {"name": "拒绝80端口", "cmd": "ufw deny 80/tcp"},
+            "8": {"name": "拒绝443端口", "cmd": "ufw deny 443/tcp"},
+            "9": {"name": "重新加载ufw", "cmd": "ufw reload"},
+            "10": {"name": "移除常用废弃端口", "cmd": "ufw delete allow 39000:40000/tcp && ufw delete allow 20/tcp && ufw delete allow 21/tcp && ufw delete allow 22/tcp && ufw delete allow 888/tcp"}
+          }
+        },
+        "3": {
+          "name": "iptables",
+          "submenu": {
+            "1": {"name": "查看iptables规则", "cmd": "iptables -L"},
+            "2": {"name": "允许80端口", "cmd": "iptables -A INPUT -p tcp --dport 80 -j ACCEPT"},
+            "3": {"name": "允许443端口", "cmd": "iptables -A INPUT -p tcp --dport 443 -j ACCEPT"},
+            "4": {"name": "允许80和443端口", "cmd": "iptables -A INPUT -p tcp --dport 80 -j ACCEPT && iptables -A INPUT -p tcp --dport 443 -j ACCEPT"},
+            "5": {"name": "删除80端口规则", "cmd": "iptables -D INPUT -p tcp --dport 80 -j ACCEPT"},
+            "6": {"name": "删除443端口规则", "cmd": "iptables -D INPUT -p tcp --dport 443 -j ACCEPT"},
+            "7": {"name": "保存iptables规则", "cmd": "iptables-save > /etc/iptables/rules.v4"},
+            "8": {"name": "重载iptables规则", "cmd": "iptables-restore < /etc/iptables/rules.v4"},
+            "9": {"name": "移除常用废弃端口", "cmd": "iptables -D INPUT -p tcp --dport 39000:40000 -j ACCEPT && iptables -D INPUT -p tcp --dport 20 -j ACCEPT && iptables -D INPUT -p tcp --dport 21 -j ACCEPT && iptables -D INPUT -p tcp --dport 22 -j ACCEPT && iptables -D INPUT -p tcp --dport 888 -j ACCEPT"}
+          }
+        }
       }
     },
     "4": {
