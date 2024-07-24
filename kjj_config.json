@@ -87,10 +87,10 @@
     "5": {
       "name": "系统工具",
       "submenu": {
-        "1": {"name": "更换 Linux 源", "cmd": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --abroad"},
-        "2": {"name": "升级 Linux 内核", "cmd": "curl -O https://raw.githubusercontent.com/jinwyp/one_click_script/master/install_kernel.sh && chmod +x ./install_kernel.sh && ./install_kernel.sh"},
-        "3": {"name": "安装最新版 Docker", "cmd": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/DockerInstallation.sh)"},
-        "4": {"name": "安装 Python", "cmd": "curl -O https://raw.githubusercontent.com/lx969788249/lxspacepy/master/pyinstall.sh && chmod +x pyinstall.sh && ./pyinstall.sh"},
+        "1": {"name": "更换 Linux 源", "cmd": "bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/ChangeMirrors.sh) --abroad"},
+        "2": {"name": "升级 Linux 内核", "cmd": "curl -O https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_kernel.sh && chmod +x ./install_kernel.sh && ./install_kernel.sh"},
+        "3": {"name": "安装最新版 Docker", "cmd": "bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_docker.sh)"},
+        "4": {"name": "安装 Python", "cmd": "curl -O https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_python.sh && chmod +x install_python.sh && ./install_python.sh"},
         "5": {"name": "放行宝塔面板端口", "cmd": "read -p \"Enter IP addresses (多个ip用空格隔开，ip段格式192.168.1.0/24): \" IPS && BT_PORT=$(cat /www/server/panel/data/port.pl) && for IP in $IPS; do firewall-cmd --permanent --add-rich-rule=\"rule family='ipv4' source address='$IP' port protocol='tcp' port='$BT_PORT' accept\"; done && firewall-cmd --reload && echo \"已放行宝塔面板白名单 IPs: $IPS\""},
         "6": {"name": "安装流式检测-雷池", "cmd": "STREAM=1 bash -c \"$(curl -fsSLk https://waf-ce.chaitin.cn/release/latest/setup.sh)\""}
       }
@@ -149,7 +149,7 @@
   "yc80": "sudo firewall-cmd --zone=public --remove-port=80/tcp --permanent && sudo firewall-cmd --reload",
   "yc443": "sudo firewall-cmd --zone=public --remove-port=443/tcp --permanent && sudo firewall-cmd --reload",
   "yccy": "sudo firewall-cmd --zone=public --remove-port=39000-40000/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=20/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=21/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=22/tcp --permanent && sudo firewall-cmd --zone=public --remove-port=888/tcp --permanent && sudo firewall-cmd --reload",
-  "ghy": "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --abroad",
+  "ghy": "bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/ChangeMirrors.sh) --abroad",
   "ghnh": "curl -O https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_kernel.sh && chmod +x ./install_kernel.sh && ./install_kernel.sh",
   "azdk": "bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_docker.sh)",
   "azpy": "curl -O https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_python.sh && chmod +x install_python.sh && ./install_python.sh",
