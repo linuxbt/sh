@@ -7866,31 +7866,18 @@ execute_command() {
 }
 
 
-# 函数：显示菜单
+
+# 函数：显示快捷键菜单
 show_menu() {
     local menu=$1
-    local path=$2
 
-    if [[ -n "$path" ]]; then
-        # 使用jq提取子菜单项
-        jq -r --arg path "${path// /}" '
-            .[$path].submenu | to_entries[] | "\(.key). \(.value.name)"
-        ' <<< "$menu"
-    else
-        # 使用jq提取顶级菜单项
-        jq -r '
-            to_entries[] | "\(.key). \(.value.name)"
-        ' <<< "$menu"
-    fi
+    jq -r 'to_entries[] | "\(.key). \(.value.name)"' <<< "$menu"
 }
-
-
 
 
 # 函数：快捷键交互式菜单
 kjj_menu() {
     local kjj_file="/tmp/kjj_config.json"
-    local menu=$(jq .menu "$kjj_file")  # 使用jq读取menu部分
     local path=()
 
     while true; do
@@ -7898,8 +7885,20 @@ kjj_menu() {
         echo "当前位置: /${path[*]}"
         echo "选择一个选项 (输入数字选择, '0' 返回上一级, 'q' 退出):"
 
+        # 构建 jq_filter 以获取当前菜单
+        local jq_filter=".menu"
+        for p in "${path[@]}"; do
+            jq_filter+=".\"$p\".submenu"
+        done
+
         # 显示当前菜单
-        show_menu "$menu" "${path[@]}"
+        local menu
+        menu=$(jq "$jq_filter" "$kjj_file")
+        if [[ $? -ne 0 ]]; then
+            echo "读取菜单失败，请检查 JSON 文件。"
+            exit 1
+        fi
+        show_menu "$menu"
 
         read -p "> " choice
 
@@ -7908,31 +7907,29 @@ kjj_menu() {
         elif [[ "$choice" == "0" ]]; then
             if [[ ${#path[@]} -gt 0 ]]; then
                 unset path[${#path[@]}-1]  # 移除当前菜单
-                if [[ ${#path[@]} -gt 0 ]]; then
-                    # 返回上一级菜单
-                    path_str=$(IFS=. ; echo "${path[*]}")
-                    menu=$(jq .menu"${path_str//./.submenu.}" "$kjj_file")
-                else
-                    # 如果已经返回到最上层，获取根菜单
-                    menu=$(jq .menu "$kjj_file")
-                fi
             fi
         else
-            local selected=$(jq -r ".menu.\"$choice\"" "$kjj_file")
-            if [[ -n "$selected" ]]; then
-                if [[ $(jq -e '.submenu' <<< "$selected") == true ]]; then
+            # 构建 jq_filter 以获取选定的项
+            local selected
+            selected=$(jq -r "$jq_filter.\"$choice\"" "$kjj_file")
+            echo "Debug: Selected item: $selected"
+            if [[ -n "$selected" && "$selected" != "null" ]]; then
+                if jq -e '.submenu' <<< "$selected" > /dev/null; then
                     path+=("$choice")
-                    menu=$(jq .menu"${path[*]// /}.submenu" "$kjj_file")
                 else
-                    local cmd=$(jq -r '.cmd' <<< "$selected")
-                    if [[ -n "$cmd" && "$cmd" != "null" ]]; then
+                    local cmd
+                    cmd=$(jq -r '.cmd' <<< "$selected")
+                    echo "Debug: Extracted command: '$cmd'"
+                    if [[ "$cmd" == "null" || -z "$cmd" ]]; then
+                        echo "无效命令或命令为空，请重试"
+                    else
                         echo "Debug: Executing command: $cmd"
                         eval "$cmd"
-                        read -p "按回车键继续..."
-                    else
-                        echo "无效命令或命令为空，请重试"
-                        read -p "按回车键继续..."
+                        if [[ $? -ne 0 ]]; then
+                            echo "Error: Command failed with exit status $?"
+                        fi
                     fi
+                    read -p "按回车键继续..."
                 fi
             else
                 echo "无效选项，请重试"
@@ -7941,6 +7938,9 @@ kjj_menu() {
         fi
     done
 }
+
+
+
 
 
 
