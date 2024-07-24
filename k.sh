@@ -7685,7 +7685,7 @@ linuxbt_update() {
                 clear
                 country=$(curl -s ipinfo.io/country)
                 if [ "$country" = "CN" ]; then
-                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/cn/k.sh && chmod +x k.sh
+                    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh
                 else
                     curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh
                 fi
