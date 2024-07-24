@@ -7883,7 +7883,7 @@ kjj_menu() {
     while true; do
         clear
         echo "当前位置: /${path[*]}"
-        echo "选择一个选项 (输入数字选择, '0' 返回上一级, 'q' 退出):"
+        echo "选择一个选项 (输入数字选择, '0' 返回上一级, '00' 返回一级菜单页, 'q' 退出):"
 
         # 构建 jq_filter 以获取当前菜单
         local jq_filter=".menu"
@@ -7908,19 +7908,24 @@ kjj_menu() {
             if [[ ${#path[@]} -gt 0 ]]; then
                 unset path[${#path[@]}-1]  # 移除当前菜单
             fi
+        elif [[ "$choice" == "00" ]]; then
+            path=()  # 清空路径数组，返回到一级菜单
         else
             # 构建 jq_filter 以获取选定的项
             local selected
             selected=$(jq -r "$jq_filter.\"$choice\"" "$kjj_file")
+            echo "Debug: Selected item: $selected"
             if [[ -n "$selected" && "$selected" != "null" ]]; then
                 if jq -e '.submenu' <<< "$selected" > /dev/null; then
                     path+=("$choice")
                 else
                     local cmd
                     cmd=$(jq -r '.cmd' <<< "$selected")
+                    echo "Debug: Extracted command: '$cmd'"
                     if [[ "$cmd" == "null" || -z "$cmd" ]]; then
                         echo "无效命令或命令为空，请重试"
                     else
+                        echo "Debug: Executing command: $cmd"
                         eval "$cmd"
                         if [[ $? -ne 0 ]]; then
                             echo "Error: Command failed with exit status $?"
@@ -7935,7 +7940,6 @@ kjj_menu() {
         fi
     done
 }
-
 
 
 
