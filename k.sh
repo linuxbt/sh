@@ -593,7 +593,6 @@ ldnmp_v() {
 install_ldnmp() {
 
       check_swap
-      add_swap
       # 创建用户和组（使用 UID 82 和 GID 82）
       groupadd -g 82 www-data || true
       useradd -u 82 -g www-data -s /bin/bash www-data || true
