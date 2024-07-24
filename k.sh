@@ -7912,18 +7912,15 @@ kjj_menu() {
             # 构建 jq_filter 以获取选定的项
             local selected
             selected=$(jq -r "$jq_filter.\"$choice\"" "$kjj_file")
-            echo "Debug: Selected item: $selected"
             if [[ -n "$selected" && "$selected" != "null" ]]; then
                 if jq -e '.submenu' <<< "$selected" > /dev/null; then
                     path+=("$choice")
                 else
                     local cmd
                     cmd=$(jq -r '.cmd' <<< "$selected")
-                    echo "Debug: Extracted command: '$cmd'"
                     if [[ "$cmd" == "null" || -z "$cmd" ]]; then
                         echo "无效命令或命令为空，请重试"
                     else
-                        echo "Debug: Executing command: $cmd"
                         eval "$cmd"
                         if [[ $? -ne 0 ]]; then
                             echo "Error: Command failed with exit status $?"
