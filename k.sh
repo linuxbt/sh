@@ -7846,6 +7846,7 @@ done
 
 
 # 添加快捷键菜单部分
+install jq
 kjj_url="https://raw.githubusercontent.com/linuxbt/sh/main/kjj_config.json"
 kjj_file="/tmp/kjj_config.json"
 
