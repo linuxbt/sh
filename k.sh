@@ -7846,18 +7846,28 @@ done
 
 
 # 添加快捷键菜单部分
-install jq
 kjj_url="https://raw.githubusercontent.com/linuxbt/sh/main/kjj_config.json"
 kjj_file="/tmp/kjj_config.json"
+# 检测并安装 jq（静默模式）
+command -v jq >/dev/null 2>&1 || {
+    if [ -f /etc/redhat-release ]; then
+        yum install -y jq >/dev/null 2>&1
+    elif [ -f /etc/debian_version ]; then
+        apt-get install -y jq >/dev/null 2>&1
+    fi
+}
 
 # 下载配置文件
 download_kjj_config() {
-    curl -s -o "$kjj_file" "$kjj_url"
-    if [ $? -ne 0 ]; then
-        echo "无法下载配置文件，使用本地配置"
-        kjj_file="./kjj_config.json"
+    if [ ! -f "$kjj_file" ]; then
+        curl -s -o "$kjj_file" "$kjj_url"
+        if [ $? -ne 0 ]; then
+            echo "无法下载配置文件，使用本地配置"
+            kjj_file="./kjj_config.json"
+        fi
     fi
 }
+
 
 
 # 函数：执行命令
