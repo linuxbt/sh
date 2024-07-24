@@ -7870,14 +7870,14 @@ download_kjj_config() {
 
 
 # 函数：执行命令
-execute_command() {
+exec_kjj_command() {
     local cmd="$1"
     eval "$cmd"
 }
 
 
 # 函数：显示快捷键菜单
-show_menu() {
+show_kjj_menu() {
     local menu=$1
 
     jq -r 'to_entries[] | "\(.key). \(.value.name)"' <<< "$menu"
@@ -7907,7 +7907,7 @@ kjj_menu() {
             echo "读取菜单失败，请检查 JSON 文件。"
             exit 1
         fi
-        show_menu "$menu"
+        show_kjj_menu "$menu"
 
         read -p "> " choice
 
@@ -7962,7 +7962,7 @@ else
     # 检查是否是直接命令
     cmd=$(jq -r ".commands.\"$1\"" $kjj_file)
     if [ "$cmd" != "null" ]; then
-        execute_command "$cmd"
+        exec_kjj_command "$cmd"
     else
         # 如果不是直接命令，执行原有的逻辑
         case $1 in
