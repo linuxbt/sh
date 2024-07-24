@@ -7854,6 +7854,12 @@ command -v jq >/dev/null 2>&1 || {
         yum install -y jq >/dev/null 2>&1
     elif [ -f /etc/debian_version ]; then
         apt-get install -y jq >/dev/null 2>&1
+    elif [ -f /etc/arch-release ]; then
+        pacman -S --noconfirm jq >/dev/null 2>&1
+    elif [ -f /etc/fedora-release ]; then
+        dnf install -y jq >/dev/null 2>&1
+    elif [ -f /etc/alpine-release ]; then
+        apk add --no-cache jq >/dev/null 2>&1
     fi
 }
 
