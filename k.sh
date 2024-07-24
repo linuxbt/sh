@@ -2661,7 +2661,7 @@ linux_bbr() {
         done
     else
         install wget
-        wget --no-check-certificate -O tcpx.sh https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcpx.sh
+        wget --no-check-certificate -O tcpx.sh https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_kernel.sh
         chmod +x tcpx.sh
         ./tcpx.sh
     fi
