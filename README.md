@@ -14,11 +14,11 @@ Linuxbt 的 Shell 脚本工具是一款全能脚本工具箱，专为 VPS 监控
 ## 使用方法
 ### Debian / Ubuntu 安装下载工具
 ```bash
-apt update -y  && apt install -y curl
+apt install -y curl
 ```
 ### CentOS 安装下载工具
 ```bash
-apt update -y  && apt install -y curl
+yum install -y curl
 ```
 ***
 ### 一键脚本
