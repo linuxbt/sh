@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sh_v="3.0.2"
+sh_v="3.0.3"
 
 huang='\033[33m'
 bai='\033[0m'
@@ -2670,7 +2670,41 @@ linux_bbr() {
 }
 
 
+linux_remote() {
+    while true; do
+      clear
+      send_stats "linux远程桌面"
+      echo "▶ Linux远程桌面"
+      echo "K脚本将为你提供常用的linux远程桌面"
+      echo -e "${huang}告别繁琐: ${bai}一键安装。"
+      echo "------------------------"
+      echo "1. debian | ubuntu 远程桌面"
+      echo "2. redhat系列 |  centos,rocky,alma 远程桌面 --适配中"
+      echo "------------------------"
+      echo "0. 返回主菜单"
+      echo "------------------------"
+      read -p "请输入你的选择: " sub_choice
 
+      case $sub_choice in
+
+          1)
+              clear
+              send_stats "debian | ubuntu 远程桌面"
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/debian_remote.sh)
+
+              ;;
+
+          0)
+              linuxbt
+              ;;
+          *)
+              echo "无效的输入!"
+              ;;
+      esac
+      break_end
+
+    done
+}
 
 
 linux_docker() {
@@ -7816,6 +7850,10 @@ case $choice in
     ;;
 
   15)
+    linux_remote
+    ;;
+
+  16)
     kjj_menu
     ;;
 
