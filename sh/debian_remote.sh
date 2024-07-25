@@ -40,7 +40,15 @@ apt -y install fcitx fcitx-googlepinyin
 # 修改 xrdp 配置文件中的远程连接端口
 sed -i 's/^port=3389/port=58390/' /etc/xrdp/xrdp.ini
 systemctl restart xrdp
-echo "请使用ip:58390进行连接，用户名为：linuxbt  密码为abcd1234，如有遇到登陆后闪退重启即可解决"
+echo "--------------------------"
+echo "请使用您的ip:58390进行连接"
+
+echo "用户名为: linuxbt"
+echo "密码为: abcd1234"
+
+echo "注意：登录后请自行修改密码！！！"
+echo "如遇到登陆后闪退重启即可解决"
+echo "--------------------------"
 
 
 
