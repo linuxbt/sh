@@ -2679,7 +2679,7 @@ linux_remote() {
       echo -e "${kjlan}告别繁琐: ${huang}一键安装。"
       echo "------------------------"
       echo "1. debian | ubuntu 远程桌面"
-      #echo "2. redhat系列:centos,rocky,alma远程桌面"
+      echo "2. redhat系列（centos,rocky,alma）远程桌面"
       echo "------------------------"
       echo "0. 返回主菜单"
       echo "------------------------"
