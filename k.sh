@@ -2694,6 +2694,13 @@ linux_remote() {
 
               ;;
 
+          2)
+              clear
+              send_stats "redhat系列 | rockcy,alma,centos 远程桌面"
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/redhat_remote.sh)
+
+              ;;
+
           0)
               linuxbt
               ;;
