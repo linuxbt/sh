@@ -72,7 +72,7 @@ read -p "请输入宿主机的科学上网管理面板端口 (默认51821): " HO
 HOST_PORT_TCP=${HOST_PORT_TCP:-51821}
 
 # 获取用户输入的WG_HOST和PASSWORD
-read -p "请输入WG_HOST (服务器IP): " WG_HOST
+read -p "请输入WG_HOST (服务器IP或域名): " WG_HOST
 read -p "请输入PASSWORD: " PASSWORD
 
 # 验证IP格式或域名
@@ -136,6 +136,8 @@ fi
 
 # 输出用户信息
 echo "安装完成"
-echo "主机IP: $WG_HOST"
-echo "已经配置管理端口号: $HOST_PORT_TCP"
-echo "管理面板密码: 您设置的密码"
+echo "----------------------以下是您的wireguard相关配置信息--------------------------------"
+echo "服务器IP: $WG_HOST"
+echo "面板端口号: $HOST_PORT_TCP"
+echo "面板管理密码: $PASSWORD"
+echo "--------------请将您的连接信息保存在安全的地方，不要随意透露他人-------------"
