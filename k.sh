@@ -2676,7 +2676,7 @@ linux_remote() {
       send_stats "linux远程桌面"
       echo "▶ Linux远程桌面"
       echo "K脚本将为你提供常用的linux远程桌面"
-      echo -e "${kjlan}告别繁琐: ${huang}一键安装。"
+      echo -e "${huang}告别繁琐: ${kjlan}一键安装。"
       echo "------------------------"
       echo "1. debian | ubuntu 远程桌面"
       echo "2. redhat系列（centos,rocky,alma）远程桌面"
@@ -2718,9 +2718,9 @@ linux_vpn() {
     while true; do
       clear
       send_stats "linux科学上网工具"
-      echo "▶ Linux科学上网一键脚本"
+      echo -e "▶ ${kjlan}Linux科学上网一键脚本${bai}"
       echo "K脚本为你提供：各种linux科学上网一键脚本"
-      echo -e "${kjlan}告别繁琐: ${huang}一键安装。"
+      echo -e "${huang}告别繁琐: ${kjlan}一键安装${bai}。"
       echo "------------------------"
       echo "1. wireguard | 带管理面板，轻量安全"
       echo "2. hysteria | hy2 一键脚本"      
