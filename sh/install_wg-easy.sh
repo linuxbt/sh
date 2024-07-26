@@ -105,10 +105,15 @@ docker run -d \
     --name=wg-easy \
     -e WG_HOST="$WG_HOST" \
     -e PASSWORD="$hashed_pwd" \
+    -e PORT="$HOST_PORT_TCP" \
+    -e WG_PORT="$HOST_PORT_UDP" \
     -v ~/.wg-easy:/etc/wireguard \
     -p "$HOST_PORT_UDP":51820/udp \
     -p "$HOST_PORT_TCP":51821/tcp \
     --cap-add=NET_ADMIN \
+    --cap-add=SYS_MODULE \
+    --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
+    --sysctl="net.ipv4.ip_forward=1" \
     --restart=unless-stopped \
     ghcr.io/wg-easy/wg-easy
 
