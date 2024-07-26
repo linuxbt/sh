@@ -2714,6 +2714,42 @@ linux_remote() {
 }
 
 
+linux_vpn() {
+    while true; do
+      clear
+      send_stats "linux科学上网工具"
+      echo "▶ Linux科学上网一键脚本"
+      echo "K脚本为你提供：各种linux科学上网一键脚本"
+      echo -e "${kjlan}告别繁琐: ${huang}一键安装。"
+      echo "------------------------"
+      echo "1. wireguard | 带管理面板，轻量安全"
+      echo "------------------------"
+      echo "0. 返回主菜单"
+      echo "------------------------"
+      read -p "请输入你的选择: " sub_choice
+
+      case $sub_choice in
+
+          1)
+              clear
+              send_stats "wireguard | 带控制面板 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_wg-easy.sh)
+
+              ;;
+
+          0)
+              linuxbt
+              ;;
+          *)
+              echo "无效的输入!"
+              ;;
+      esac
+      break_end
+
+    done
+}
+
+
 linux_docker() {
 
     while true; do
@@ -7868,6 +7904,10 @@ case $choice in
 
   15)
     linux_remote
+    ;;
+
+  16)
+    linux_vpn
     ;;
 
   99)
