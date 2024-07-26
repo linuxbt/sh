@@ -2682,7 +2682,7 @@ linux_remote() {
       echo "2. redhat系列（centos,rocky,alma）远程桌面"
       echo "------------------------"
       echo "0. 返回主菜单"
-      echo "------------------------"
+      echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
 
       case $sub_choice in
@@ -2726,7 +2726,7 @@ linux_vpn() {
       echo "2. hysteria | hy2 一键脚本"      
       echo "------------------------"
       echo "0. 返回主菜单"
-      echo "------------------------"
+      echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
 
       case $sub_choice in
