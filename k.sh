@@ -2723,6 +2723,7 @@ linux_vpn() {
       echo -e "${kjlan}告别繁琐: ${huang}一键安装。"
       echo "------------------------"
       echo "1. wireguard | 带管理面板，轻量安全"
+      echo "2. hysteria | hy2 一键脚本"      
       echo "------------------------"
       echo "0. 返回主菜单"
       echo "------------------------"
@@ -2734,6 +2735,13 @@ linux_vpn() {
               clear
               send_stats "wireguard | 带控制面板 "
               bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_wg-easy.sh)
+
+              ;;
+
+          2)
+              clear
+              send_stats "hysteria | hy2 一键脚本 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_hy2.sh)
 
               ;;
 
