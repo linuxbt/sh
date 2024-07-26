@@ -533,6 +533,7 @@ menu() {
     echo -e " 3. 关闭、开启、重启 Hysteria 2"
     echo -e " 4. 修改 Hysteria 2 配置"
     echo -e " 5. 显示 Hysteria 2 配置文件"
+    echo -e " 6. 显示 Hysteria 2 APP下载地址"
     echo " ------------------------------------------------------------"
     echo -e " 0. 退出脚本"
     echo ""
