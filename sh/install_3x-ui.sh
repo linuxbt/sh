@@ -8,6 +8,10 @@ hong='\033[31m'
 kjlan='\033[96m'
 hui='\e[37m'
 
+send_stats() {
+    echo -e
+}
+
 #定义ip和端口相关输出
 warning() {
     echo -e "\033[33m[3x-ui] $*\033[0m"
