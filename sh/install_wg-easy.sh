@@ -23,13 +23,13 @@ fi
 if ! command -v python3 &> /dev/null; then
     echo "Python3未安装，正在安装..."
     if [[ -f /etc/debian_version ]]; then
-        sudo apt update && sudo apt install -y python3 python3-pip
+        sudo apt install -y python3
     elif [[ -f /etc/redhat-release ]]; then
-        sudo yum install -y python3 python3-pip
+        sudo yum install -y python3
     elif [[ -f /etc/arch-release ]]; then
-        sudo pacman -Sy python python-pip
+        sudo pacman -Sy python
     elif [[ -f /etc/fedora-release ]]; then
-        sudo dnf install -y python3 python3-pip
+        sudo dnf install -y python3
     else
         echo "不支持的Linux发行版"
         exit 1
@@ -59,7 +59,7 @@ fi
 # 检查并安装bcrypt模块
 if ! python3 -c "import bcrypt" &> /dev/null; then
     echo "bcrypt 模块未安装，正在安装..."
-    pip3 install bcrypt
+    pip3 install bcrypt || apt -y install python3-bcrypt
 else
     echo "bcrypt 模块已安装"
 fi
