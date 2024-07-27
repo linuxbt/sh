@@ -79,7 +79,6 @@ install_3x-ui() {
 # 定义3x-ui面板函数
 x-ui_menu() {
     while true; do
-      clear
       send_stats "运行3x-ui"
       echo -e "▶ ${kjlan}3x-ui科学上网多协议面板工具"
       echo "K脚本为你提供：各种linux科学上网一键脚本"
