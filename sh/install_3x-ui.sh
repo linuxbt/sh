@@ -72,7 +72,7 @@ install_3x-ui() {
 	--restart=unless-stopped \
 	--name 3x-ui \
 	ghcr.io/mhsanaei/3x-ui:latest
-    sleep 3
+    sleep 8
 }
 
 # 定义3x-ui面板函数
