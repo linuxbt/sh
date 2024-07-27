@@ -77,7 +77,6 @@ install_3x-ui() {
 
 # 定义3x-ui面板函数
 x-ui_menu() {
-
     while true; do
       clear
       send_stats "运行3x-ui"
@@ -98,47 +97,54 @@ x-ui_menu() {
       case $sub_choice in
 
           1)
-	      clear
+              clear
               send_stats "安装 3x-ui "
               install_3x-ui
               show_info
-
+              read -p "安装完成，按 Enter 返回菜单"
               ;;
 
           2)
               clear
               send_stats "卸载 3x-ui "
               docker rm -f 3x-ui
-
+              read -p "卸载完成，按 Enter 返回菜单"
               ;;
 
           3)
               clear
               send_stats "重启3x-ui "
               docker restart 3x-ui
-
+              read -p "重启完成，按 Enter 返回菜单"
               ;;
 
           4)
               clear
               send_stats "x-ui 官方文档"
               echo "3x-ui官方文档：https://github.com/MHSanaei/3x-ui/blob/main/README.zh.md"
-
+              read -p "按 Enter 返回菜单"
               ;;
 
           5)
               clear
               send_stats "3x-ui官方bash版 "
               bash <(curl -sSL https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+              read -p "按 Enter 返回菜单"
+              ;;
 
+          0)
+              break  # 返回主菜单
               ;;
 
           *)
               echo "无效的输入!"
+              read -p "按 Enter 返回菜单"
               ;;
       esac
 
     done
 }
+
+
 # 运行3x-ui调用
 x-ui_menu
