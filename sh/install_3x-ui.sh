@@ -62,6 +62,19 @@ show_info() {
 
 }
 # 安装3x-ui
+# install_3x-ui() {
+#     check_docker
+#     docker run -itd \
+# 	-e XRAY_VMESS_AEAD_FORCED=false \
+# 	-v $PWD/db/:/etc/x-ui/ \
+# 	-v $PWD/cert/:/root/cert/ \
+# 	--network=host \
+# 	--restart=unless-stopped \
+# 	--name 3x-ui \
+# 	ghcr.io/mhsanaei/3x-ui:latest
+#     sleep 8
+# }
+
 install_3x-ui() {
     check_docker
     docker run -itd \
@@ -72,8 +85,19 @@ install_3x-ui() {
 	--restart=unless-stopped \
 	--name 3x-ui \
 	ghcr.io/mhsanaei/3x-ui:latest
-    sleep 8
+
+    # 等待3x-ui容器启动完成
+    echo -n "正在启动3x-ui容器..."
+    while [ -z "$(docker ps -q -f name=3x-ui)" ]; do
+        sleep 1
+        echo -n "."
+    done
+    echo " 完成"
+
+    # 显示信息
+    show_info
 }
+
 
 # 定义3x-ui面板函数
 x-ui_menu() {
