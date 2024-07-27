@@ -32,11 +32,11 @@ local_ips() {
 }
 
 show_ip() {
-	#打印服务器ip和端口
-	ips=`local_ips`
-	for ip in $ips; do
-	    warning https://$ip:2053/
-	done
+    #输出服务器ip和端口
+    ips=`local_ips`
+    for ip in $ips; do
+    warning https://$ip:2053/
+    done
 }
 
 # 检测依赖环境
@@ -53,13 +53,12 @@ fi
 
 # 输出用户信息
 show_info() {
-	echo "安装完成"
-	echo "----------------------以下是您的3x-ui面板默认配置信息--------------------------------"
+    echo "安装完成"
+    echo "----------------------以下是您的3x-ui面板默认配置信息--------------------------------"
     show_ip
-	echo "默认账号: admin"
-	echo "默认密码: admin"
-	echo "--------------端口，用户名密码，都是默认生成的，登录后请及时修改-------------"
-
+    echo "默认账号: admin"
+    echo "默认密码: admin"
+    echo "--------------端口，用户名密码，都是默认生成的，登录后请及时修改-------------"
 }
 # 安装3x-ui
 install_3x-ui() {
