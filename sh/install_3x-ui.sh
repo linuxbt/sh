@@ -98,7 +98,6 @@ x-ui_menu() {
       case $sub_choice in
 
           1)
-              clear
               send_stats "安装 3x-ui "
               install_3x-ui
 	      sleep 8
