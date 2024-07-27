@@ -4918,24 +4918,31 @@ linux_panel() {
               ;;
 
           6)
-            docker_name="ubuntu-novnc"
-            docker_img="fredblgr/ubuntu-novnc:20.04"
-            docker_port=6080
-            rootpasswd=$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c16)
-            docker_rum="docker run -d \
-                                --name ubuntu-novnc \
-                                -p 6080:80 \
-                                -v /home/docker/ubuntu-novnc:/workspace:rw \
-                                -e HTTP_PASSWORD=$rootpasswd \
-                                -e RESOLUTION=1280x720 \
-                                --restart=always \
-                                fredblgr/ubuntu-novnc:20.04"
-            docker_describe="一个网页版Ubuntu远程桌面，挺好用的！"
-            docker_url="官网介绍: https://hub.docker.com/r/fredblgr/ubuntu-novnc"
-            docker_use="echo \"用户名: root\""
-            docker_passwd="echo \"密码: $rootpasswd\""
 
+            docker_name="webtop-ubuntu"
+            docker_img="lscr.io/linuxserver/webtop:ubuntu-kde"
+            docker_port=3006
+            docker_rum="docker run -d \
+                          --name=webtop-ubuntu \
+                          --security-opt seccomp=unconfined \
+                          -e PUID=1000 \
+                          -e PGID=1000 \
+                          -e TZ=Etc/UTC \
+                          -e SUBFOLDER=/ \
+                          -e TITLE=Webtop \
+                          -p 3006:3000 \
+                          -v /home/docker/webtop/data:/config \
+                          -v /var/run/docker.sock:/var/run/docker.sock \
+                          --shm-size="1gb" \
+                          --restart unless-stopped \
+                          lscr.io/linuxserver/webtop:ubuntu-kde"
+
+            docker_describe="webtop基于Ubuntu的容器，包含官方支持的完整桌面环境，可通过任何现代 Web 浏览器访问"
+            docker_url="官网介绍: https://docs.linuxserver.io/images/docker-webtop/"
+            docker_use=""
+            docker_passwd=""
             docker_app
+
 
               ;;
           7)
