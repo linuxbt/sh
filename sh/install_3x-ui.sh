@@ -82,11 +82,12 @@ x-ui_menu() {
       echo "K脚本为你提供：各种linux科学上网一键脚本"
       echo -e "${huang}告别繁琐: 一键安装。"
       echo "------------------------"
-      echo "1. 安装3x-ui"
+      echo "1. 安装3x-ui 官方docker版"
       echo "2. 卸载3x-ui"
       echo "3. 重启3x-ui  "
       echo "4. 查看官方文档  "       
       echo "------------------------"
+      echo "5. 3x-ui 官方脚本（英文提示，需手动设置参数）"
       echo "0. 返回主菜单"
       echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
@@ -118,6 +119,13 @@ x-ui_menu() {
               clear
               send_stats "x-ui 官方文档"
               echo "3x-ui官方文档：https://github.com/MHSanaei/3x-ui/blob/main/README.zh.md"
+
+              ;;
+
+          5)
+              clear
+              send_stats "3x-ui官方bash版 "
+              bash <(curl -sSL https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 
               ;;
 
