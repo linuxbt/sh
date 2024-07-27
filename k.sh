@@ -7956,20 +7956,25 @@ done
 # 添加快捷键菜单部分
 kjj_url="https://raw.githubusercontent.com/linuxbt/sh/main/kjj_config.json"
 kjj_file="/tmp/kjj_config.json"
-# # 检测并安装 jq（静默模式）
-# command -v jq >/dev/null 2>&1 || {
-#     if [ -f /etc/redhat-release ]; then
-#         yum install -y jq >/dev/null 2>&1
-#     elif [ -f /etc/debian_version ]; then
-#         apt-get install -y jq >/dev/null 2>&1
-#     elif [ -f /etc/arch-release ]; then
-#         pacman -S --noconfirm jq >/dev/null 2>&1
-#     elif [ -f /etc/fedora-release ]; then
-#         dnf install -y jq >/dev/null 2>&1
-#     elif [ -f /etc/alpine-release ]; then
-#         apk add --no-cache jq >/dev/null 2>&1
-#     fi
-# }
+
+check_jq() {
+    command -v jq >/dev/null 2>&1 || {
+        if [ -f /etc/redhat-release ]; then
+            install jq >/dev/null 2>&1
+        elif [ -f /etc/debian_version ]; then
+            install jq >/dev/null 2>&1
+        elif [ -f /etc/arch-release ]; then
+            install jq >/dev/null 2>&1
+        elif [ -f /etc/fedora-release ]; then
+            install jq >/dev/null 2>&1
+        elif [ -f /etc/alpine-release ]; then
+            install jq >/dev/null 2>&1
+        else
+            echo "不支持的Linux发行版,请手动安装jq"
+            exit 1
+        fi
+    }
+}
 
 # 下载配置文件
 download_kjj_config() {
@@ -8000,7 +8005,7 @@ show_kjj_menu() {
 
 # 函数：快捷键交互式菜单
 kjj_menu() {
-    install jq
+    check_jq
     download_kjj_config
     local kjj_file="/tmp/kjj_config.json"
     local path=()
