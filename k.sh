@@ -2750,7 +2750,7 @@ linux_vpn() {
           3)
               clear
               send_stats "3x-ui 面板 "
-              bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+              bash <(curl -Ls https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_3x-ui.sh)
 
               ;;
 
