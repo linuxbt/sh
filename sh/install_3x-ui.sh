@@ -87,9 +87,10 @@ x-ui_menu() {
       echo "1. 安装3x-ui 官方docker版"
       echo "2. 卸载3x-ui"
       echo "3. 重启3x-ui  "
-      echo "4. 查看官方文档  "       
+      echo "4. 查看安装信息  "
+      echo "5. 查看官方文档  "
       echo "------------------------"
-      echo "5. 3x-ui 官方脚本（英文提示，需手动设置参数）"
+      echo "6. 3x-ui 官方脚本（英文提示，需手动设置参数）"
       echo "0. 返回主菜单"
       echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
@@ -101,47 +102,57 @@ x-ui_menu() {
               send_stats "安装 3x-ui "
               install_3x-ui
               show_info
-              read -p "安装完成，按 Enter 返回菜单"
+              sleep 15
               ;;
 
           2)
               clear
               send_stats "卸载 3x-ui "
               docker rm -f 3x-ui
-              read -p "卸载完成，按 Enter 返回菜单"
+              echo "3x-ui已卸载"
+              sleep 5
               ;;
 
           3)
               clear
               send_stats "重启3x-ui "
               docker restart 3x-ui
-              read -p "重启完成，按 Enter 返回菜单"
+              echo "3x-ui已重启"
+              sleep 5
               ;;
 
           4)
               clear
-              send_stats "x-ui 官方文档"
-              echo "3x-ui官方文档：https://github.com/MHSanaei/3x-ui/blob/main/README.zh.md"
-              read -p "按 Enter 返回菜单"
+              show_info
+	      sleep 15
               ;;
 
           5)
               clear
-              send_stats "3x-ui官方bash版 "
-              bash <(curl -sSL https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
-              read -p "按 Enter 返回菜单"
+              send_stats "x-ui 官方文档"
+              echo "3x-ui官方文档：https://github.com/MHSanaei/3x-ui/blob/main/README.zh.md"
+              sleep 10
               ;;
 
+
+          6)
+              clear
+              send_stats "3x-ui官方bash版 "
+              bash <(curl -sSL https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+              ;;
+
+
           0)
-              break  # 返回主菜单
+              break
               ;;
 
           *)
               echo "无效的输入!"
-              read -p "按 Enter 返回菜单"
+              sleep 3
               ;;
       esac
 
+      read -p "按 Enter 返回菜单"  # 等待用户按 Enter 继续
     done
 }
 
