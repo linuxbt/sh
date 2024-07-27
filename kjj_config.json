@@ -3,8 +3,8 @@
     "1": {
       "name": "系统管理",
       "submenu": {
-        "1": {"name": "更新系统", "cmd": "sudo apt update && sudo apt upgrade -y"},
-        "2": {"name": "清理系统", "cmd": "sudo apt autoremove -y && sudo apt clean"},
+        "1": {"name": "更新系统", "cmd": "if [ -x \"$(command -v apt)\" ]; then sudo apt update && sudo apt upgrade -y; elif [ -x \"$(command -v yum)\" ]; then sudo yum update -y; elif [ -x \"$(command -v dnf)\" ]; then sudo dnf upgrade --refresh -y; elif [ -x \"$(command -v pacman)\" ]; then sudo pacman -Syu --noconfirm; else echo \"Unsupported package manager\"; fi"},
+        "2": {"name": "清理系统", "cmd": "if [ -x \"$(command -v apt)\" ]; then sudo apt autoremove -y && sudo apt clean; elif [ -x \"$(command -v yum)\" ]; then sudo yum autoremove -y && sudo yum clean all; elif [ -x \"$(command -v dnf)\" ]; then sudo dnf autoremove -y && sudo dnf clean all; elif [ -x \"$(command -v pacman)\" ]; then sudo pacman -Rns $(pacman -Qdtq) --noconfirm && sudo pacman -Sc --noconfirm; else echo \"Unsupported package manager\"; fi"},
         "3": {"name": "查看磁盘空间", "cmd": "df -h"}
       }
     },
