@@ -72,9 +72,6 @@ install_3x-ui() {
 	   --restart=unless-stopped \
 	   --name 3x-ui \
 	   ghcr.io/mhsanaei/3x-ui:latest
-	
-	# 输出用户信息
-	show_info
 }
 
 # 定义3x-ui面板函数
@@ -102,7 +99,7 @@ x-ui_menu() {
               clear
               send_stats "安装 3x-ui "
               install_3x-ui
-
+              show_info
               ;;
 
           2)
