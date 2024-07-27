@@ -102,7 +102,6 @@ x-ui_menu() {
               send_stats "安装 3x-ui "
               install_3x-ui
               show_info
-              sleep 15
               ;;
 
           2)
@@ -110,7 +109,6 @@ x-ui_menu() {
               send_stats "卸载 3x-ui "
               docker rm -f 3x-ui
               echo "3x-ui已卸载"
-              sleep 5
               ;;
 
           3)
@@ -118,20 +116,17 @@ x-ui_menu() {
               send_stats "重启3x-ui "
               docker restart 3x-ui
               echo "3x-ui已重启"
-              sleep 5
               ;;
 
           4)
               clear
               show_info
-	      sleep 15
               ;;
 
           5)
               clear
               send_stats "x-ui 官方文档"
               echo "3x-ui官方文档：https://github.com/MHSanaei/3x-ui/blob/main/README.zh.md"
-              sleep 10
               ;;
 
 
@@ -148,7 +143,6 @@ x-ui_menu() {
 
           *)
               echo "无效的输入!"
-              sleep 3
               ;;
       esac
 
