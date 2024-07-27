@@ -2723,7 +2723,9 @@ linux_vpn() {
       echo -e "${huang}告别繁琐: 一键安装。"
       echo "------------------------"
       echo "1. wireguard | 带管理面板，轻量安全"
-      echo "2. hysteria | hy2 一键脚本"      
+      echo "2. hysteria | hy2 协议"
+      echo "3. 3x-ui 面板| 多个大佬维护版  "
+      echo "4. x-ui 面板| 经典版  "       
       echo "------------------------"
       echo "0. 返回主菜单"
       echo -e "------------------------${bai}"
@@ -2744,6 +2746,21 @@ linux_vpn() {
               bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_hy2.sh)
 
               ;;
+
+          3)
+              clear
+              send_stats "3x-ui 面板 "
+              bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+
+              ;;
+
+          4)
+              clear
+              send_stats "x-ui 面板"
+              bash <(curl -Ls https://raw.githubusercontent.com/wangwenzhiwwz/x-ui/master/install.sh)
+
+              ;;
+
 
           0)
               linuxbt
