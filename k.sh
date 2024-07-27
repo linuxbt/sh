@@ -7960,15 +7960,15 @@ kjj_file="/tmp/kjj_config.json"
 check_jq() {
     command -v jq >/dev/null 2>&1 || {
         if [ -f /etc/redhat-release ]; then
-            install jq >/dev/null 2>&1
+            install jq
         elif [ -f /etc/debian_version ]; then
-            install jq >/dev/null 2>&1
+            install jq
         elif [ -f /etc/arch-release ]; then
-            install jq >/dev/null 2>&1
+            install jq
         elif [ -f /etc/fedora-release ]; then
-            install jq >/dev/null 2>&1
+            install jq
         elif [ -f /etc/alpine-release ]; then
-            install jq >/dev/null 2>&1
+            install jq
         else
             echo "不支持的Linux发行版,请手动安装jq"
             exit 1
