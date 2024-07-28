@@ -25,13 +25,6 @@ CheckFirstRun_true() {
 CheckFirstRun_true
 
 
-# 收集功能埋点信息的函数，记录当前脚本版本号，使用时间，系统版本，CPU架构，机器所在国家和用户使用的功能名称，绝对不涉及任何敏感信息，请放心！请相信我！
-# 为什么要设计这个功能，目的更好的了解用户喜欢使用的功能，进一步优化功能推出更多符合用户需求的功能。
-# 全文可搜搜 send_stats 函数调用位置，透明开源，如有顾虑可拒绝使用。
-
-
-
-
 ENABLE_STATS="true"
 
 send_stats() {
@@ -111,13 +104,10 @@ CheckFirstRun_false
 
 
 
-
-
 ip_address() {
 ipv4_address=$(curl -s ipv4.ip.sb)
 ipv6_address=$(curl -s --max-time 1 ipv6.ip.sb)
 }
-
 
 
 install() {
@@ -173,17 +163,19 @@ remove() {
     fi
 
     for package in "$@"; do
-        echo "正在卸载 $package..."
+        echo -e "${huang}正在卸载 $package...${bai}"
         if command -v dnf &>/dev/null; then
-            dnf remove -y "${package}*"
+            dnf remove -y "${package}"*
         elif command -v yum &>/dev/null; then
-            yum remove -y "${package}*"
+            yum remove -y "${package}"*
         elif command -v apt &>/dev/null; then
-            apt purge -y "${package}*"
+            apt purge -y "${package}"*
         elif command -v apk &>/dev/null; then
             apk del "${package}*"
         elif command -v pacman &>/dev/null; then
             pacman -Rns --noconfirm "${package}"
+        elif command -v zypper &>/dev/null; then
+            zypper remove -y "${package}"
         else
             echo "未知的包管理器!"
             return 1
@@ -408,8 +400,6 @@ install_docker() {
         echo "Docker环境已经安装"
     fi
 }
-
-
 
 
 
@@ -785,8 +775,6 @@ install_ssltls_text() {
 
 
 
-
-
 add_ssl() {
 
 add_yuming
@@ -1143,8 +1131,6 @@ f2b_sshd() {
 
 
 
-
-
 server_reboot() {
 
     read -p "$(echo -e "${huang}提示：${bai}现在重启服务器吗？(Y/N): ")" rboot
@@ -1339,7 +1325,6 @@ install_panel() {
             fi
 
 }
-
 
 
 current_timezone() {
