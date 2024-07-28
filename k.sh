@@ -4948,6 +4948,7 @@ linux_panel() {
       echo "33. Sun-Panel导航面板                   34. Pingvin-Share文件分享平台"
       echo "35. 极简朋友圈                          36. LobeChatAI聊天聚合网站"
       echo "37. MyIP工具箱                          38. 小雅alist全家桶"
+      echo "39. Bililive直播录制工具                 40. docker版Windows 2022"
       echo "------------------------"
       echo "51. PVE开小鸡面板"
       echo "------------------------"
@@ -5993,6 +5994,47 @@ linux_panel() {
             send_stats "小雅全家桶"
             install_docker
             bash -c "$(curl --insecure -fsSL https://ddsrem.com/xiaoya_install.sh)"
+              ;;
+
+          39)
+
+            if [ ! -d /home/docker/bililive-go/ ]; then
+                mkdir -p /home/docker/bililive-go/ > /dev/null 2>&1
+                wget -O /home/docker/bililive-go/config.yml https://raw.githubusercontent.com/hr3lxphr6j/bililive-go/master/config.yml > /dev/null 2>&1
+            fi
+
+            docker_name="bililive-go"
+            docker_img="chigusa/bililive-go"
+            docker_port=8039
+            docker_rum="docker run --restart=always --name bililive-go -v /home/docker/bililive-go/config.yml:/etc/bililive-go/config.yml -v /home/docker/bililive-go/Videos:/srv/bililive -p 8039:8080 -d chigusa/bililive-go"
+            docker_describe="Bililive-go是一个支持多种直播平台的直播录制工具"
+            docker_url="官网介绍: https://github.com/hr3lxphr6j/bililive-go"
+            docker_use=""
+            docker_passwd=""
+            docker_app
+              ;;
+
+          40)
+
+            docker_name="windows"
+            docker_img="dockurr/windows"
+            docker_port=8039
+            docker_rum="docker run -d \
+                            --name windows \
+                            --cap-add=NET_ADMIN \
+			    --env VERSION="2022" \
+			    --env LANGUAGE="Chinese" \
+			    --device /dev/kvm \
+                            -p 8039:8006 \
+                            -p 3389:3389/tcp \
+                            -p 3389:3389/udp \
+                            --restart unless-stopped \
+                            dockurr/windows"
+            docker_describe="一款虚拟化远程Windows Server 2022 要求4核心4G内存及以上"
+            docker_url="官网介绍: https://github.com/dockur/windows"
+            docker_use=""
+            docker_passwd=""
+            docker_app
               ;;
 
           51)
