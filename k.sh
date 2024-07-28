@@ -2127,6 +2127,173 @@ elrepo() {
 }
 
 
+clamav_freshclam() {
+    echo -e "${huang}正在更新病毒库...${bai}"
+    docker run --rm \
+        --name clamav \
+        --mount source=clam_db,target=/var/lib/clamav \
+        clamav/clamav:latest \
+        freshclam
+}
+
+clamav_scan() {
+    if [ $# -eq 0 ]; then
+        echo "请指定要扫描的目录。"
+        return 1
+    fi
+
+    echo -e "${huang}正在扫描目录$@... ${bai}"
+
+    # 构建 mount 参数
+    MOUNT_PARAMS=""
+    for dir in "$@"; do
+        MOUNT_PARAMS+="--mount type=bind,source=${dir},target=/mnt/host${dir} "
+    done
+
+    # 构建 clamscan 命令参数
+    SCAN_PARAMS=""
+    for dir in "$@"; do
+        SCAN_PARAMS+="/mnt/host${dir} "
+    done
+
+    mkdir -p /home/docker/clamav/log/ > /dev/null 2>&1
+    > /home/docker/clamav/log/scan.log > /dev/null 2>&1
+
+    # 执行 Docker 命令
+    docker run -it --rm \
+        --name clamav \
+        --mount source=clam_db,target=/var/lib/clamav \
+        $MOUNT_PARAMS \
+        -v /home/docker/clamav/log/:/var/log/clamav/ \
+        clamav/clamav:latest \
+        clamscan -r --log=/var/log/clamav/scan.log $SCAN_PARAMS
+
+    echo -e "${lv}$@ 扫描完成，病毒报告存放在${huang}/home/docker/clamav/log/scan.log${bai}"
+    echo -e "${lv}如果有病毒请在${huang}scan.log${lv}文件中搜索FOUND关键字确认病毒位置 ${bai}"
+
+}
+
+
+clamav() {
+          root_use
+          send_stats "病毒扫描管理"
+          while true; do
+                clear
+                echo "clamav病毒扫描工具"
+                echo "------------------------"
+                echo "是一个开源的防病毒软件工具，主要用于检测和删除各种类型的恶意软件。"
+                echo "包括病毒、特洛伊木马、间谍软件、恶意脚本和其他有害软件。"
+                echo -e "${huang}提示: ${bai} 目前该工具仅支持x86架构系统，不支持ARM架构！"
+                echo "------------------------"
+                echo -e "${lv}1. 全盘扫描 ${bai}             ${huang}2. 重要目录扫描 ${bai}            ${kjlan} 3. 自定义目录扫描 ${bai}"
+                echo "------------------------"
+                echo "0. 返回上一级选单"
+                echo "------------------------"
+                read -p "请输入你的选择: " sub_choice
+                case $sub_choice in
+                    1)
+                      send_stats "全盘扫描"
+                      install_docker
+                      docker volume create clam_db > /dev/null 2>&1
+                      clamav_freshclam
+                      clamav_scan /
+                      break_end
+
+                        ;;
+                    2)
+                      send_stats "重要目录扫描"
+                      install_docker
+                      docker volume create clam_db > /dev/null 2>&1
+                      clamav_freshclam
+                      clamav_scan /etc /var /usr /home /root
+                      break_end
+                        ;;
+                    3)
+                      send_stats "自定义目录扫描"
+                      read -p "请输入要扫描的目录，用空格分隔（例如：/etc /var /usr /home /root）: " directories
+                      install_docker
+                      clamav_freshclam
+                      clamav_scan $directories
+                      break_end
+                        ;;
+                    0)
+                        break
+                        ;;
+                    *)
+                        break  # 跳出循环，退出菜单
+                        ;;
+                esac
+          done
+
+}
+
+
+download_hmscan() {
+	# 封装河马webshell扫描，创建目录，下载解压，扫描
+	mkdir -p /opt/hmscan  && cd /opt/hmscan
+	wget -O  hm.tgz  https://dl.shellpub.com/hm/latest/hm-linux-amd64.tgz?version=1.8.3
+	tar -xf hm.tgz
+}
+
+
+hmscan() {
+          root_use
+          send_stats "河马webshell扫描管理"
+          while true; do
+                clear
+                echo "河马webshell扫描工具"
+                echo "------------------------"
+                echo "本工具主要用于检测各种类型的webshell文件。"
+                echo "绿色软件，无需安装，下载完解压即可执行。"
+                echo "------------------------"
+                echo -e "${kjlan} 1. 目录扫描 ${bai}"
+                echo "------------------------"
+                echo "0. 返回上一级选单"
+                echo "------------------------"
+                read -p "请输入你的选择: " sub_choice
+                case $sub_choice in
+                    1)
+                      send_stats "目录扫描"
+                      read -p "请输入要扫描的目录，用空格分隔（例如：/etc /var /usr /home /root）: " directories
+                      download_hmscan
+                      ./hm scan $directories
+                      break_end
+                        ;;
+
+                    2)
+                      send_stats "大文件后台扫描"
+                      read -p "请输入要扫描的目录，用空格分隔（例如：/etc /var /usr /home /root）: " directories
+                      download_hmscan
+                      nohup ./hm scan $directories &
+                      break_end
+                        ;;
+
+                    3)
+                      send_stats "查看扫描进度"
+                      cd /opt/hmscan
+                      tail -f  nohup.out
+                      break_end
+                        ;;
+
+                    4)
+                      send_stats "查看扫描结果"
+                      cd /opt/hmscan
+                      cat result.csv || cat nohup.out
+                      break_end
+                        ;;
+
+                    0)
+                        break
+                        ;;
+                    *)
+                        break  # 跳出循环，退出菜单
+                        ;;
+                esac
+          done
+
+}
+
+
 
 # 高性能模式优化函数
 optimize_high_performance() {
@@ -6039,6 +6206,7 @@ linux_Settings() {
       echo "23. 限流自动关机                       24. ROOT私钥登录模式"
       echo "25. TG-bot系统监控预警                 26. 修复OpenSSH高危漏洞（岫源）"
       echo "27. 红帽系Linux内核升级                28. Linux系统内核参数优化"
+      echo "29. 开源病毒扫描工具                30. 河马webshell扫描"
       echo "------------------------"
       echo "31. 留言板                             66. 一条龙系统调优"
       echo "------------------------"
@@ -7377,6 +7545,14 @@ EOF
             done
               ;;
 
+
+          29)
+              clamav
+              ;;
+
+          30)
+              hmscan
+              ;;
 
           31)
             clear
