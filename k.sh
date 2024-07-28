@@ -311,8 +311,8 @@ EOF
 else
     curl -fsSL https://get.docker.com | sh
 fi
-k enable docker
-k start docker
+systemctl enable docker
+systemctl start docker
 
 }
 
@@ -342,8 +342,8 @@ install_add_docker() {
             fi
         fi
         dnf install -y docker-ce docker-ce-cli containerd.io
-        k enable docker
-        k start docker
+        systemctl enable docker
+        systemctl start docker
 
     elif [ -f /etc/os-release ] && grep -q "Kali" /etc/os-release; then
         apt update
@@ -379,15 +379,15 @@ install_add_docker() {
         fi
         apt update
         apt install -y docker-ce docker-ce-cli containerd.io
-        k enable docker
-        k start docker
+        systemctl enable docker
+        systemctl start docker
 
     elif command -v apt &>/dev/null || command -v yum &>/dev/null; then
         install_add_docker_guanfang
     else
-        k install docker docker-compose
-        k enable docker
-        k start docker
+        install docker docker-compose
+        systemctl enable docker
+        systemctl start docker
     fi
     sleep 2
 }
