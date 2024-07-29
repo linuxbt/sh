@@ -2670,9 +2670,7 @@ linux_tools() {
               ;;
             13)
               clear
-              if !  install gdu; then
-                install ncdu
-              fi
+              install gdu || install ncdu
               cd /
               clear
               gdu || ncdu
