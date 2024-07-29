@@ -8076,8 +8076,6 @@ echo -e "${huang}15. Linux远程桌面 ▶${bai}"
 echo -e "${huang}16. 科学上网工具 ▶${bai}"
 echo -e "${huang}99. 快捷命令菜单 ▶${bai}"
 echo -e "${kjlan}------------------------${bai}"
-echo -e "${bai}p. 幻兽帕鲁脚本 ▶${bai}"
-echo -e "${kjlan}------------------------${bai}"
 echo -e "${bai}00. 脚本更新${bai}"
 echo -e "${kjlan}------------------------${bai}"
 echo -e "${bai}0. 退出脚本${bai}"
@@ -8162,14 +8160,6 @@ case $choice in
   99)
     kjj_menu
     ;;
-
-  p)
-    send_stats "幻兽帕鲁开服脚本"
-    cd ~
-    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/palworld.sh && chmod +x palworld.sh && ./palworld.sh
-    exit
-    ;;
-
 
   00)
     linuxbt_update
