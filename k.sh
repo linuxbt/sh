@@ -120,8 +120,8 @@ install() {
         if ! command -v "$package" &>/dev/null; then
             echo "正在安装 $package..."
             if command -v dnf &>/dev/null; then
-                dnf -y update
-                dnf install -y epel-release
+                #dnf -y update
+                #dnf install -y epel-release
                 dnf install -y "$package"
             elif command -v yum &>/dev/null; then
                 #yum -y update
