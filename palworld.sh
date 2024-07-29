@@ -101,7 +101,7 @@ pal_start() {
 
 pal_backup() {
   cd ~
-  curl -sS -O https://kejilion.pro/pal_backup.sh && chmod +x pal_backup.sh
+  curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/pal_backup.sh && chmod +x pal_backup.sh
 }
 
 pal_install_status() {
@@ -154,7 +154,7 @@ echo "------------------------"
 echo "11. 更新幻兽帕鲁服务"
 echo "12. 卸载幻兽帕鲁服务"
 echo "------------------------"
-echo "k. 科技lion脚本工具箱"
+echo "k. K脚本工具箱"
 echo "------------------------"
 echo "00. 脚本更新"
 echo "------------------------"
@@ -323,7 +323,7 @@ case $choice in
   10)
     clear
     tmux kill-session -t my1
-    cd ~ && curl -sS -O https://kejilion.pro/PalWorldSettings.ini
+    cd ~ && curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/PalWorldSettings.ini
 
     echo "配置游戏参数"
     echo "------------------------"
@@ -416,16 +416,16 @@ case $choice in
 
   k)
     cd ~
-    curl -sS -O https://kejilion.pro/kejilion.sh && chmod +x kejilion.sh && ./kejilion.sh
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh && ./k.sh
     exit
     ;;
 
   00)
     cd ~
-    curl -sS -O https://kejilion.pro/pal_log.sh && chmod +x pal_log.sh && ./pal_log.sh
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/pal_log.sh && chmod +x pal_log.sh && ./pal_log.sh
     rm pal_log.sh
     echo ""
-    curl -sS -O https://kejilion.pro/palworld.sh && chmod +x palworld.sh
+    curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/palworld.sh && chmod +x palworld.sh
     echo "脚本已更新到最新版本！"
     break_end
     palworld
