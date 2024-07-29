@@ -2550,7 +2550,7 @@ linux_tools() {
 	echo -e "${lv}10. ffmpeg 视频编码直播推流工具${bai}"
 	echo -e "${lv}11. btop 现代化监控工具${bai}"
 	echo -e "${lv}12. ranger 文件管理工具${bai}"
-	echo -e "${lv}13. gdu 磁盘占用查看工具${bai}"
+	echo -e "${lv}13. gdu|ncdu 磁盘占用查看工具${bai}"
 	echo -e "${lv}14. fzf 全局搜索工具${bai}"
 	echo -e "${lv}15. vim 文本编辑器${bai}"
 	echo -e "${lv}16. nano 文本编辑器${bai}"
