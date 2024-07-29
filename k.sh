@@ -141,7 +141,7 @@ install() {
                 return 1
             fi
         else
-            echo
+            echo -e "${lv}$package 已经安装${bai}"
         fi
     done
 
