@@ -8318,100 +8318,109 @@ kjj_menu() {
 
 
 
+kjj_help() {
+    echo "无效参数"
+    echo "-------------------"
+    echo "以下是命令参考用例："
+    echo "启动原有脚本        ./k.sh"
+    echo "安装软件包          ./k.sh install nano wget | ./k.sh add nano wget | ./k.sh 安装 nano wget"
+    echo "卸载软件包          ./k.sh remove nano wget | ./k.sh del nano wget | ./k.sh uninstall nano wget | ./k.sh 卸载 nano wget"
+    echo "更新系统            ./k.sh update | ./k.sh 更新"
+    echo "清理系统垃圾        ./k.sh clean | ./k.sh 清理"
+    echo "重装系统            ./k.sh dd | ./k.sh 重装"
+    echo "BBR v3控制面板      ./k.sh bbr3 | ./k.sh bbrv3"
+    echo "软件启动            ./k.sh start sshd | ./k.sh 启动 sshd"
+    echo "软件停止            ./k.sh stop sshd | ./k.sh 停止 sshd"
+    echo "软件重启            ./k.sh restart sshd | ./k.sh 重启 sshd"
+    echo "软件状态查看        ./k.sh status sshd | ./k.sh 状态 sshd"
+    echo "软件开机启动        ./k.sh enable docker | ./k.sh autostart docker | ./k.sh 开机启动 docker"
+    echo "域名证书申请        ./k.sh ssl"
+    echo "域名证书到期查询    ./k.sh sslps"
+    echo "防火墙相关命令      ./k.sh fwl | ./k.sh fwr | ./k.sh fws | ./k.sh fwre | ./k.sh tj80"
+}
+
+
 if [ "$#" -eq 0 ]; then
     # 如果没有参数，运行原有的 linuxbt_sh 函数
     linuxbt_sh
 elif [ "$1" = "k" ]; then
-    # 如果参数为 k，运行快捷命令菜单
-    kjj_menu
-else
-    # 检查是否是直接命令
-    cmd=$(jq -r ".commands.\"$1\"" $kjj_file)
-    if [ "$cmd" != "null" ]; then
-        exec_kjj_command "$cmd"
-    else
-        # 如果不是直接命令，执行原有的逻辑
-        case $1 in
-            install|add|安装)
-                shift
-                send_stats "安装软件"
-                install "$@"
-                ;;
-            remove|del|uninstall|卸载)
-                shift
-                send_stats "卸载软件"
-                remove "$@"
-                ;;
-            update|更新)
-                linux_update
-                ;;
-            clean|清理)
-                linux_clean
-                ;;
-            dd|重装)
-                dd_xitong
-                ;;
-            bbr3|bbrv3)
-                bbrv3
-                ;;
-            status|状态)
-                shift
-                send_stats "软件状态查看"
-                status "$@"
-                ;;
-            start|启动)
-                shift
-                send_stats "软件启动"
-                start "$@"
-                ;;
-            stop|停止)
-                shift
-                send_stats "软件暂停"
-                stop "$@"
-                ;;
-            restart|重启)
-                shift
-                send_stats "软件重启"
-                restart "$@"
-                ;;
-            enable|autostart|开机启动)
-                shift
-                send_stats "软件开机自启"
-                enable "$@"
-                ;;
-            ssl)
-                send_stats "快捷证书申请"
-                add_ssl
-                ;;
-            sslps)
-                send_stats "查看证书到期情况"
-                ssl_ps
-                ;;
-            *)
-                send_stats "k命令参考用例"
-                echo "无效参数"
-                echo "-------------------"
-                echo "以下是k命令参考用例："
-                echo "启动原有脚本        k"
-                echo "启动快捷命令菜单    k k"
-                echo "安装软件包          k install nano wget | k add nano wget | k 安装 nano wget"
-                echo "卸载软件包          k remove nano wget | k del nano wget | k uninstall nano wget | k 卸载 nano wget"
-                echo "更新系统            k update | k 更新"
-                echo "清理系统垃圾        k clean | k 清理"
-                echo "打开重装系统面板    k dd | k 重装"
-                echo "打开bbr3控制面板    k bbr3 | k bbrv3"
-                echo "软件启动            k start sshd | k 启动 sshd "
-                echo "软件停止            k stop sshd | k 停止 sshd "
-                echo "软件重启            k restart sshd | k 重启 sshd "
-                echo "软件状态查看        k status sshd | k 状态 sshd "
-                echo "软件开机启动        k enable docker | k autostart docker | k 开机启动 docker "
-                echo "域名证书申请        k ssl"
-                echo "域名证书到期查询    k sslps"
-                echo "防火墙相关命令      k fwl | k fwr | k fws | k fwre | k tj80"
-                ;;
-        esac
+    if [ "$#" -eq 1 ]; then
+        # 如果只输入了 k，运行原有的 kjj_menu 函数
+        kjj_menu
     fi
+else
+    case "$1" in
+        install|add|安装)
+            shift 1
+            send_stats "安装软件"
+            install "$@"
+            ;;
+        remove|del|uninstall|卸载)
+            shift 1
+            send_stats "卸载软件"
+            remove "$@"
+            ;;
+        update|更新)
+            send_stats "系统更新"
+            linux_update
+            ;;
+        clean|清理)
+            send_stats "系统清理"
+            linux_clean
+            ;;
+        dd|重装)
+            send_stats "重装系统"
+            dd_xitong
+            ;;
+        bbr3|bbrv3)
+            send_stats "BBR v3"
+            bbrv3
+            ;;
+        status|状态)
+            shift 1
+            send_stats "软件状态查看"
+            status "$@"
+            ;;
+        start|启动)
+            shift 1
+            send_stats "软件启动"
+            start "$@"
+            ;;
+        stop|停止)
+            shift 1
+            send_stats "软件暂停"
+            stop "$@"
+            ;;
+        restart|重启)
+            shift 1
+            send_stats "软件重启"
+            restart "$@"
+            ;;
+        enable|autostart|开机启动)
+            shift 1
+            send_stats "软件开机自启"
+            enable "$@"
+            ;;
+        ssl)
+            send_stats "快捷证书申请"
+            add_ssl
+            ;;
+        sslps)
+            send_stats "查看证书到期情况"
+            ssl_ps
+            ;;
+        *)
+            cmd=$(jq -r ".commands.\"$1\"" $kjj_file)
+            if [ "$cmd" != "null" ]; then
+                exec_kjj_command "$cmd"
+            else
+                kjj_help
+            fi    
+        ;;
+    esac
 fi
+
+
 
 
 
