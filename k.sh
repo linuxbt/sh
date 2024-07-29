@@ -116,26 +116,21 @@ install() {
         return 1
     fi
 
+    local success=0
+
     for package in "$@"; do
         if ! command -v "$package" &>/dev/null; then
             echo "正在安装 $package..."
             if command -v dnf &>/dev/null; then
-                #dnf -y update
-                #dnf install -y epel-release
-                dnf install -y "$package"
+                dnf install -y "$package" || success=1
             elif command -v yum &>/dev/null; then
-                #yum -y update
-                #yum install -y epel-release
-                yum -y install "$package"
+                yum -y install "$package" || success=1
             elif command -v apt &>/dev/null; then
-                #apt update -y
-                apt install -y "$package"
+                apt install -y "$package" || success=1
             elif command -v apk &>/dev/null; then
-                apk update
-                apk add "$package"
+                apk add "$package" || success=1
             elif command -v pacman &>/dev/null; then
-                pacman -Syu --noconfirm
-                pacman -S --noconfirm "$package"
+                pacman -S --noconfirm "$package" || success=1
             else
                 echo "未知的包管理器!"
                 return 1
@@ -145,7 +140,7 @@ install() {
         fi
     done
 
-    return 0
+    return $success
 }
 
 
