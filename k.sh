@@ -2678,9 +2678,9 @@ linux_tools() {
               install gdu || install ncdu
               cd /
               clear
-              gdu
+              gdu || ncdu
               cd ~
-              send_stats "安装gdu"
+              send_stats "安装gdu|ncdu"
               ;;
             14)
               clear
