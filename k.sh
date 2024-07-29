@@ -124,11 +124,11 @@ install() {
                 dnf install -y epel-release
                 dnf install -y "$package"
             elif command -v yum &>/dev/null; then
-                yum -y update
-                yum install -y epel-release
+                #yum -y update
+                #yum install -y epel-release
                 yum -y install "$package"
             elif command -v apt &>/dev/null; then
-                apt update -y
+                #apt update -y
                 apt install -y "$package"
             elif command -v apk &>/dev/null; then
                 apk update
