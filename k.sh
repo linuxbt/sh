@@ -438,7 +438,6 @@ install_crontab() {
                 systemctl enable cronie
                 systemctl start cronie
                 ;;
-
             opensuse|suse|opensuse-tumbleweed)
                 zypper install -y cron
                 systemctl enable cron
@@ -488,8 +487,6 @@ k restart docker
 echo "Docker已关闭v6访问"
 
 }
-
-
 
 
 
