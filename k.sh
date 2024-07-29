@@ -131,9 +131,11 @@ install() {
                 apk add "$package" || success=1
             elif command -v pacman &>/dev/null; then
                 pacman -S --noconfirm "$package" || success=1
+            elif command -v zypper &>/dev/null; then
+                zypper install -y "$package" || success=1
             else
                 echo "未知的包管理器!"
-                return 1
+                return 1  
             fi
         else
             echo -e "${lv}$package 已经安装${bai}"
