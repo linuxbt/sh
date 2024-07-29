@@ -731,10 +731,7 @@ install_certbot() {
 
 
 install_ssltls() {
-      docker stop nginx > /dev/null 2>&1
-      iptables_open > /dev/null 2>&1
       cd ~
-
       certbot_version=$(certbot --version 2>&1 | grep -oP "\d+\.\d+\.\d+")
 
       version_ge() {
@@ -749,7 +746,7 @@ install_ssltls() {
 
       cp /etc/letsencrypt/live/$yuming/fullchain.pem /home/web/certs/${yuming}_cert.pem > /dev/null 2>&1
       cp /etc/letsencrypt/live/$yuming/privkey.pem /home/web/certs/${yuming}_key.pem > /dev/null 2>&1
-      docker start nginx > /dev/null 2>&1
+      docker restart nginx > /dev/null 2>&1
 }
 
 
@@ -1292,7 +1289,6 @@ install_panel() {
                 read -p "确定安装 $panelname 吗？(Y/N): " choice
                 case "$choice" in
                     [Yy])
-                        iptables_open
                         install wget
                         if grep -q 'Alpine' /etc/issue; then
                             $ubuntu_mingling
@@ -1498,7 +1494,7 @@ new_ssh_port() {
   restart_ssh
   echo "SSH 端口已修改为: $new_port"
 
-  iptables_open
+  #iptables_open
   remove iptables-persistent ufw firewalld iptables-services > /dev/null 2>&1
 
 }
