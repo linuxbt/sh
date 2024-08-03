@@ -4220,7 +4220,7 @@ linux_ldnmp() {
       add_yuming
       read -p "请输入跳转域名: " reverseproxy
 
-      install_ssltls
+      #install_ssltls
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/rewrite.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
@@ -4243,13 +4243,13 @@ linux_ldnmp() {
       read -p "请输入你的反代IP: " reverseproxy
       read -p "请输入你的反代端口: " port
 
-      install_ssltls
+      #install_ssltls
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/reverse-proxy.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
       sed -i "s/0.0.0.0/$reverseproxy/g" /home/web/conf.d/$yuming.conf
       sed -i "s/0000/$port/g" /home/web/conf.d/$yuming.conf
-
+      set_permissions
       docker restart nginx
 
       nginx_web_on
@@ -4266,12 +4266,12 @@ linux_ldnmp() {
       echo -e "域名格式: ${huang}http://www.google.com${bai}"
       read -p "请输入你的反代域名: " fandai_yuming
 
-      install_ssltls
+      #install_ssltls
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/reverse-proxy-domain.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
       sed -i "s|fandaicom|$fandai_yuming|g" /home/web/conf.d/$yuming.conf
-
+      set_permissions
       docker restart nginx
 
       nginx_web_on
@@ -4285,7 +4285,7 @@ linux_ldnmp() {
       send_stats "安装$webname"
       nginx_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/html.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
@@ -4319,6 +4319,7 @@ linux_ldnmp() {
       sed -i "s#/home/web/#/var/www/#g" /home/web/conf.d/$yuming.conf
 
       #docker exec nginx chmod -R 777 /var/www/html
+      set_permissions
       docker restart nginx
 
       nginx_web_on
@@ -4343,6 +4344,7 @@ linux_ldnmp() {
       duankou=3280
       reverse_proxy
       remove_ssl
+      set_permissions
 
       nginx_web_on
       nginx_status
@@ -4360,6 +4362,7 @@ linux_ldnmp() {
       duankou=8010
       reverse_proxy
       remove_ssl
+      set_permissions
 
       nginx_web_on
       nginx_status
@@ -4404,7 +4407,7 @@ linux_ldnmp() {
         echo ""
         echo "操作"
         echo "------------------------"
-        echo "1. 申请/更新域名证书"
+        echo "1. 申请/更新域名证书                2. 更换绑定域名"
         echo "3. 清理站点缓存                    4. 查看站点分析报告"
         echo "5. 编辑全局配置                    6. 编辑站点配置"
         echo "------------------------"
@@ -4424,7 +4427,7 @@ linux_ldnmp() {
             2)
                 read -p "请输入旧域名: " oddyuming
                 read -p "请输入新域名: " yuming
-                install_ssltls
+                #install_ssltls
                 mv /home/web/conf.d/$oddyuming.conf /home/web/conf.d/$yuming.conf
                 sed -i "s/$oddyuming/$yuming/g" /home/web/conf.d/$yuming.conf
                 mv /home/web/html/$oddyuming /home/web/html/$yuming
@@ -4461,8 +4464,8 @@ linux_ldnmp() {
 
             5)
                 send_stats "编辑全局配置"
-                install nano
-                nano /home/web/nginx.conf
+                install vim
+                vim /home/web/nginx.conf
                 docker restart nginx
                 ;;
 
