@@ -1212,9 +1212,21 @@ nginx_install_status() {
 
 }
 
+set_wordpress() {
+# wordpress设置文件权限
+WEB_ROOT="/home/web/html/$yuming"
+find $WEB_ROOT -type d -exec chmod 755 {} \;
+find $WEB_ROOT -type f -exec chmod 644 {} \;
+chmod -R 755 $WEB_ROOT/wp-content/themes
+chmod -R 755 $WEB_ROOT/wp-content/plugins
+chmod -R 755 $WEB_ROOT/wp-content/uploads
+chmod -R 755 $WEB_ROOT/wp-includes
+chmod -R 755 $WEB_ROOT/wp-admin
+chown -R 82:82 $WEB_ROOT
+}
 
 set_maccms() {
-# 设置文件权限
+# maccms设置文件权限
 WEB_ROOT="/home/web/html/$yuming"
 find $WEB_ROOT -type d -exec chmod 755 {} \;
 find $WEB_ROOT -type f -exec chmod 644 {} \;
@@ -1225,6 +1237,12 @@ chmod -R 755 $WEB_ROOT/addons/
 chown -R 82:82 $WEB_ROOT
 }
 
+set_permissions() {
+# 通用文件权限设置
+WEB_ROOT="/home/web/html/$yuming"
+chmod -R 755 $WEB_ROOT
+chown -R 82:82 $WEB_ROOT
+}
 
 
 ldnmp_web_on() {
@@ -3777,7 +3795,7 @@ linux_ldnmp() {
       rm latest.zip
 
       echo "define('FS_METHOD', 'direct'); define('WP_REDIS_HOST', 'redis'); define('WP_REDIS_PORT', '6379');" >> /home/web/html/$yuming/wordpress/wp-config-sample.php
-
+      set_wordpress
       restart_ldnmp
 
       ldnmp_web_on
@@ -3809,8 +3827,8 @@ linux_ldnmp() {
       cd $yuming
       wget -O latest.zip https://github.com/linuxbt/Website_source_code/raw/main/Discuz_X3.5_SC_UTF8_20240520.zip
       unzip latest.zip
-      rm latest.zip
-
+      rm latest.zip      
+      set_permissions
       restart_ldnmp
 
 
@@ -3845,6 +3863,7 @@ linux_ldnmp() {
       unzip -o latest.zip
       rm latest.zip
       mv /home/web/html/$yuming/kodbox* /home/web/html/$yuming/kodbox
+      set_permissions
       restart_ldnmp
 
       ldnmp_web_on
@@ -3920,7 +3939,7 @@ linux_ldnmp() {
       mkdir $yuming
       cd $yuming
       wget https://github.com/assimon/dujiaoka/releases/download/2.0.6/2.0.6-antibody.tar.gz && tar -zxvf 2.0.6-antibody.tar.gz && rm 2.0.6-antibody.tar.gz
-
+      set_permissions
       restart_ldnmp
 
 
@@ -3973,7 +3992,7 @@ linux_ldnmp() {
       docker exec php composer create-project flarum/flarum /var/www/html/$yuming
       docker exec php sh -c "cd /var/www/html/$yuming && composer require flarum-lang/chinese-simplified"
       docker exec php sh -c "cd /var/www/html/$yuming && composer require fof/polls"
-
+      set_permissions
       restart_ldnmp
 
 
@@ -4007,7 +4026,7 @@ linux_ldnmp() {
       wget -O latest.zip https://github.com/typecho/typecho/releases/latest/download/typecho.zip
       unzip latest.zip
       rm latest.zip
-
+      set_permissions
       restart_ldnmp
 
 
@@ -4071,7 +4090,7 @@ linux_ldnmp() {
 
       unzip $(ls -t *.zip | head -n 1)
       rm -f $(ls -t *.zip | head -n 1)
-
+      
       clear
       echo -e "[${huang}2/6${bai}] index.php所在路径"
       echo "-------------"
@@ -4152,7 +4171,7 @@ linux_ldnmp() {
               echo
               ;;
       esac
-
+      set_permissions
       restart_ldnmp
 
       ldnmp_web_on
@@ -4313,7 +4332,7 @@ linux_ldnmp() {
       send_stats "安装$webname"
       nginx_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
 
       docker run -d \
         --name bitwarden \
@@ -4323,6 +4342,7 @@ linux_ldnmp() {
         vaultwarden/server
       duankou=3280
       reverse_proxy
+      remove_ssl
 
       nginx_web_on
       nginx_status
@@ -4334,11 +4354,12 @@ linux_ldnmp() {
       send_stats "安装$webname"
       nginx_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
 
       docker run -d --name halo --restart always -p 8010:8090 -v /home/web/html/$yuming/.halo2:/root/.halo2 halohub/halo:2
       duankou=8010
       reverse_proxy
+      remove_ssl
 
       nginx_web_on
       nginx_status
@@ -4448,8 +4469,8 @@ linux_ldnmp() {
             6)
                 send_stats "编辑站点配置"
                 read -p "编辑站点配置，请输入你要编辑的域名: " yuming
-                install nano
-                nano /home/web/conf.d/$yuming.conf
+                install vim
+                vim /home/web/conf.d/$yuming.conf
                 docker restart nginx
                 ;;
 
