@@ -4218,11 +4218,11 @@ linux_ldnmp() {
       default_server_ssl
       docker rm -f nginx >/dev/null 2>&1
       docker rmi nginx nginx:alpine-fat >/dev/null 2>&1
-      docker run -d --name nginx --restart always --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/opt/openresty/nginx/conf/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/openresty openresty/openresty:alpine-fat
+      docker run -d --name nginx --restart unless-stopped --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/opt/openresty/nginx/conf/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/openresty openresty/openresty:alpine-fat
           
       clear
       nginx_version=$(docker exec nginx nginx -v 2>&1)
-      nginx_version=$(echo "$nginx_version" | grep -oP "nginx/\K[0-9]+\.[0-9]+\.[0-9]+")
+      nginx_version=$(echo "$nginx_version" | grep -oP '(?:openresty|nginx)/\K[\d.]+')
       echo "nginx已安装完成"
       echo -e "当前版本: ${huang}v$nginx_version${bai}"
       echo ""
