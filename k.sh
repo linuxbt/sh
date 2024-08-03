@@ -1257,7 +1257,7 @@ ldnmp_web_on() {
 nginx_web_on() {
       clear
       echo "您的 $webname 搭建好了！"
-      echo "https://$yuming"
+      echo "http://$yuming"
 
 }
 
