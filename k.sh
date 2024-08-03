@@ -747,6 +747,7 @@ install_ssltls() {
       cp /etc/letsencrypt/live/$yuming/fullchain.pem /home/web/certs/${yuming}_cert.pem > /dev/null 2>&1
       cp /etc/letsencrypt/live/$yuming/privkey.pem /home/web/certs/${yuming}_key.pem > /dev/null 2>&1
       docker restart nginx > /dev/null 2>&1
+      certs_status
 }
 
 
@@ -771,6 +772,7 @@ add_ssl() {
 add_yuming
 install_certbot
 install_ssltls
+certs_status
 install_ssltls_text
 ssl_ps
 }
@@ -878,6 +880,21 @@ remove_ssl() {
 	sed -i '1,8s/^/#/' /home/web/conf.d/$yuming.conf
 }
 
+
+certs_status() {
+
+    sleep 1
+    file_path="/etc/letsencrypt/live/$yuming/fullchain.pem"
+    if [ -f "$file_path" ]; then
+        send_stats "域名证书申请成功"
+    else
+        send_stats "域名证书申请失败"
+        echo -e "${hong}注意: ${bai}检测到域名证书申请失败，请检测域名是否正确解析或更换域名重新尝试！"
+        break_end
+        linux_ldnmp
+    fi
+
+}
 
 add_db() {
       dbname=$(echo "$yuming" | sed -e 's/[^A-Za-z0-9]/_/g')
