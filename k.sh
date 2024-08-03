@@ -517,10 +517,10 @@ add_swap() {
     done
 
     # 确保 /swapfile 不再被使用
-    swapoff /swapfile
+    swapoff /swapfile > /dev/null 2>&1
 
     # 删除旧的 /swapfile
-    rm -f /swapfile
+    rm -f /swapfile > /dev/null 2>&1
 
     # 创建新的 swap 分区
     dd if=/dev/zero of=/swapfile bs=1M count=$new_swap
