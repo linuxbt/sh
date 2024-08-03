@@ -4344,7 +4344,7 @@ linux_ldnmp() {
       duankou=3280
       reverse_proxy
       remove_ssl
-      set_permissions
+      #set_permissions
 
       nginx_web_on
       nginx_status
