@@ -4333,7 +4333,7 @@ linux_ldnmp() {
       send_stats "安装$webname"
       nginx_install_status
       add_yuming
-      #install_ssltls
+      install_ssltls
 
       docker run -d \
         --name bitwarden \
@@ -4344,7 +4344,6 @@ linux_ldnmp() {
       duankou=3280
       reverse_proxy
       remove_ssl
-      #set_permissions
 
       nginx_web_on
       nginx_status
@@ -4362,7 +4361,7 @@ linux_ldnmp() {
       duankou=8010
       reverse_proxy
       remove_ssl
-      set_permissions
+      
 
       nginx_web_on
       nginx_status
