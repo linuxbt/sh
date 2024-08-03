@@ -4200,9 +4200,9 @@ linux_ldnmp() {
       wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/linuxbt/nginx/main/default10.conf
       default_server_ssl
       docker rm -f nginx >/dev/null 2>&1
-      docker rmi nginx nginx:alpine >/dev/null 2>&1
-      docker run -d --name nginx --restart always -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/etc/nginx/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/etc/nginx/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/nginx nginx:alpine
-
+      docker rmi nginx nginx:alpine-fat >/dev/null 2>&1
+      docker run -d --name nginx --restart always --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/opt/openresty/nginx/conf/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/openresty openresty/openresty:alpine-fat
+          
       clear
       nginx_version=$(docker exec nginx nginx -v 2>&1)
       nginx_version=$(echo "$nginx_version" | grep -oP "nginx/\K[0-9]+\.[0-9]+\.[0-9]+")
@@ -4680,8 +4680,8 @@ linux_ldnmp() {
                       ;;
 
                   11)
-                      install nano
-                      nano /path/to/fail2ban/config/fail2ban/jail.d/nginx-docker-cc.conf
+                      install vim
+                      vim /path/to/fail2ban/config/fail2ban/jail.d/nginx-docker-cc.conf
                       f2b_status
 
                       break
@@ -4775,13 +4775,14 @@ linux_ldnmp() {
       else
           clear
           install_docker
+	  nginx_install_status
 
-          docker rm -f nginx
-          wget -O /home/web/nginx.conf https://raw.githubusercontent.com/linuxbt/nginx/main/nginx10.conf
-          wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/linuxbt/nginx/main/default10.conf
-          default_server_ssl
-          docker run -d --name nginx --restart always --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/etc/nginx/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/etc/nginx/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/nginx nginx:alpine
-          #docker exec -it nginx chmod -R 777 /var/www/html
+          #docker rm -f nginx
+          #wget -O /home/web/nginx.conf https://raw.githubusercontent.com/linuxbt/nginx/main/nginx10.conf
+          #wget -O /home/web/conf.d/default.conf https://raw.githubusercontent.com/linuxbt/nginx/main/default10.conf
+          #default_server_ssl
+          #docker run -d --name nginx --restart always --network web_default -p 80:80 -p 443:443 -p 443:443/udp -v /home/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf -v /home/web/conf.d:/etc/nginx/conf.d -v /home/web/certs:/opt/openresty/nginx/conf/certs -v /home/web/html:/var/www/html -v /home/web/log/nginx:/var/log/openresty openresty/openresty:alpine-fat
+          ##docker exec -it nginx chmod -R 777 /var/www/html
 
           f2b_install_sshd
 
