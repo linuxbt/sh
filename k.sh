@@ -867,6 +867,17 @@ add_yuming() {
 
 }
 
+remove_ssl() {
+	# 注释掉SSL相关配置
+	sed -i 's/^\s*listen 443 ssl;/#&/' /home/web/conf.d/$yuming.conf
+	sed -i 's/^\s*listen\s*\[::\]:443\s*ssl;/#&/' /home/web/conf.d/$yuming.conf
+	sed -i 's/^\s*ssl_certificate/#ssl_certificate/' /home/web/conf.d/$yuming.conf
+	sed -i 's/^\s*ssl_certificate_key/#ssl_certificate_key/' /home/web/conf.d/$yuming.conf
+	sed -i 's/^\s*return 301 https/#return 301 https/' /home/web/conf.d/$yuming.conf
+	sed -i '/server_name/i\    listen 80;\n    listen [::]:80;' /home/web/conf.d/$yuming.conf	  
+	sed -i '1,8s/^/#/' /home/web/conf.d/$yuming.conf
+}
+
 
 add_db() {
       dbname=$(echo "$yuming" | sed -e 's/[^A-Za-z0-9]/_/g')
@@ -3751,11 +3762,12 @@ linux_ldnmp() {
 
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/wordpress.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -3784,12 +3796,13 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/discuz.com.conf
 
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -3818,11 +3831,12 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/kdy.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -3853,14 +3867,7 @@ linux_ldnmp() {
       add_db
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/jonathan2218/nginx/main/maccms.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
-	  # 注释掉SSL相关配置
-	  sed -i 's/^\s*listen 443 ssl;/#&/' /home/web/conf.d/$yuming.conf
-	  sed -i 's/^\s*listen\s*\[::\]:443\s*ssl;/#&/' /home/web/conf.d/$yuming.conf
-	  sed -i 's/^\s*ssl_certificate/#ssl_certificate/' /home/web/conf.d/$yuming.conf
-	  sed -i 's/^\s*ssl_certificate_key/#ssl_certificate_key/' /home/web/conf.d/$yuming.conf
-	  sed -i 's/^\s*return 301 https/#return 301 https/' /home/web/conf.d/$yuming.conf
-          sed -i '/server_name/i\    listen 80;\n    listen [::]:80;' /home/web/conf.d/$yuming.conf	  
-	  sed -i '1,8s/^/#/' /home/web/conf.d/$yuming.conf
+      remove_ssl
 
 
       cd /home/web/html
@@ -3901,12 +3908,13 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/dujiaoka.com.conf
 
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -3946,11 +3954,12 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/flarum.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -3985,11 +3994,12 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/typecho.com.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -4038,11 +4048,12 @@ linux_ldnmp() {
       send_stats "安装$webname"
       ldnmp_install_status
       add_yuming
-      install_ssltls
+      #install_ssltls
       add_db
 
       wget -O /home/web/conf.d/$yuming.conf https://raw.githubusercontent.com/linuxbt/nginx/main/index_php.conf
       sed -i "s/yuming.com/$yuming/g" /home/web/conf.d/$yuming.conf
+      remove_ssl
 
       cd /home/web/html
       mkdir $yuming
@@ -4070,7 +4081,8 @@ linux_ldnmp() {
 
       sed -i "s#root /var/www/html/$yuming/#root $index_lujing#g" /home/web/conf.d/$yuming.conf
       sed -i "s#/home/web/#/var/www/#g" /home/web/conf.d/$yuming.conf
-
+      
+      
       clear
       echo -e "[${huang}3/6${bai}] 请选择PHP版本"
       echo "-------------"
