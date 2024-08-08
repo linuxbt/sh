@@ -122,8 +122,10 @@ install() {
         if ! command -v "$package" &>/dev/null; then
             echo "正在安装 $package..."
             if command -v dnf &>/dev/null; then
+	        dnf install -y epel-release
                 dnf install -y "$package" || success=1
             elif command -v yum &>/dev/null; then
+	        yum -y install epel-release
                 yum -y install "$package" || success=1
             elif command -v apt &>/dev/null; then
                 apt install -y "$package" || success=1
@@ -731,6 +733,7 @@ install_certbot() {
 
 
 install_ssltls() {
+      docker stop nginx > /dev/null 2>&1
       cd ~
       certbot_version=$(certbot --version 2>&1 | grep -oP "\d+\.\d+\.\d+")
 
@@ -746,7 +749,7 @@ install_ssltls() {
 
       cp /etc/letsencrypt/live/$yuming/fullchain.pem /home/web/certs/${yuming}_cert.pem > /dev/null 2>&1
       cp /etc/letsencrypt/live/$yuming/privkey.pem /home/web/certs/${yuming}_key.pem > /dev/null 2>&1
-      docker restart nginx > /dev/null 2>&1
+      docker start nginx > /dev/null 2>&1
       certs_status
 }
 
@@ -772,7 +775,6 @@ add_ssl() {
 add_yuming
 install_certbot
 install_ssltls
-certs_status
 install_ssltls_text
 ssl_ps
 }
