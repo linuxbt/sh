@@ -8321,7 +8321,8 @@ download_kjj_config() {
 # 函数：执行命令
 exec_kjj_command() {
     local cmd="$1"
-    eval "$cmd"
+    shift
+    eval "$cmd \"\$@\""
 }
 
 
@@ -8494,9 +8495,9 @@ else
             ssl_ps
             ;;
         *)
-            cmd=$(jq -r ".commands.\"$1\"" $kjj_file)
+            cmd=$(jq -r ".commands.\"$1\"" "$kjj_file")
             if [ "$cmd" != "null" ]; then
-                exec_kjj_command "$cmd"
+                exec_kjj_command "$cmd" "${@:2}"
             else
                 kjj_help
             fi    
