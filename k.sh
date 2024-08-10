@@ -8229,6 +8229,7 @@ echo -e "${huang}14. VPS集群控制 ▶${bai}"
 echo -e "${huang}15. Linux远程桌面 ▶${bai}"
 echo -e "${huang}16. 科学上网工具 ▶${bai}"
 echo -e "${kjlan}17. 组网神器 ▶${bai}"
+echo -e "${kjlan}18. 文件同步备份 ▶${bai}"
 echo -e "${huang}99. 快捷命令菜单 ▶${bai}"
 echo -e "${kjlan}------------------------${bai}"
 echo -e "${bai}00. 脚本更新${bai}"
@@ -8314,6 +8315,10 @@ case $choice in
 
   17)
     linux_tunnel
+    ;;
+
+  18)
+    linux_backup
     ;;
 
   99)
