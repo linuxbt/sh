@@ -3028,6 +3028,65 @@ linux_tunnel() {
     done
 }
 
+linux_backup() {
+    while true; do
+      clear
+      send_stats "linux文件传输｜备份工具"
+      echo -e "▶ ${kjlan}Linux文件传输｜备份脚本"
+      echo "K脚本为你提供：各种备份工具脚本"
+      echo -e "${huang}告别繁琐: 一键安装。"
+      echo "------------------------"
+      echo "1. local | 本地备份"
+      echo "2. rsync | 本地和远程备份" 
+      echo "3. sftp | 远程备份"
+      echo "4. restic | 本地和远程加密备份"      
+      echo "------------------------"
+      echo "0. 返回主菜单"
+      echo -e "------------------------${bai}"
+      read -p "请输入你的选择: " sub_choice
+
+      case $sub_choice in
+
+          1)
+              clear
+              send_stats "local 本地备份 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/local_backup.sh)
+
+              ;;
+
+          2)
+              clear
+              send_stats "rsync 备份工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/rsync_backup.sh)
+
+              ;;
+
+          3)
+              clear
+              send_stats "sftp 备份工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/sftp_backup.sh)
+
+              ;;
+
+          4)
+              clear
+              send_stats "restic 备份工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/restic_backup.sh)
+
+              ;;
+
+          0)
+              linuxbt
+              ;;
+          *)
+              echo "无效的输入!"
+              ;;
+      esac
+      break_end
+
+    done
+}
+
 linux_docker() {
 
     while true; do
