@@ -2983,6 +2983,49 @@ linux_vpn() {
     done
 }
 
+linux_tunnel() {
+    while true; do
+      clear
+      send_stats "linux组网工具"
+      echo -e "▶ ${kjlan}Linux组网一键脚本"
+      echo "K脚本为你提供：各种组网工具脚本"
+      echo -e "${huang}告别繁琐: 一键安装。"
+      echo "------------------------"
+      echo "1. candy | 推荐，低延迟-无需配置"
+      echo "2. zerotier | 流行的组网工具"    
+      echo "------------------------"
+      echo "0. 返回主菜单"
+      echo -e "------------------------${bai}"
+      read -p "请输入你的选择: " sub_choice
+
+      case $sub_choice in
+
+          1)
+              clear
+              send_stats "candy | 低延迟组网工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_candy_client.sh)
+
+              ;;
+
+          2)
+              clear
+              send_stats "zerotier | 流行的组网工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/install_zerotier_client.sh)
+
+              ;;
+
+
+          0)
+              linuxbt
+              ;;
+          *)
+              echo "无效的输入!"
+              ;;
+      esac
+      break_end
+
+    done
+}
 
 linux_docker() {
 
@@ -8125,6 +8168,7 @@ echo -e "${huang}13. 系统工具 ▶${bai}"
 echo -e "${huang}14. VPS集群控制 ▶${bai}"
 echo -e "${huang}15. Linux远程桌面 ▶${bai}"
 echo -e "${huang}16. 科学上网工具 ▶${bai}"
+echo -e "${kjlan}17. 组网神器 ▶${bai}"
 echo -e "${huang}99. 快捷命令菜单 ▶${bai}"
 echo -e "${kjlan}------------------------${bai}"
 echo -e "${bai}00. 脚本更新${bai}"
@@ -8206,6 +8250,10 @@ case $choice in
 
   16)
     linux_vpn
+    ;;
+
+  17)
+    linux_tunnel
     ;;
 
   99)
