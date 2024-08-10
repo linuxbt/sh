@@ -714,12 +714,13 @@ install_certbot() {
     cd ~
 
     # 下载并使脚本可执行
+    mkdir ~/.k_certs && cd ~/.k_certs
     curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/auto_cert_renewal.sh
     chmod +x auto_cert_renewal.sh
 
     # 设置定时任务字符串
     check_crontab_installed
-    cron_job="0 0 * * * ~/auto_cert_renewal.sh"
+    cron_job="0 0 * * * ~/.k_certs/auto_cert_renewal.sh"
 
     # 检查是否存在相同的定时任务
     existing_cron=$(crontab -l 2>/dev/null | grep -F "$cron_job")
