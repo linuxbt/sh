@@ -9,7 +9,7 @@ else
     echo "Docker已安装"
 fi
 
-mkdir -p /var/lib/candy  && docker run --detach --restart=always --privileged=true --net=host --volume /var/lib/candy:/var/lib/candy docker.io/lanthora/candy:latest
+mkdir -p /var/lib/candy  && docker run --detach --restart=unless-stopped --privileged=true --net=host --volume /var/lib/candy:/var/lib/candy docker.io/lanthora/candy:latest
 
 
 candy_ip=ip a
