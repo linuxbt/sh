@@ -3,7 +3,7 @@
 # 检查并安装 restic
 install_restic() {
     if command -v restic &> /dev/null; then
-        echo "restic 已安装。"
+        echo 
     else
         echo "未找到 restic，正在安装..."
         if [ -x "$(command -v dnf)" ]; then
