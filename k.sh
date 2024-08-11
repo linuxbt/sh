@@ -3050,7 +3050,7 @@ linux_backup() {
           1)
               clear
               send_stats "local 本地备份 "
-              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/local_backup.sh)
+              curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/sh/local_backup.sh && chmod +x local_backup.sh && ./local_backup.sh
 
               ;;
 
@@ -3071,7 +3071,8 @@ linux_backup() {
           4)
               clear
               send_stats "restic 备份工具 "
-              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/restic_backup.sh)
+	      curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/sh/restic_backup.sh && chmod +x restic_backup.sh && ./restic_backup.sh
+	      
 
               ;;
 
