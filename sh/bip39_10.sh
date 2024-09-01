@@ -36,7 +36,7 @@ hex=(0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 1010 1011 1100 1101 1110 
 for i in {0..9}; do
     seed=()
     
-    entropy=$(tr -cd 01 < /dev/urandom | head -c 256)
+    entropy=$(tr -cd 01 < /dev/random | head -c 256)
     check=$(printf "$entropy" | shasum -a 256 -0 | cut -c 1-2)
     
     entropy+=${hex[$((16#${check:0:1}))]}
