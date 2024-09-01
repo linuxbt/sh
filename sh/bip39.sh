@@ -10,16 +10,16 @@ install_dependencies() {
         sudo apt-get install -y xxd dc
     elif command -v yum >/dev/null 2>&1; then
         # Red Hat/CentOS 系列
-        sudo yum install -y xxd dc
+        sudo yum install -y vim-common bc
     elif command -v dnf >/dev/null 2>&1; then
         # Fedora
-        sudo dnf install -y xxd dc
+        sudo dnf install -y vim-common bc
     elif command -v pacman >/dev/null 2>&1; then
         # Arch Linux
-        sudo pacman -S --noconfirm xxd dc
+        sudo pacman -S --noconfirm xxd bc
     elif command -v apk >/dev/null 2>&1; then
         # Alpine Linux
-        sudo apk add xxd dc
+        sudo apk add xxd bc
     else
         echo "未知的发行版，请手动安装 xxd 和 bc"
         exit 1
