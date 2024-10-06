@@ -94,15 +94,17 @@ if [ ${#PASSWORD} -gt 32 ]; then
 fi
 
 # 生成加密盐值的Python脚本
-PASSWORD_HASH=$(python3 <<EOF
-import bcrypt
-password = b"$PASSWORD"  # DO NOT REMOVE THE b
-assert len(password) < 72, "Password must be less than 72 bytes due to bcrypt limitation"
-hashed = bcrypt.hashpw(password, bcrypt.gensalt())
-docker_interpolation = hashed.decode().replace("\$", "\$\$")
-print(docker_interpolation)
-EOF
-)
+#PASSWORD_HASH=$(python3 <<EOF
+#import bcrypt
+#password = b"$PASSWORD"  # DO NOT REMOVE THE b
+#assert len(password) < 72, "Password must be less than 72 bytes due to bcrypt limitation"
+#hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+#docker_interpolation = hashed.decode().replace("\$", "\$\$")
+#print(docker_interpolation)
+#EOF
+#)
+
+docker run ghcr.io/wg-easy/wg-easy wgpw $PASSWORD
 
 echo "加密后的密码: $PASSWORD_HASH"
 
