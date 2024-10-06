@@ -73,6 +73,7 @@ HOST_PORT_TCP=${HOST_PORT_TCP:-51821}
 
 # 获取用户输入的WG_HOST和PASSWORD
 read -p "请输入WG_HOST (服务器IP或域名): " WG_HOST
+WG_HOST=${WG_HOST:-ipv4_address}
 read -p "请输入PASSWORD: " PASSWORD
 
 # 验证IP格式或域名
