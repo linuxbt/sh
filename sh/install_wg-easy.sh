@@ -68,6 +68,7 @@ ip_address() {
 ipv4_address=$(curl -s ipv4.ip.sb)
 ipv6_address=$(curl -s --max-time 1 ipv6.ip.sb)
 }
+ip_address
 # 获取用户输入的端口
 read -p "请输入宿主机的科学上网连接端口 (默认51820): " HOST_PORT_UDP
 HOST_PORT_UDP=${HOST_PORT_UDP:-51820}
