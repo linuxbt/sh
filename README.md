@@ -26,10 +26,6 @@ yum install -y curl
 curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh && ./k.sh
 
 ```
-or
-```bash
-curl -sS -O https://github.com/linuxbt/sh/blob/main/k.sh && chmod +x k.sh && ./k.sh
-```
 
 
 ***
