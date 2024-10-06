@@ -103,10 +103,11 @@ fi
 #print(docker_interpolation)
 #EOF
 #)
+#echo "加密后的密码: $PASSWORD_HASH"
 
 docker run ghcr.io/wg-easy/wg-easy wgpw $PASSWORD
 
-echo "加密后的密码: $PASSWORD_HASH"
+
 
 # 运行Docker容器
 docker run -d \
