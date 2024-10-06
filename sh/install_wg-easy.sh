@@ -88,7 +88,7 @@ if [ ${#PASSWORD} -gt 32 ]; then
 fi
 
 # 生成加密盐值的Python脚本
-hashed_pwd=$(python3 <<EOF
+PASSWORD_HASH=$(python3 <<EOF
 import bcrypt
 password = b"$PASSWORD"  # DO NOT REMOVE THE b
 assert len(password) < 72, "Password must be less than 72 bytes due to bcrypt limitation"
@@ -98,13 +98,13 @@ print(docker_interpolation)
 EOF
 )
 
-echo "加密后的密码: $hashed_pwd"
+echo "加密后的密码: $PASSWORD_HASH"
 
 # 运行Docker容器
 docker run -d \
     --name=wg-easy \
     -e WG_HOST="$WG_HOST" \
-    -e PASSWORD="$hashed_pwd" \
+    -e PASSWORD="$PASSWORD_HASH" \
     -e PORT="$HOST_PORT_TCP" \
     -e WG_PORT="$HOST_PORT_UDP" \
     -v ~/.wg-easy:/etc/wireguard \
