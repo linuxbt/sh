@@ -110,7 +110,7 @@ echo "加密后的密码: $PASSWORD_HASH"
 docker run -d \
     --name=wg-easy \
     -e WG_HOST="$WG_HOST" \
-    -e PASSWORD="$PASSWORD_HASH" \
+    -e PASSWORD_HASH="$PASSWORD_HASH" \
     -e PORT="$HOST_PORT_TCP" \
     -e WG_PORT="$HOST_PORT_UDP" \
     -v ~/.wg-easy:/etc/wireguard \
