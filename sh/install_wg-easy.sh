@@ -64,6 +64,10 @@ else
     echo "bcrypt 模块已安装"
 fi
 
+ip_address() {
+ipv4_address=$(curl -s ipv4.ip.sb)
+ipv6_address=$(curl -s --max-time 1 ipv6.ip.sb)
+}
 # 获取用户输入的端口
 read -p "请输入宿主机的科学上网连接端口 (默认51820): " HOST_PORT_UDP
 HOST_PORT_UDP=${HOST_PORT_UDP:-51820}
@@ -73,7 +77,7 @@ HOST_PORT_TCP=${HOST_PORT_TCP:-51821}
 
 # 获取用户输入的WG_HOST和PASSWORD
 read -p "请输入WG_HOST (服务器IP或域名): " WG_HOST
-WG_HOST=${WG_HOST:-ipv4_address}
+WG_HOST=${WG_HOST:-$ipv4_address}
 read -p "请输入PASSWORD: " PASSWORD
 
 # 验证IP格式或域名
