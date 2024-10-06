@@ -5,6 +5,9 @@ DEBIAN_FRONTEND=noninteractive apt-get -y install xfce4 xfce4-goodies xorg dbus-
 #安装xrdp
 apt -y install xrdp
 systemctl enable xrdp
+systemctl stop colord
+systemctl disable colord
+systemctl mask colord
 adduser xrdp ssl-cert
 #放行指定IP，允许远程登陆
 ufw allow from 104.28.0.0/16 to any port 58390
