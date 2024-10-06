@@ -76,7 +76,7 @@ read -p "请输入宿主机的科学上网管理面板端口 (默认51821): " HO
 HOST_PORT_TCP=${HOST_PORT_TCP:-51821}
 
 # 获取用户输入的WG_HOST和PASSWORD
-read -p "请输入WG_HOST (服务器IP或域名): " WG_HOST
+read -p "请输入WG_HOST (服务器IP或域名,默认获取的主IP): " WG_HOST
 WG_HOST=${WG_HOST:-$ipv4_address}
 read -p "请输入PASSWORD: " PASSWORD
 
