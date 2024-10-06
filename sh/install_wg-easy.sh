@@ -107,6 +107,7 @@ fi
 
 docker run ghcr.io/wg-easy/wg-easy wgpw $PASSWORD
 
+PASSWORD_HASH=$(docker run --rm ghcr.io/wg-easy/wg-easy wgpw $PASSWORD | grep "PASSWORD_HASH" | cut -d "'" -f 2)
 
 
 # 运行Docker容器
