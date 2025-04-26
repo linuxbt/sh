@@ -13,7 +13,13 @@ ENCRYPTION_ALGO="aes-256-cbc"
 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 先不默认加 -pbkdf2，在检查时根据 OpenSSL 版本决定
 
 MIN_PASSWORD_LENGTH=8 # 密码最小长度
-
+# 定义清屏函数
+cleanup() {
+    printf '\033[2J\033[3J\033[H'  # 清屏 + 清除滚动缓冲区（部分终端支持）
+    exit 0
+}
+# 捕获退出信号（Ctrl+C 或脚本自然退出）
+trap cleanup EXIT
 # --- Embedded BIP39 English Wordlist ---
 # (此列表包含完整的 2048 个单词，脚本仅显示前几行作为示例，不会在运行时输出完整列表)
 read -r -d '' BIP39_WORDLIST << 'EOF_WORDLIST'
@@ -2445,4 +2451,10 @@ while true; do
     echo # 换行
 done
 
+# 等待用户输入 q
+while read -n1 -r key; do
+    if [[ $key == "q" ]]; then
+        cleanup
+    fi
+done
 # The trap set by create_python_script_temp_file handles cleanup on exit.
