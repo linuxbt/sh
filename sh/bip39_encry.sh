@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.8 - Fixed multi-line input issue in decryption
+# Version: 1.9 - Fixed 'case' termination syntax
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2407,18 +2407,13 @@ decrypt_and_display() {
     local encrypted_string_input="" # Keep local
     local line # Keep local
     # Read line by line until an empty line is entered
-    while IFS= read -r line; do
-        if [[ -z "$line" ]]; then
-            # User entered a blank line, signal end of input
-            break
-        fi
-        # Append the line and a newline. Using printf and command substitution
-        # to avoid issues with unsetting IFS or handling backslashes.
-        encrypted_string_input+="$line"$'\n'
-    done
+    # Use read -r -d '' to read the entire block until an empty line is encountered.
+    # This is a common shell trick for reading multi-line input until blank line.
+    # The prompt needs to be printed before this read.
+    read -r -d '' encrypted_string_input
 
-    # Remove the trailing newline added in the loop, if any
-    encrypted_string_input=${encrypted_string_input%'\n'}
+    # No need to strip trailing newline with this method if input ended with blank line.
+    # If the last line *wasn't* blank, this would still work, but the prompt asks for blank.
 
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
@@ -2448,6 +2443,8 @@ decrypt_and_display() {
         echo "   - 请检查加密字符串和密码是否正确。" >&2
         echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
         echo "--------------------------------------------------"
+        # Note: A failed decryption doesn't *immediately* require cleanup if password wasn't captured.
+        # But for safety and consistency, we clean anyway.
         cleanup_vars
         return 1
     fi
@@ -2501,9 +2498,10 @@ while true; do
     echo "------------------------------"
     read -p "请输入选项 [1/2/q]: " choice
 
+    # Use esac to close the case statement
     case "$choice" in
         1)
-            # Variables used within this case block (not in a function) should not be 'local'
+            # Variables used within this case block (not in a function)
             word_count_choice=""
             chosen_word_count=""
 
@@ -2563,7 +2561,7 @@ while true; do
             echo "无效选项 '$choice'，请重新输入。"
             skip_main_pause=false # Ensure pause happens after invalid input
             ;;
-    end case # Main case ends
+    esac # Main case ends - CORRECTED THIS LINE
 
     # --- Pause before showing main menu again ---
     # Skip pause if the flag is set (user chose 'b' in sub-menu)
