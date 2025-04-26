@@ -2343,14 +2343,11 @@ decrypt_and_display() {
     echo "⚠️ 警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
     echo "--------------------------------------------------"
     read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
-
     local encrypted_string_input
-    echo "请粘贴之前保存的【加密字符串】:"
-    # 修改点1：使用-d ''读取多行输入，并保留换行符
-    IFS= read -r -d '' encrypted_string_input
-    # 修改点2：清空输入缓冲区中残留内容
-    while read -t 0; do read -r; done
-
+    echo "请粘贴之前保存的【加密字符串】："
+    echo "（粘贴完成后，请按一次 Enter 键）"
+    # 使用特殊方法读取多行输入
+    encrypted_string_input=$(sed '/^$/q' | sed '$d')
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
         cleanup_vars
