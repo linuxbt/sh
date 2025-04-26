@@ -2346,8 +2346,11 @@ decrypt_and_display() {
 
     local encrypted_string_input
     echo "请粘贴之前保存的【加密字符串】:"
-    # 使用 read -r 防止反斜杠被解释，使用 -p "" 避免自动换行提示
-    read -r encrypted_string_input
+    # 修改点1：使用-d ''读取多行输入，并保留换行符
+    IFS= read -r -d '' encrypted_string_input
+    # 修改点2：清空输入缓冲区中残留内容
+    while read -t 0; do read -r; done
+
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
         cleanup_vars
@@ -2357,49 +2360,37 @@ decrypt_and_display() {
     local password_input
     echo "请输入解密密码。"
     password_input=$(get_password "输入解密密码")
-     if [[ -z "$password_input" ]]; then
-         echo "错误: 未能获取有效密码。" >&2
-         cleanup_vars
-         return 1
+    if [[ -z "$password_input" ]]; then
+        echo "错误: 无法获取有效密码。" >&2
+        cleanup_vars
+        return 1
     fi
 
     echo "正在尝试解密..."
     local decrypted_mnemonic
-    # 使用 heredoc 传递加密字符串给 openssl stdin
-    # 使用 2> /dev/null 隐藏 openssl 的错误信息 (如 bad decrypt)
-    # openssl base64 decode (-d -a) is part of the decryption process when using -a flag
-    # Need to pipe the input string to openssl
-    # hash -r # Force shell to re-find openssl
     decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2> /dev/null)
-
     local openssl_exit_code=$?
 
-    # 检查 openssl 的退出状态码
     if [[ $openssl_exit_code -ne 0 ]]; then
         echo "--------------------------------------------------"
         echo "❌ 错误：解密失败！" >&2
-        echo "   - 请仔细检查您输入的【加密字符串】是否完整且无误（包括开头和结尾）。" >&2
-        echo "   - 请确认您输入的【解密密码】是否完全正确。" >&2
+        echo "   - 请检查加密字符串和密码是否正确。" >&2
         echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
         echo "--------------------------------------------------"
-        cleanup_vars # 清理密码和输入的字符串
+        cleanup_vars
         return 1
     fi
 
-     # 额外检查解密结果是否为空或格式异常
-     # Simple check: BIP39 24 words should contain 23 spaces
-     local word_count=$(echo "$decrypted_mnemonic" | wc -w)
-     if [[ -z "$decrypted_mnemonic" ]] || [[ "$word_count" -ne 24 ]]; then
-         echo "--------------------------------------------------"
-         echo "❌ 错误：解密结果无效！" >&2
-         echo "   解密成功，但结果看起来不像有效的 24 位助记词（单词数不正确）。" >&2
-         echo "   这可能表示解密过程异常，或者原始加密字符串已被损坏。" >&2
-         echo "   请检查原始加密字符串和密码。" >&2
-         echo "--------------------------------------------------"
-         cleanup_vars
-         return 1
-     fi
-
+    # 检查解密结果是否有效
+    local word_count=$(echo "$decrypted_mnemonic" | wc -w)
+    if [[ -z "$decrypted_mnemonic" || "$word_count" -ne 24 ]]; then
+        echo "--------------------------------------------------"
+        echo "❌ 错误：解密结果无效！" >&2
+        echo "   请检查加密字符串和密码是否正确。" >&2
+        echo "--------------------------------------------------"
+        cleanup_vars
+        return 1
+    fi
 
     echo "--------------------------------------------------"
     echo "✅ 解密成功！您的 BIP39 助记词是:"
@@ -2407,19 +2398,12 @@ decrypt_and_display() {
     echo "$decrypted_mnemonic"
     echo ""
     echo "--------------------------------------------------"
-    echo "⚠️ 重要提示："
-    echo "   1. **立即安全地记录** 上述助记词原文！确保周围无人窥视。"
-    echo "   2. 最好将其抄写在物理介质上，并存放在安全的地方。"
-    echo "   3. 确认记录无误后，**强烈建议清除终端屏幕和历史记录**！"
-    echo "      - 清屏: 输入 'clear' 命令。"
-    echo "      - 清除历史记录: 输入 'history -c && history -w' (或直接退出 Termux 会话)。"
-    echo "--------------------------------------------------"
-
-    # 操作完成后清理敏感变量
+    # 清理敏感变量
     cleanup_vars
     # 显式清除 password_input (虽然 cleanup_vars 应该包含了它)
-    unset password_input
+    unset password_input    
 }
+
 
 # --- 脚本入口 ---
 
