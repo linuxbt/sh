@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.5 - Implemented word length selection as a sub-menu
+# Version: 1.6 - Fixed 'local' scope and updated sub-menu options
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2193,6 +2193,9 @@ create_python_script_temp_file() {
     # Write the embedded Python script content to the temp file
     printf "%s" "$PYTHON_MNEMONIC_GENERATOR_SCRIPT" > "$PYTHON_SCRIPT_TEMP_FILE"
     # Set a trap to remove the temp file on exit
+    # Trap will also call cleanup_vars if trap "rm...; cleanup_vars" EXIT is used,
+    # but cleanup_vars is also called explicitly after operations.
+    # Having it in the trap is safer for unexpected exits.
     trap "rm -f \"$PYTHON_SCRIPT_TEMP_FILE\"; cleanup_vars" EXIT
     # echo "Debug: Python script temp file created: $PYTHON_SCRIPT_TEMP_FILE" # Debugging line
 }
@@ -2261,7 +2264,7 @@ install_dependencies() {
 # 这个函数只应该被内部调用，并且其输出绝不直接打印到主脚本的 stdout
 # 参数: $1 - 助记词单词数量 (12, 18, 24)
 generate_mnemonic_internal() {
-    local word_count="$1"
+    local word_count="$1" # Keep local here as this is a function
 
     # Ensure temp file exists before using it
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
@@ -2269,12 +2272,12 @@ generate_mnemonic_internal() {
          return 1
     fi
 
-    local mnemonic=""
+    local mnemonic="" # Keep local here as this is a function
     # Execute the embedded Python script, piping the wordlist to its stdin
     # Pass the word count as a command-line argument to the Python script
     # Using printf "%s" ensures no trailing newline from the wordlist HEREDOC.
     mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
-    local py_exit_code=$?
+    local py_exit_code=$? # Keep local here as this is a function
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：生成助记词失败！" >&2
@@ -2291,9 +2294,9 @@ generate_mnemonic_internal() {
 
 # 获取并验证密码
 get_password() {
-    local prompt_message=$1
-    local password=""
-    local password_confirm=""
+    local prompt_message=$1 # Keep local
+    local password="" # Keep local
+    local password_confirm="" # Keep local
     while true; do
         read -sp "$prompt_message (输入时不会显示，最少 $MIN_PASSWORD_LENGTH 位): " password
         echo # 换行
@@ -2318,25 +2321,26 @@ get_password() {
     # 将密码存储在提供的变量名中 (通过 caller)
     # 注意：这里我们将密码直接返回给调用者处理，而不是存储在全局变量中
     # 调用者负责在使用后 unset 变量
-     printf "%s" "$password" # 使用 printf 避免换行符
+     printf "%s" "$password" # 使用 printf avoids trailing newline
 }
 
 # 清理敏感变量
 cleanup_vars() {
     # Note: PYTHON_SCRIPT_TEMP_FILE is cleaned by the trap.
+    # Removed local from these declarations as they are intended to unset script-global vars
     unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
     # echo "Debug: Sensitive variables cleared." # 用于调试
 }
 
 # 执行生成和加密的函数 (接受单词数量作为参数)
 perform_generation_and_encryption() {
-    local chosen_word_count="$1"
+    local chosen_word_count="$1" # Keep local here as this is a function
 
     echo "正在生成 ${chosen_word_count} 位 BIP39 助记词 (不会显示)..."
-    local mnemonic
+    local mnemonic # Keep local
     # 捕获内部函数的输出到变量，而不是打印
     mnemonic=$(generate_mnemonic_internal "$chosen_word_count")
-    local gen_exit_code=$?
+    local gen_exit_code=$? # Keep local
 
     if [[ $gen_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：助记词生成过程失败。请检查前面的错误信息。" >&2
@@ -2345,7 +2349,7 @@ perform_generation_and_encryption() {
     fi
     # echo "Debug: Mnemonic generated (length: ${#mnemonic}, first 3 words: $(echo "$mnemonic" | cut -d ' ' -f 1-3))" # 仅用于调试
 
-    local password_input
+    local password_input # Keep local
     echo "请输入用于加密助记词的密码。"
     password_input=$(get_password "设置加密密码")
     if [[ -z "$password_input" ]]; then
@@ -2355,7 +2359,7 @@ perform_generation_and_encryption() {
     fi
 
     echo "正在使用 ${ENCRYPTION_ALGO} 加密助记词..."
-    local encrypted_string
+    local encrypted_string # Keep local
     # 使用 heredoc 将助记词传递给 openssl stdin, using printf "%s" to prevent trailing newline
     # 使用 -pass pass:"$password" 直接传递密码
     # IMPORTANT: openssl enc output includes Salted__ header and base64.
@@ -2363,7 +2367,7 @@ perform_generation_and_encryption() {
     # hash -r # Force shell to re-find openssl
     encrypted_string=$(printf "%s" "$mnemonic" | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass pass:"$password_input")
 
-    local openssl_exit_code=$?
+    local openssl_exit_code=$? # Keep local
 
     if [[ $openssl_exit_code -ne 0 ]] || [[ -z "$encrypted_string" ]]; then
         echo "错误：加密失败！" >&2
@@ -2397,7 +2401,7 @@ decrypt_and_display() {
     echo "⚠️ 警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
     echo "--------------------------------------------------"
     read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
-    local encrypted_string_input
+    local encrypted_string_input # Keep local
     echo "请粘贴之前保存的【加密字符串】："
     echo "（粘贴完成后，请按一次 Enter 键，然后输入 Ctrl+D 结束输入）" # Clarified input method
     # 使用特殊方法读取多行输入，直到遇到空行 或 EOF (Ctrl+D)
@@ -2411,7 +2415,7 @@ decrypt_and_display() {
         return 1
     fi
 
-    local password_input
+    local password_input # Keep local
     echo "请输入解密密码。"
     password_input=$(get_password "输入解密密码")
     if [[ -z "$password_input" ]]; then
@@ -2421,10 +2425,10 @@ decrypt_and_display() {
     fi
 
     echo "正在尝试解密..."
-    local decrypted_mnemonic
+    local decrypted_mnemonic # Keep local
     # Pipe the input string to openssl. openssl needs the base64 input.
     decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2> /dev/null)
-    local openssl_exit_code=$?
+    local openssl_exit_code=$? # Keep local
 
     if [[ $openssl_exit_code -ne 0 ]]; then
         echo "--------------------------------------------------"
@@ -2437,7 +2441,7 @@ decrypt_and_display() {
     fi
 
     # Check if the decrypted result looks like a valid mnemonic (at least the word count)
-    local word_count=$(echo "$decrypted_mnemonic" | wc -w)
+    local word_count=$(echo "$decrypted_mnemonic" | wc -w) # Keep local
     # BIP39 standard supports 12, 15, 18, 21, 24 words. Our generator only does 12, 18, 24.
     # A simple check for 12, 18, or 24 is sufficient for strings generated by *this* script.
     if [[ -z "$decrypted_mnemonic" || ! ( "$word_count" -eq 12 || "$word_count" -eq 18 || "$word_count" -eq 24 ) ]]; then
@@ -2469,7 +2473,7 @@ create_python_script_temp_file
 # 然后检查并安装依赖
 install_dependencies
 
-# 主菜单循环
+# Main menu loop
 while true; do
     echo ""
     echo "=============================="
@@ -2484,27 +2488,30 @@ while true; do
 
     case "$choice" in
         1)
-            # 进入生成助记词的子菜单
-            local word_count_choice # Local variable for sub-menu choice
-            local chosen_word_count="" # Local variable to store the final word count
+            # Variables used within this case block (not in a function) should not be 'local'
+            word_count_choice="" # Removed 'local'
+            chosen_word_count="" # Removed 'local'
 
-            while true; do # Sub-menu loop
+            # Sub-menu loop for word count selection
+            while true; do
                 echo "" # Add newline for clarity
                 echo "------------------------------"
                 echo "  生成助记词 - 选择长度"
                 echo "------------------------------"
                 echo "请选择要生成的助记词长度："
-                echo "  12. 12 个单词 (128位熵)"
-                echo "  18. 18 个单词 (192位熵)"
-                echo "  24. 24 个单词 (256位熵) - 推荐安全级别"
+                echo "  1. 12 个单词 (128位熵)"
+                echo "  2. 18 个单词 (192位熵)"
+                echo "  3. 24 个单词 (256位熵) - 推荐安全级别"
                 echo "  b. 返回主菜单"
                 echo "------------------------------"
-                read -p "请输入选项 [12/18/24/b]: " word_count_choice
+                # Changed the prompt to reflect options 1, 2, 3
+                read -p "请输入选项 [1/2/3/b]: " word_count_choice
 
+                # Match user input (1, 2, 3, b) and set the actual word count (12, 18, 24)
                 case "$word_count_choice" in
-                    12) chosen_word_count=12; break;; # Valid choice, break inner loop
-                    18) chosen_word_count=18; break;; # Valid choice, break inner loop
-                    24) chosen_word_count=24; break;; # Valid choice, break inner loop
+                    1) chosen_word_count=12; break;; # User chose 1, meaning 12 words
+                    2) chosen_word_count=18; break;; # User chose 2, meaning 18 words
+                    3) chosen_word_count=24; break;; # User chose 3, meaning 24 words
                     b | B) echo "返回主菜单..."; chosen_word_count=""; break;; # Back to main menu, clear choice
                     *) echo "无效选项 '$word_count_choice'，请重新输入。";;
                 esac
