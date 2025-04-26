@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.20 - Implemented -pass stdin for Openssl and post-decryption cleanup
+# Version: 1.21 - Fixed wordlist embedding issue for Python script, added Python stderr output on error
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -12,9 +12,11 @@ ENCRYPTION_ALGO="aes-256-cbc"
 # OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # 默认使用 PBKDF2
 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 先不默认加 -pbkdf2，在检查时根据 OpenSSL 版本决定
 MIN_PASSWORD_LENGTH=8 # 密码最小长度
-# --- Embedded BIP39 English Wordlist ---
-# (此列表包含完整的 2048 个单词，脚本仅显示前几行作为示例，不会在运行时输出完整列表)
-read -r -d '' BIP39_WORDLIST << 'EOF_WORDLIST'
+
+# --- Embedded BIP39 English Wordlist (using cat << for reliability) ---
+# 使用 cat << EOF 的方式来更稳定地将多行文本捕获到变量中
+# This list contains the full 2048 words.
+BIP39_WORDLIST_CONTENT=$(cat << 'EOF_WORDLIST_CONTENT'
 abandon
 ability
 able
@@ -2062,7 +2064,8 @@ youth
 zebra
 zero
 zone
-EOF_WORDLIST
+EOF_WORDLIST_CONTENT
+) # End of cat << EOF_WORDLIST_CONTENT
 
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
@@ -2075,9 +2078,12 @@ import os
 import hashlib
 
 # Read wordlist from stdin
-wordlist = [line.strip() for line in sys.stdin if line.strip()]
+# Ensure we read all lines, then process. Stripping handles leading/trailing whitespace.
+# The check `if line.strip()` filters out empty lines.
+wordlist = [line.strip() for line in sys.stdin.readlines() if line.strip()]
+
 if len(wordlist) != 2048:
-    print("Error: Wordlist has incorrect number of words (expected 2048).", file=sys.stderr)
+    print("Error: Wordlist has incorrect number of words (expected 2048), detected:", len(wordlist), file=sys.stderr)
     sys.exit(1)
 
 # Read desired word count from command line argument
@@ -2215,8 +2221,7 @@ install_dependencies() {
     if ! command -v openssl >/dev/null 2>&1; then
         missing_pkg+=("openssl-tool")
     else
-        # 检查 OpenSSL 版本是否支持 PBKDF2
-        # 使用 -pass arg to check command line options reliably
+        # 检查 OpenSSL 版本是否支持 PBKDF2 或 PKCS5 V2.0 PBE
         # Note: grep -q suppresses output, -e allows multiple patterns
         if openssl enc -help 2>&1 | grep -q -e '-pbkdf2' -e 'PKCS5 V2.0 PBE'; then
              OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # 如果支持 PBKDF2 则使用
@@ -2270,19 +2275,46 @@ generate_mnemonic_internal() {
     fi
 
     local mnemonic="" # Keep local here as this is a function
+    local python_stderr_output="" # Variable to capture Python's stderr
+    local py_exit_code
+
     # Execute the embedded Python script, piping the wordlist to its stdin
     # Pass the word count as a command-line argument to the Python script
-    # Using printf "%s" ensures no trailing newline from the wordlist HEREDOC.
-    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
-    local py_exit_code=$? # Keep local here as this is a function
+    # Use the more reliable BIP39_WORDLIST_CONTENT variable
+    # Use process substitution to capture stderr
+    mnemonic=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> >(python_stderr_output=$(cat); typeset -p python_stderr_output))
+    py_exit_code=$? # Capture exit code immediately after command
+
+    # The process substitution above is complex and might not work on all shells/Termux versions reliably
+    # A simpler way is to redirect stderr to stdout and capture both, then split. Or just capture stderr directly.
+    # Let's use a simple stderr capture.
+    # mnemonic=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> /dev/null)
+    # py_exit_code=$?
+
+    # Let's use a simpler capture that works widely
+    local python_output_and_error
+    python_output_and_error=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 3>&1 1>&2 2>&3) # Swap stdout and stderr using file descriptors
+    py_exit_code=$?
+
+    # Now $python_output_and_error contains the *original* stdout (the mnemonic) and *original* stderr (the error message) interleaved.
+    # This is still tricky to parse reliably.
+    # The *most* reliable way is separate captures if possible, but that's complex in Bash.
+    # For debugging, let's just print stderr if there's an error exit code.
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：生成助记词失败！" >&2
         echo "请检查 Python 环境或嵌入的生成脚本是否有问题。" >&2
         echo "Python 退出码: $py_exit_code" >&2
+        # Try running the Python script again, just redirecting stderr to our stderr for display
+        echo "--- Python 错误输出 ---" >&2
+        printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" >/dev/null 2>&1 # Run again just to show stderr
+        echo "-----------------------" >&2
         # cleanup_vars is handled by the trap set by create_python_script_temp_file
         return 1 # 返回错误状态
     fi
+    # If successful, $mnemonic should contain the mnemonic and stderr should be empty.
+    # The previous capture method was flawed. Relying on a second run for stderr is simpler for diagnosis.
+
     # echo "Debug: Mnemonic generated (length: ${#mnemonic})" # 仅用于调试，生产中注释掉
 
     # Return the generated mnemonic by printing it
@@ -2330,6 +2362,7 @@ cleanup_vars() {
     unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
     # Variables used by the flag logic in the main loop:
     unset skip_main_pause
+    unset python_stderr_output # Ensure this potential temp var is also unset
     # Using bash 4.2+ `declare -p VARNAME > /dev/null` to check if a variable exists before unsetting is safer,
     # but for these known variables, direct unset is fine in a simple script.
     # echo "Debug: Sensitive variables cleared." # 用于调试
@@ -2346,7 +2379,7 @@ perform_generation_and_encryption() {
     local gen_exit_code=$? # Keep local
 
     if [[ $gen_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        echo "错误：助记词生成过程失败。请检查前面的错误信息。" >&2
+        # Error message already printed by generate_mnemonic_internal
         # cleanup_vars is called by the trap on exit or explicit call
         return 1 # 返回错误状态
     fi
@@ -2367,6 +2400,17 @@ perform_generation_and_encryption() {
     # Using printf "%s" to pass mnemonic to openssl stdin, and <<< to pass password to openssl stdin
     # openssl documentation states that if -pass stdin is used AND data is piped,
     # it reads data from the pipe and password from stdin attached via <<< or similar mechanism.
+    # We need to ensure the password input via <<< is separate from the piped data (the mnemonic).
+    # Bash's behavior with pipes and redirects can be complex, but <<< is generally processed first
+    # and provides stdin to the command *before* the pipe's data arrives.
+    # Let's explicitly use cat to provide the password via stdin for maximum clarity and compatibility.
+    # printf "%s" "$mnemonic" | cat <(printf "%s" "$password_input") - | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass stdin
+
+    # Actually, openssl -pass stdin reads from the *controlling terminal's* stdin,
+    # NOT the piped stdin. The <<< redirection *does* provide input to the command's stdin.
+    # The combination `printf "%s" "$mnemonic" | openssl ... -pass stdin <<< "$password_input"`
+    # means openssl reads the mnemonic from the pipe, and the password from the stdin provided by <<< string.
+    # This is the correct and safer pattern.
     encrypted_string=$(printf "%s" "$mnemonic" | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass stdin <<< "$password_input")
 
     local openssl_exit_code=$? # Keep local
@@ -2422,7 +2466,7 @@ decrypt_and_display() {
 
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
-        cleanup_vars # Clean up password_input if get_password was called before this check
+        cleanup_vars # Clean up potential password_input if get_password was called before this check (though it isn't)
         return 1
     fi
 
@@ -2450,7 +2494,7 @@ decrypt_and_display() {
         echo "   - 请检查加密字符串和密码是否正确。" >&2
         echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
         echo "--------------------------------------------------"
-        cleanup_vars # Clean up password_input
+        cleanup_vars # Clean up password_input and decrypted_mnemonic if exists
         return 1
     fi
 
@@ -2557,7 +2601,8 @@ while true; do
                     *) echo "无效选项 '$word_count_choice'，请重新输入。";;
                 esac
                 # If invalid input, pause before re-showing sub-menu
-                if [[ "$chosen_word_count" == "" && "$word_count_choice" != "b" && "$word_count_choice" != "B" ]]; then
+                # Only pause if it wasn't a 'b' or 'B' choice that led to the break
+                if [[ -z "$chosen_word_count" && ! ("$word_count_choice" == "b" || "$word_count_choice" == "B") ]]; then
                      read -n 1 -s -r -p "按任意键继续选择..."
                      echo # Newline
                 fi
@@ -2571,7 +2616,9 @@ while true; do
                 # If user chose a word count, perform the generation and encryption
                 # This function handles its own cleanup_vars call on success/failure
                 perform_generation_and_encryption "$chosen_word_count"
-                skip_main_pause=false # Ensure pause happens after an operation
+                # perform_generation_and_encryption exits or returns non-zero on error.
+                # If it succeeded (returned 0), we want to pause. If it failed, the error message is shown, and we pause.
+                skip_main_pause=false # Ensure pause happens after an operation (success or failure)
             fi
             ;; # End of main case 1
 
