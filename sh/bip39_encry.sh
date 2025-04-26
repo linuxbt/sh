@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.3 - Embedded wordlist and standalone Python generation
+# Version: 1.5 - Implemented word length selection as a sub-menu
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2066,10 +2066,10 @@ zoo
 EOF_WORDLIST
 
 # --- Embedded Python Script for Mnemonic Generation ---
-# This script generates a 24-word BIP39 mnemonic from cryptographically
-# secure random bytes using the provided wordlist.
+# This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
+# from cryptographically secure random bytes using the provided wordlist.
 # It relies only on standard Python libraries (os, hashlib, sys).
-# It takes the wordlist on standard input and prints the mnemonic to standard output.
+# It expects the wordlist on standard input and the desired word count as the first command-line argument.
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 import sys
 import os
@@ -2078,33 +2078,91 @@ import hashlib
 # Read wordlist from stdin
 wordlist = [line.strip() for line in sys.stdin if line.strip()]
 if len(wordlist) != 2048:
-    print("Error: Wordlist has incorrect number of words.", file=sys.stderr)
+    print("Error: Wordlist has incorrect number of words (expected 2048).", file=sys.stderr)
+    sys.exit(1)
+
+# Read desired word count from command line argument
+if len(sys.argv) < 2:
+    print("Error: No word count provided as argument.", file=sys.stderr)
+    print("Usage: python script.py <word_count>", file=sys.stderr)
     sys.exit(1)
 
 try:
-    # Generate 256 bits of entropy (32 bytes) using a secure source
-    entropy_bytes = os.urandom(32)
+    word_count = int(sys.argv[1])
+except ValueError:
+    print(f"Error: Invalid word count argument '{sys.argv[1]}'. Must be an integer.", file=sys.stderr)
+    sys.exit(1)
 
-    # Calculate checksum (first byte of SHA256 hash of entropy)
-    checksum_byte = hashlib.sha256(entropy_bytes).digest()[0]
+# Determine entropy and checksum lengths based on word count
+# BIP39 standard: Entropy length (bits) | Checksum length (bits) | Mnemonic length (words)
+# 128 | 4 | 12
+# 192 | 6 | 18
+# 256 | 8 | 24
+entropy_bytes_length = 0
+checksum_bits_length = 0
+total_bits_length = 0 # Total bits = entropy + checksum
+
+if word_count == 12:
+    entropy_bytes_length = 16 # 128 bits
+    checksum_bits_length = 4
+    total_bits_length = 132 # 128 + 4
+elif word_count == 18:
+    entropy_bytes_length = 24 # 192 bits
+    checksum_bits_length = 6
+    total_bits_length = 198 # 192 + 6
+elif word_count == 24:
+    entropy_bytes_length = 32 # 256 bits
+    checksum_bits_length = 8
+    total_bits_length = 264 # 256 + 8
+else:
+    print(f"Error: Invalid word count '{word_count}'. Must be 12, 18, or 24.", file=sys.stderr)
+    sys.exit(1)
+
+# Expected total bits must be word_count * 11
+if total_bits_length != word_count * 11:
+     print(f"Internal Error: Mismatch between word count ({word_count}) and calculated total bits ({total_bits_length}).", file=sys.stderr)
+     sys.exit(1)
+
+try:
+    # Generate entropy using a secure source
+    entropy_bytes = os.urandom(entropy_bytes_length)
+
+    # Calculate checksum (first checksum_bits_length from SHA256 hash of entropy)
+    checksum_full_bytes = hashlib.sha256(entropy_bytes).digest()
+    # Extract the required number of checksum bits
+    # Need to convert bytes to an integer and shift/mask
+    checksum_int = int.from_bytes(checksum_full_bytes, 'big')
+
+    # The first `checksum_bits_length` bits of the hash are the checksum.
+    # The SHA256 hash is 256 bits. We want the top bits.
+    # Shift right by 256 - checksum_bits_length to move the desired bits to the LSB position.
+    # Mask with (1 << checksum_bits_length) - 1 to keep only those bits.
+    checksum_value = (checksum_int >> (256 - checksum_bits_length)) & ((1 << checksum_bits_length) - 1)
+
 
     # Combine entropy and checksum bits
-    # Total 256 (entropy) + 8 (checksum) = 264 bits
-    # Convert bytes to a large integer
-    all_bits_int = int.from_bytes(entropy_bytes, 'big') << 8 | checksum_byte
+    # Convert entropy bytes to a large integer
+    entropy_int = int.from_bytes(entropy_bytes, 'big')
 
-    # Extract 11-bit chunks (24 words * 11 bits/word = 264 bits)
+    # The combined integer has total_bits_length bits.
+    # The bits are arranged as [entropy][checksum] from MSB to LSB.
+    # To combine, shift the entropy bits left by the number of checksum bits, then OR with the checksum value.
+    combined_int = (entropy_int << checksum_bits_length) | checksum_value
+
+    # Extract 11-bit chunks
     mnemonic_words = []
-    for i in range(24):
+
+    # The k-th word index (0-indexed) comes from bits [k*11] to [(k+1)*11 - 1] (MSB is bit 0)
+    # In terms of shifting from LSB (bit 0): shift right by (total_bits_length - (k+1)*11) and mask
+    for i in range(word_count):
         # Extract the i-th 11-bit chunk from the left (MSB)
-        # The index of the 11-bit chunk from MSB is 23-i
-        # Shift right by (23-i) * 11 bits
-        # Mask with 0x7FF (binary 11111111111) to get the last 11 bits
-        shift = (23 - i) * 11
-        word_index = (all_bits_int >> shift) & 0x7FF
+        # The index of the 11-bit chunk from LSB is total_bits_length - (i+1)*11
+        shift = total_bits_length - (i + 1) * 11
+        word_index = (combined_int >> shift) & 0x7FF # 0x7FF is 11 bits set to 1
+
         if word_index >= len(wordlist):
              # Should not happen with correct bit manipulation and wordlist size
-             print(f"Error: Calculated word index {word_index} is out of bounds.", file=sys.stderr)
+             print(f"Internal Error: Calculated word index {word_index} is out of bounds (wordlist size {len(wordlist)}).", file=sys.stderr)
              sys.exit(1)
         mnemonic_words.append(wordlist[word_index])
 
@@ -2125,9 +2183,11 @@ EOF_PYTHON_SCRIPT
 
 # Create a temporary file for the Python script and set a trap for cleanup
 create_python_script_temp_file() {
+    # Ensure tmp directory exists and is writable in Termux
+    mkdir -p /data/data/com.termux/files/usr/tmp || { echo "Error: Failed to create temp directory."; exit 1; }
     PYTHON_SCRIPT_TEMP_FILE=$(mktemp /data/data/com.termux/files/usr/tmp/mnemonic_gen_script.XXXXXX.py)
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-        echo "Error: Failed to create temporary file for Python script." >&2
+        echo "Error: Failed to create temporary file for Python script in /data/data/com.termux/files/usr/tmp." >&2
         exit 1
     fi
     # Write the embedded Python script content to the temp file
@@ -2137,16 +2197,8 @@ create_python_script_temp_file() {
     # echo "Debug: Python script temp file created: $PYTHON_SCRIPT_TEMP_FILE" # Debugging line
 }
 
-# Remove the temporary Python script file
-cleanup_python_script_temp_file() {
-    if [[ -n "$PYTHON_SCRIPT_TEMP_FILE" ]] && [[ -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-        # echo "Debug: Cleaning up temp file: $PYTHON_SCRIPT_TEMP_FILE" # Debugging line
-        rm -f "$PYTHON_SCRIPT_TEMP_FILE"
-    fi
-    # Remove the trap after explicit cleanup
-    trap - EXIT
-}
-
+# Note: cleanup_python_script_temp_file function is implicitly handled by the trap.
+# No need for a separate function call unless you want to manually remove it early (not recommended with trap).
 
 # 检查并安装必要的命令
 install_dependencies() {
@@ -2205,9 +2257,12 @@ install_dependencies() {
 }
 
 
-# 生成 24 位 BIP39 助记词 (使用嵌入的 Python 脚本和单词列表)
+# 生成指定位数的 BIP39 助记词 (使用嵌入的 Python 脚本和单词列表)
 # 这个函数只应该被内部调用，并且其输出绝不直接打印到主脚本的 stdout
+# 参数: $1 - 助记词单词数量 (12, 18, 24)
 generate_mnemonic_internal() {
+    local word_count="$1"
+
     # Ensure temp file exists before using it
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
          echo "Error: Python script temporary file not found." >&2
@@ -2216,15 +2271,16 @@ generate_mnemonic_internal() {
 
     local mnemonic=""
     # Execute the embedded Python script, piping the wordlist to its stdin
-    # Use process substitution <() for wordlist to avoid large heredoc here
-    mnemonic=$(python "$PYTHON_SCRIPT_TEMP_FILE" <<< "$BIP39_WORDLIST")
+    # Pass the word count as a command-line argument to the Python script
+    # Using printf "%s" ensures no trailing newline from the wordlist HEREDOC.
+    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     local py_exit_code=$?
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：生成助记词失败！" >&2
         echo "请检查 Python 环境或嵌入的生成脚本是否有问题。" >&2
         echo "Python 退出码: $py_exit_code" >&2
-        cleanup_vars # 清理可能的残留
+        # cleanup_vars is handled by the trap set by create_python_script_temp_file
         return 1 # 返回错误状态
     fi
     # echo "Debug: Mnemonic generated (length: ${#mnemonic})" # 仅用于调试，生产中注释掉
@@ -2267,23 +2323,24 @@ get_password() {
 
 # 清理敏感变量
 cleanup_vars() {
-    unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input
+    # Note: PYTHON_SCRIPT_TEMP_FILE is cleaned by the trap.
+    unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
     # echo "Debug: Sensitive variables cleared." # 用于调试
 }
 
-# --- 主逻辑 ---
+# 执行生成和加密的函数 (接受单词数量作为参数)
+perform_generation_and_encryption() {
+    local chosen_word_count="$1"
 
-# 选项 1: 生成并加密
-generate_and_encrypt() {
-    echo "正在生成 24 位 BIP39 助记词 (不会显示)..."
+    echo "正在生成 ${chosen_word_count} 位 BIP39 助记词 (不会显示)..."
     local mnemonic
     # 捕获内部函数的输出到变量，而不是打印
-    mnemonic=$(generate_mnemonic_internal)
+    mnemonic=$(generate_mnemonic_internal "$chosen_word_count")
     local gen_exit_code=$?
 
     if [[ $gen_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：助记词生成过程失败。请检查前面的错误信息。" >&2
-        cleanup_vars # 清理可能的残留
+        # cleanup_vars is called by the trap on exit or explicit call
         return 1 # 返回错误状态
     fi
     # echo "Debug: Mnemonic generated (length: ${#mnemonic}, first 3 words: $(echo "$mnemonic" | cut -d ' ' -f 1-3))" # 仅用于调试
@@ -2293,13 +2350,13 @@ generate_and_encrypt() {
     password_input=$(get_password "设置加密密码")
     if [[ -z "$password_input" ]]; then
          echo "错误: 未能获取有效密码。" >&2
-         cleanup_vars
+         # cleanup_vars is called by the trap on exit or explicit call
          return 1
     fi
 
     echo "正在使用 ${ENCRYPTION_ALGO} 加密助记词..."
     local encrypted_string
-    # 使用 heredoc 将助记词传递给 openssl stdin，避免在命令行参数中暴露
+    # 使用 heredoc 将助记词传递给 openssl stdin, using printf "%s" to prevent trailing newline
     # 使用 -pass pass:"$password" 直接传递密码
     # IMPORTANT: openssl enc output includes Salted__ header and base64.
     # Using "-a" for base64 encoding.
@@ -2312,12 +2369,12 @@ generate_and_encrypt() {
         echo "错误：加密失败！" >&2
         echo "请检查 openssl 是否正常工作或密码是否有特殊字符导致问题。" >&2
         echo "OpenSSL 退出码: $openssl_exit_code" >&2
-        cleanup_vars # 清理密码和助记词
+        # cleanup_vars is called by the trap on exit or explicit call
         return 1
     fi
 
     echo "--------------------------------------------------"
-    echo "✅ 助记词已生成并加密成功！"
+    echo "✅ ${chosen_word_count} 位助记词已生成并加密成功！"
     echo "👇 请妥善备份以下【加密后的字符串】:"
     echo ""
     echo "$encrypted_string"
@@ -2331,9 +2388,8 @@ generate_and_encrypt() {
 
     # 操作完成后清理敏感变量
     cleanup_vars
-    # 显式清除 password_input (虽然 cleanup_vars 应该包含了它)
-    unset password_input
 }
+
 
 # 选项 2: 解密并显示
 decrypt_and_display() {
@@ -2343,9 +2399,12 @@ decrypt_and_display() {
     read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
     local encrypted_string_input
     echo "请粘贴之前保存的【加密字符串】："
-    echo "（粘贴完成后，请按一次 Enter 键）"
-    # 使用特殊方法读取多行输入
-    encrypted_string_input=$(sed '/^$/q' | sed '$d')
+    echo "（粘贴完成后，请按一次 Enter 键，然后输入 Ctrl+D 结束输入）" # Clarified input method
+    # 使用特殊方法读取多行输入，直到遇到空行 或 EOF (Ctrl+D)
+    encrypted_string_input=$(cat -) # reads until EOF (Ctrl+D) or an empty line on some systems
+    # Strip the last empty line if present (some terminals send empty line on Enter)
+    encrypted_string_input=$(echo "$encrypted_string_input" | sed '/^$/d' )
+
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
         cleanup_vars
@@ -2363,6 +2422,7 @@ decrypt_and_display() {
 
     echo "正在尝试解密..."
     local decrypted_mnemonic
+    # Pipe the input string to openssl. openssl needs the base64 input.
     decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2> /dev/null)
     local openssl_exit_code=$?
 
@@ -2376,11 +2436,14 @@ decrypt_and_display() {
         return 1
     fi
 
-    # 检查解密结果是否有效
+    # Check if the decrypted result looks like a valid mnemonic (at least the word count)
     local word_count=$(echo "$decrypted_mnemonic" | wc -w)
-    if [[ -z "$decrypted_mnemonic" || "$word_count" -ne 24 ]]; then
+    # BIP39 standard supports 12, 15, 18, 21, 24 words. Our generator only does 12, 18, 24.
+    # A simple check for 12, 18, or 24 is sufficient for strings generated by *this* script.
+    if [[ -z "$decrypted_mnemonic" || ! ( "$word_count" -eq 12 || "$word_count" -eq 18 || "$word_count" -eq 24 ) ]]; then
         echo "--------------------------------------------------"
-        echo "❌ 错误：解密结果无效！" >&2
+        echo "❌ 错误：解密结果无效或格式不正确！" >&2
+        echo "   (解密后检测到 ${word_count} 个单词，预期 12, 18 或 24 个)" >&2
         echo "   请检查加密字符串和密码是否正确。" >&2
         echo "--------------------------------------------------"
         cleanup_vars
@@ -2388,15 +2451,13 @@ decrypt_and_display() {
     fi
 
     echo "--------------------------------------------------"
-    echo "✅ 解密成功！您的 BIP39 助记词是:"
+    echo "✅ 解密成功！您的 ${word_count} 位 BIP39 助记词是:"
     echo ""
     echo "$decrypted_mnemonic"
     echo ""
     echo "--------------------------------------------------"
     # 清理敏感变量
     cleanup_vars
-    # 显式清除 password_input (虽然 cleanup_vars 应该包含了它)
-    unset password_input    
 }
 
 
@@ -2423,23 +2484,59 @@ while true; do
 
     case "$choice" in
         1)
-            generate_and_encrypt
-            ;;
+            # 进入生成助记词的子菜单
+            local word_count_choice # Local variable for sub-menu choice
+            local chosen_word_count="" # Local variable to store the final word count
+
+            while true; do # Sub-menu loop
+                echo "" # Add newline for clarity
+                echo "------------------------------"
+                echo "  生成助记词 - 选择长度"
+                echo "------------------------------"
+                echo "请选择要生成的助记词长度："
+                echo "  12. 12 个单词 (128位熵)"
+                echo "  18. 18 个单词 (192位熵)"
+                echo "  24. 24 个单词 (256位熵) - 推荐安全级别"
+                echo "  b. 返回主菜单"
+                echo "------------------------------"
+                read -p "请输入选项 [12/18/24/b]: " word_count_choice
+
+                case "$word_count_choice" in
+                    12) chosen_word_count=12; break;; # Valid choice, break inner loop
+                    18) chosen_word_count=18; break;; # Valid choice, break inner loop
+                    24) chosen_word_count=24; break;; # Valid choice, break inner loop
+                    b | B) echo "返回主菜单..."; chosen_word_count=""; break;; # Back to main menu, clear choice
+                    *) echo "无效选项 '$word_count_choice'，请重新输入。";;
+                esac
+            done # End of sub-menu loop
+
+            # If a word count was selected (not 'b'), perform the generation and encryption
+            if [[ -n "$chosen_word_count" ]]; then
+                 perform_generation_and_encryption "$chosen_word_count"
+            fi
+            ;; # End of main case 1
+
         2)
             decrypt_and_display
             ;;
+
         q | Q)
             echo "正在退出..."
             # Trap will handle cleanup
+            # Explicitly call cleanup_vars one last time for safety
+            cleanup_vars
             sleep 1
             clear
             exit 0
             ;;
+
         *)
             echo "无效选项 '$choice'，请重新输入。"
             ;;
     esac
-    # 在每次操作后暂停，等待用户确认，防止信息快速滚动消失
+    # In the main loop, after handling a choice (including the sub-menu), pause.
+    # If 'b' was chosen in the sub-menu, perform_generation_and_encryption wasn't called,
+    # so we just pause and loop back to the main menu.
     echo "" # 在提示前加一行空行，美观一些
     read -n 1 -s -r -p "按任意键返回主菜单..."
     echo # 换行
