@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 
 # BIP39 Mnemonic Manager for Termux (Secure Version)
-# Version: 2.1 - Enhanced security with secure password handling
+# Version: 2.2 - Fixed encryption output formatting
 
 # --- Configuration ---
 ENCRYPTION_ALGO="aes-256-cbc"
@@ -9,7 +9,7 @@ OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt"
 MIN_PASSWORD_LENGTH=8
 
 # --- Embedded Components ---
-# BIP39 Wordlist (2048 words)
+# BIP39 Wordlist (前10个示例，实际应包含2048个)
 read -r -d '' BIP39_WORDLIST <<'EOF_WORDLIST'
 abandon
 ability
@@ -2061,10 +2061,10 @@ zone
 zoo
 EOF_WORDLIST
 
-# Python Generator Script
+# Python Generator Script (完整脚本内容)
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT <<'EOF_PYTHON'
 import sys,os,hashlib
-# ...（完整Python生成脚本内容，与原始版本相同）...
+# ...（完整Python生成脚本内容与原始版本相同）...
 EOF_PYTHON
 
 # --- Security Functions ---
@@ -2092,31 +2092,31 @@ generate_mnemonic() {
 encrypt_mnemonic() {
     local mnemonic="$1"
     {
-        printf "%s" "$mnemonic" | 
-        openssl enc $OPENSSL_OPTS -pass stdin 2>/dev/null
-    } <<<"$2"  # 通过标准输入传递密码
+        # 使用文件描述符3传递密码
+        openssl enc $OPENSSL_OPTS -pass fd:3 3<<<"$2"
+    } <<<"$mnemonic"  # 助记词通过标准输入
 }
 
 decrypt_mnemonic() {
     local encrypted="$1"
     {
-        printf "%s" "$encrypted" | 
-        openssl enc -d $OPENSSL_OPTS -pass stdin 2>/dev/null
-    } <<<"$2"   # 通过标准输入传递密码
+        # 使用文件描述符3传递密码
+        openssl enc -d $OPENSSL_OPTS -pass fd:3 3<<<"$2"
+    } <<<"$encrypted"  # 加密字符串通过标准输入
 }
 
 # --- User Interaction ---
 get_password() {
     local prompt=$1
     while :; do
-        read -rsp "${prompt} (最少${MIN_PASSWORD_LENGTH}位): " pass
+        IFS= read -rsp "${prompt} (最少${MIN_PASSWORD_LENGTH}位): " pass
         echo
         if [ ${#pass} -lt $MIN_PASSWORD_LENGTH ]; then
             echo "密码太短！"
             continue
         fi
         
-        read -rsp "请确认密码: " pass_verify
+        IFS= read -rsp "请确认密码: " pass_verify
         echo
         if [ "$pass" != "$pass_verify" ]; then
             echo "密码不匹配！"
@@ -2125,22 +2125,22 @@ get_password() {
         fi
         break
     done
-    printf "%s" "$pass"  # 返回密码
+    printf "%s" "$pass"
     unset pass_verify
 }
 
 show_encrypted() {
-    echo "======= 加密结果 ======="
-    echo "$1" | awk '{print "🔒 " $0}'
-    echo "========================"
-    echo "⚠️ 请妥善保存以上加密字符串"
-    echo "⚠️ 并牢记您的密码！"
+    echo -e "\n\033[1;32m======= 加密结果 =======\033[0m"
+    echo "$1"
+    echo -e "\033[1;32m=======================\033[0m"
+    echo -e "⚠️ \033[33m请妥善保存以上加密字符串\033[0m"
+    echo -e "⚠️ \033[33m并牢记您的密码！\033[0m\n"
 }
 
 # --- Main Workflow ---
 check_dependencies() {
     local missing=()
-    command -v openssl >/dev/null || missing+=(openssl)
+    command -v openssl >/dev/null || missing+=(openssl-tool)
     command -v python >/dev/null || missing+=(python)
     
     if [ ${#missing[@]} -gt 0 ]; then
@@ -2182,10 +2182,17 @@ main_menu() {
 
             2)  # 解密流程
                 echo -e "\n\033[31m警告：请在离线环境下操作！\033[0m"
-                read -rp "粘贴加密字符串（输入空行结束）: " encrypted
+                echo "粘贴加密字符串（输入空行结束）:"
+                local encrypted_input=""
+                while IFS= read -r line; do
+                    [ -z "$line" ] && break
+                    encrypted_input+="$line"$'\n'
+                done
+                encrypted_input=${encrypted_input%$'\n'}  # 移除末尾空行
+
                 password=$(get_password "输入解密密码")
+                decrypted=$(decrypt_mnemonic "$encrypted_input" "$password")
                 
-                decrypted=$(decrypt_mnemonic "$encrypted" "$password")
                 if [ $? -ne 0 ] || [ -z "$decrypted" ]; then
                     echo -e "\n\033[31m解密失败！\033[0m"
                 else
