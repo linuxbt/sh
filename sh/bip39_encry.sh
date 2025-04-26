@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.6 - Fixed 'local' scope and updated sub-menu options
+# Version: 1.7 - Skip main pause when returning from sub-menu
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2193,9 +2193,6 @@ create_python_script_temp_file() {
     # Write the embedded Python script content to the temp file
     printf "%s" "$PYTHON_MNEMONIC_GENERATOR_SCRIPT" > "$PYTHON_SCRIPT_TEMP_FILE"
     # Set a trap to remove the temp file on exit
-    # Trap will also call cleanup_vars if trap "rm...; cleanup_vars" EXIT is used,
-    # but cleanup_vars is also called explicitly after operations.
-    # Having it in the trap is safer for unexpected exits.
     trap "rm -f \"$PYTHON_SCRIPT_TEMP_FILE\"; cleanup_vars" EXIT
     # echo "Debug: Python script temp file created: $PYTHON_SCRIPT_TEMP_FILE" # Debugging line
 }
@@ -2327,8 +2324,10 @@ get_password() {
 # 清理敏感变量
 cleanup_vars() {
     # Note: PYTHON_SCRIPT_TEMP_FILE is cleaned by the trap.
-    # Removed local from these declarations as they are intended to unset script-global vars
+    # These variables are used across functions or in the main loop, so they are not 'local'
     unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
+    # Variables used by the flag logic in the main loop:
+    unset skip_main_pause
     # echo "Debug: Sensitive variables cleared." # 用于调试
 }
 
@@ -2473,6 +2472,9 @@ create_python_script_temp_file
 # 然后检查并安装依赖
 install_dependencies
 
+# Flag to control skipping the main pause prompt
+skip_main_pause=false # This variable is used in the main loop, outside of functions
+
 # Main menu loop
 while true; do
     echo ""
@@ -2489,8 +2491,8 @@ while true; do
     case "$choice" in
         1)
             # Variables used within this case block (not in a function) should not be 'local'
-            word_count_choice="" # Removed 'local'
-            chosen_word_count="" # Removed 'local'
+            word_count_choice=""
+            chosen_word_count=""
 
             # Sub-menu loop for word count selection
             while true; do
@@ -2504,10 +2506,10 @@ while true; do
                 echo "  3. 24 个单词 (256位熵) - 推荐安全级别"
                 echo "  b. 返回主菜单"
                 echo "------------------------------"
-                # Changed the prompt to reflect options 1, 2, 3
+                # Prompt using 1, 2, 3
                 read -p "请输入选项 [1/2/3/b]: " word_count_choice
 
-                # Match user input (1, 2, 3, b) and set the actual word count (12, 18, 24)
+                # Map user input (1, 2, 3) to actual word count (12, 18, 24)
                 case "$word_count_choice" in
                     1) chosen_word_count=12; break;; # User chose 1, meaning 12 words
                     2) chosen_word_count=18; break;; # User chose 2, meaning 18 words
@@ -2517,14 +2519,19 @@ while true; do
                 esac
             done # End of sub-menu loop
 
-            # If a word count was selected (not 'b'), perform the generation and encryption
-            if [[ -n "$chosen_word_count" ]]; then
-                 perform_generation_and_encryption "$chosen_word_count"
+            # After inner loop breaks:
+            if [[ -z "$chosen_word_count" ]]; then # If user chose 'b'
+                skip_main_pause=true # Set flag to skip the main pause later
+            else
+                # If user chose a word count, perform the generation and encryption
+                perform_generation_and_encryption "$chosen_word_count"
+                skip_main_pause=false # Ensure pause happens after a successful operation
             fi
             ;; # End of main case 1
 
         2)
             decrypt_and_display
+            skip_main_pause=false # Ensure pause happens after decryption
             ;;
 
         q | Q)
@@ -2539,12 +2546,18 @@ while true; do
 
         *)
             echo "无效选项 '$choice'，请重新输入。"
+            skip_main_pause=false # Ensure pause happens after invalid input
             ;;
-    esac
-    # In the main loop, after handling a choice (including the sub-menu), pause.
-    # If 'b' was chosen in the sub-menu, perform_generation_and_encryption wasn't called,
-    # so we just pause and loop back to the main menu.
-    echo "" # 在提示前加一行空行，美观一些
-    read -n 1 -s -r -p "按任意键返回主菜单..."
-    echo # 换行
-done
+    esac # Main case ends
+
+    # --- Pause before showing main menu again ---
+    # Skip pause if the flag is set (user chose 'b' in sub-menu)
+    if [ "$skip_main_pause" = "false" ]; then
+        echo "" # 在提示前加一行空行，美观一些
+        read -n 1 -s -r -p "按任意键返回主菜单..."
+        echo # Newline after prompt
+    fi
+    # Reset the flag regardless, so the next loop iteration doesn't skip automatically
+    skip_main_pause=false
+
+done # Main loop ends
