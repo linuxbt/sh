@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.21 - Fixed wordlist embedding issue for Python script, added Python stderr output on error
+# Version: 1.22 - Corrected Python stderr capture on error
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2083,6 +2083,7 @@ import hashlib
 wordlist = [line.strip() for line in sys.stdin.readlines() if line.strip()]
 
 if len(wordlist) != 2048:
+    # Added print to stderr here
     print("Error: Wordlist has incorrect number of words (expected 2048), detected:", len(wordlist), file=sys.stderr)
     sys.exit(1)
 
@@ -2272,48 +2273,33 @@ generate_mnemonic_internal() {
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
          echo "Error: Python script temporary file not found." >&2
          return 1
-    fi
+    }
 
     local mnemonic="" # Keep local here as this is a function
-    local python_stderr_output="" # Variable to capture Python's stderr
     local py_exit_code
 
     # Execute the embedded Python script, piping the wordlist to its stdin
     # Pass the word count as a command-line argument to the Python script
     # Use the more reliable BIP39_WORDLIST_CONTENT variable
-    # Use process substitution to capture stderr
-    mnemonic=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> >(python_stderr_output=$(cat); typeset -p python_stderr_output))
+    # Capturing stdout into mnemonic, stderr will flow to our stderr by default.
+    # Using IFS= and -r with read in a process substitution could capture stderr,
+    # but for simplicity in this case, let's just rely on the error check and re-run stderr-only.
+    mnemonic=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     py_exit_code=$? # Capture exit code immediately after command
-
-    # The process substitution above is complex and might not work on all shells/Termux versions reliably
-    # A simpler way is to redirect stderr to stdout and capture both, then split. Or just capture stderr directly.
-    # Let's use a simple stderr capture.
-    # mnemonic=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> /dev/null)
-    # py_exit_code=$?
-
-    # Let's use a simpler capture that works widely
-    local python_output_and_error
-    python_output_and_error=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 3>&1 1>&2 2>&3) # Swap stdout and stderr using file descriptors
-    py_exit_code=$?
-
-    # Now $python_output_and_error contains the *original* stdout (the mnemonic) and *original* stderr (the error message) interleaved.
-    # This is still tricky to parse reliably.
-    # The *most* reliable way is separate captures if possible, but that's complex in Bash.
-    # For debugging, let's just print stderr if there's an error exit code.
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：生成助记词失败！" >&2
         echo "请检查 Python 环境或嵌入的生成脚本是否有问题。" >&2
         echo "Python 退出码: $py_exit_code" >&2
-        # Try running the Python script again, just redirecting stderr to our stderr for display
+        # Rerun the command just to show stderr, discarding stdout.
+        # Corrected redirection: >/dev/null discards stdout, stderr (2) goes to parent's stderr (2).
         echo "--- Python 错误输出 ---" >&2
-        printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" >/dev/null 2>&1 # Run again just to show stderr
+        printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" >/dev/null
         echo "-----------------------" >&2
         # cleanup_vars is handled by the trap set by create_python_script_temp_file
         return 1 # 返回错误状态
     fi
-    # If successful, $mnemonic should contain the mnemonic and stderr should be empty.
-    # The previous capture method was flawed. Relying on a second run for stderr is simpler for diagnosis.
+    # If successful, $mnemonic should contain the mnemonic and stderr should have been empty or minor warnings.
 
     # echo "Debug: Mnemonic generated (length: ${#mnemonic})" # 仅用于调试，生产中注释掉
 
@@ -2362,7 +2348,6 @@ cleanup_vars() {
     unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
     # Variables used by the flag logic in the main loop:
     unset skip_main_pause
-    unset python_stderr_output # Ensure this potential temp var is also unset
     # Using bash 4.2+ `declare -p VARNAME > /dev/null` to check if a variable exists before unsetting is safer,
     # but for these known variables, direct unset is fine in a simple script.
     # echo "Debug: Sensitive variables cleared." # 用于调试
@@ -2397,20 +2382,7 @@ perform_generation_and_encryption() {
     echo "正在使用 ${ENCRYPTION_ALGO} 加密助记词..."
     local encrypted_string # Keep local
     # *** SECURITY IMPROVEMENT: Pass password via stdin instead of command line ***
-    # Using printf "%s" to pass mnemonic to openssl stdin, and <<< to pass password to openssl stdin
-    # openssl documentation states that if -pass stdin is used AND data is piped,
-    # it reads data from the pipe and password from stdin attached via <<< or similar mechanism.
-    # We need to ensure the password input via <<< is separate from the piped data (the mnemonic).
-    # Bash's behavior with pipes and redirects can be complex, but <<< is generally processed first
-    # and provides stdin to the command *before* the pipe's data arrives.
-    # Let's explicitly use cat to provide the password via stdin for maximum clarity and compatibility.
-    # printf "%s" "$mnemonic" | cat <(printf "%s" "$password_input") - | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass stdin
-
-    # Actually, openssl -pass stdin reads from the *controlling terminal's* stdin,
-    # NOT the piped stdin. The <<< redirection *does* provide input to the command's stdin.
-    # The combination `printf "%s" "$mnemonic" | openssl ... -pass stdin <<< "$password_input"`
-    # means openssl reads the mnemonic from the pipe, and the password from the stdin provided by <<< string.
-    # This is the correct and safer pattern.
+    # Pipe mnemonic (printf %s "$mnemonic") to openssl, and password (<<< "$password_input") to openssl's stdin via Here String.
     encrypted_string=$(printf "%s" "$mnemonic" | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass stdin <<< "$password_input")
 
     local openssl_exit_code=$? # Keep local
