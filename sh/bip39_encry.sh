@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.7 - Skip main pause when returning from sub-menu
+# Version: 1.8 - Fixed multi-line input issue in decryption
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2389,7 +2389,7 @@ perform_generation_and_encryption() {
     echo "   3. 助记词原文未在此过程中显示或保存。"
     echo "--------------------------------------------------"
 
-    # 操作完成后清理敏感变量
+    # Operation completed successfully, ensure sensitive vars are cleaned
     cleanup_vars
 }
 
@@ -2400,13 +2400,25 @@ decrypt_and_display() {
     echo "⚠️ 警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
     echo "--------------------------------------------------"
     read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
-    local encrypted_string_input # Keep local
+    
     echo "请粘贴之前保存的【加密字符串】："
-    echo "（粘贴完成后，请按一次 Enter 键，然后输入 Ctrl+D 结束输入）" # Clarified input method
-    # 使用特殊方法读取多行输入，直到遇到空行 或 EOF (Ctrl+D)
-    encrypted_string_input=$(cat -) # reads until EOF (Ctrl+D) or an empty line on some systems
-    # Strip the last empty line if present (some terminals send empty line on Enter)
-    encrypted_string_input=$(echo "$encrypted_string_input" | sed '/^$/d' )
+    echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）" # Clarified input method
+
+    local encrypted_string_input="" # Keep local
+    local line # Keep local
+    # Read line by line until an empty line is entered
+    while IFS= read -r line; do
+        if [[ -z "$line" ]]; then
+            # User entered a blank line, signal end of input
+            break
+        fi
+        # Append the line and a newline. Using printf and command substitution
+        # to avoid issues with unsetting IFS or handling backslashes.
+        encrypted_string_input+="$line"$'\n'
+    done
+
+    # Remove the trailing newline added in the loop, if any
+    encrypted_string_input=${encrypted_string_input%'\n'}
 
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
@@ -2426,6 +2438,7 @@ decrypt_and_display() {
     echo "正在尝试解密..."
     local decrypted_mnemonic # Keep local
     # Pipe the input string to openssl. openssl needs the base64 input.
+    # Use printf "%s" to pass the string content exactly as is.
     decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2> /dev/null)
     local openssl_exit_code=$? # Keep local
 
@@ -2459,7 +2472,7 @@ decrypt_and_display() {
     echo "$decrypted_mnemonic"
     echo ""
     echo "--------------------------------------------------"
-    # 清理敏感变量
+    # Operation completed successfully, ensure sensitive vars are cleaned
     cleanup_vars
 }
 
@@ -2525,19 +2538,21 @@ while true; do
             else
                 # If user chose a word count, perform the generation and encryption
                 perform_generation_and_encryption "$chosen_word_count"
+                # perform_generation_and_encryption calls cleanup_vars
                 skip_main_pause=false # Ensure pause happens after a successful operation
             fi
             ;; # End of main case 1
 
         2)
             decrypt_and_display
+            # decrypt_and_display calls cleanup_vars
             skip_main_pause=false # Ensure pause happens after decryption
             ;;
 
         q | Q)
             echo "正在退出..."
-            # Trap will handle cleanup
-            # Explicitly call cleanup_vars one last time for safety
+            # Trap will handle cleanup, including calling cleanup_vars
+            # Explicitly call cleanup_vars here one last time for clarity/safety, although trap covers it.
             cleanup_vars
             sleep 1
             clear
@@ -2548,14 +2563,14 @@ while true; do
             echo "无效选项 '$choice'，请重新输入。"
             skip_main_pause=false # Ensure pause happens after invalid input
             ;;
-    esac # Main case ends
+    end case # Main case ends
 
     # --- Pause before showing main menu again ---
     # Skip pause if the flag is set (user chose 'b' in sub-menu)
     if [ "$skip_main_pause" = "false" ]; then
-        echo "" # 在提示前加一行空行，美观一些
+        echo "" # Add a newline before the prompt for better formatting
         read -n 1 -s -r -p "按任意键返回主菜单..."
-        echo # Newline after prompt
+        echo # Print a newline after the user presses a key
     fi
     # Reset the flag regardless, so the next loop iteration doesn't skip automatically
     skip_main_pause=false
