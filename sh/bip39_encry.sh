@@ -14,37 +14,33 @@ MIN_PASSWORD_LENGTH=8 # 密码最小长度
 
 # --- Helper Functions ---
 
-# 检查必要的命令是否存在
+# 检查并安装必要的依赖
 check_dependencies() {
+    # 检查并安装系统包
     local missing_pkg=()
     command -v openssl >/dev/null 2>&1 || missing_pkg+=("openssl")
     command -v python >/dev/null 2>&1 || missing_pkg+=("python")
-    # 检查 pip 和 bip_utils 库
-    if command -v python >/dev/null 2>&1; then
-        python -m pip show bip_utils >/dev/null 2>&1 || missing_pkg+=("python-bip_utils (请运行: pip install bip_utils)")
-    else
-         missing_pkg+=("python-pip (用于安装bip_utils)") # 如果 python 都没有，pip 肯定也没有
-    fi
-
     if [ ${#missing_pkg[@]} -ne 0 ]; then
-        echo "错误：缺少必要的依赖项！" >&2
-        echo "请先安装它们:" >&2
-        echo "  pkg update && pkg upgrade" >&2
-        # 提供安装命令建议
-        local install_cmd="pkg install "
-        [[ " ${missing_pkg[@]} " =~ " openssl " ]] && install_cmd+="openssl "
-        [[ " ${missing_pkg[@]} " =~ " python " ]] && install_cmd+="python "
-        echo "  $install_cmd -y"
-         if [[ " ${missing_pkg[@]} " =~ " python-bip_utils " ]] || [[ " ${missing_pkg[@]} " =~ " python-pip " ]]; then
-             echo "  然后运行: pip install bip_utils"
-         fi
-        exit 1
+        echo "检测到缺少依赖项: ${missing_pkg[*]}，正在自动安装..."
+        if ! pkg update -y >/dev/null 2>&1 || ! pkg install -y "${missing_pkg[@]}" >/dev/null 2>&1; then
+            echo "错误：依赖安装失败，请检查网络连接后重试！" >&2
+            exit 1
+        fi
+        echo "依赖安装完成！"
     fi
-     # 检查 OpenSSL 版本是否支持 PBKDF2
+    # 检查并安装 Python 库
+    if ! python -m pip show bip_utils >/dev/null 2>&1; then
+        echo "正在安装 bip_utils 库..."
+        if ! python -m pip install --user bip_utils >/dev/null 2>&1; then
+            echo "错误：bip_utils 安装失败，请手动尝试: python -m pip install bip_utils" >&2
+            exit 1
+        fi
+    fi
+    # 检查 OpenSSL 版本是否支持 PBKDF2
     if ! openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
         echo "警告：您的 OpenSSL 版本可能较旧，不支持 PBKDF2 选项。" >&2
         echo "将使用默认的密钥派生函数，安全性稍低。" >&2
-        OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 回退到不使用 -pbkdf2
+        OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt"
     fi
 }
 
