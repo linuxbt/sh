@@ -1,15 +1,15 @@
 #!/data/data/com.termux/files/usr/bin/env bash
 
-# BIP39 Mnemonic Manager for Termux (Secure Edition)
-# Author: AI Assistant
-# Version: 2.0 - Enhanced security with stdin password
+# BIP39 助记词安全管理器（安全增强版）
+# 作者：AI助手
+# 版本：2.1 - 修复Python脚本编码问题
 
-# --- Configuration ---
+# --- 配置项 ---
 ENCRYPTION_ALGO="aes-256-cbc"
 MIN_PASSWORD_LENGTH=8
 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt -pbkdf2 -iter 100000"
 
-# --- Embedded BIP39 English Wordlist ---
+# --- 内置BIP39单词列表 ---
 read -r -d '' BIP39_WORDLIST << 'EOF_WORDLIST'
 abandon
 ability
@@ -2061,12 +2061,51 @@ zone
 zoo
 EOF_WORDLIST
 
-# --- Embedded Python Script ---
+# --- 嵌入式Python脚本（已修复编码问题）---
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
-...（Python脚本内容保持不变）...
+import sys
+import os
+import hashlib
+
+# 从标准输入读取单词列表
+wordlist = [line.strip() for line in sys.stdin if line.strip()]
+if len(wordlist) != 2048:
+    print("Error: 单词列表长度不正确（应为2048）", file=sys.stderr)
+    sys.exit(1)
+
+# 解析单词数量参数
+try:
+    word_count = int(sys.argv[1])
+except (IndexError, ValueError):
+    print("Error: 请提供有效的单词数量参数（12/18/24）", file=sys.stderr)
+    sys.exit(1)
+
+# 验证单词数量
+if word_count not in [12, 18, 24]:
+    print(f"Error: 无效的单词数量 {word_count}（支持12/18/24）", file=sys.stderr)
+    sys.exit(1)
+
+# 计算熵长度
+entropy_map = {12: 16, 18: 24, 24: 32}
+entropy_bytes = os.urandom(entropy_map[word_count])
+
+# 生成校验和
+checksum = hashlib.sha256(entropy_bytes).digest()[0]
+checksum_bits = bin(checksum)[2:].zfill(8)[: {12:4, 18:6, 24:8}[word_count]]
+
+# 组合二进制数据
+binary_str = ''.join(f"{byte:08b}" for byte in entropy_bytes) + checksum_bits
+
+# 生成助记词
+mnemonic = []
+for i in range(word_count):
+    index = int(binary_str[i*11:(i+1)*11], 2)
+    mnemonic.append(wordlist[index])
+
+print(' '.join(mnemonic))
 EOF_PYTHON_SCRIPT
 
-# --- Core Functions ---
+# --- 核心功能 ---
 create_python_script_temp_file() {
     mkdir -p /data/data/com.termux/files/usr/tmp || exit 1
     PYTHON_SCRIPT_TEMP_FILE=$(mktemp /data/data/com.termux/files/usr/tmp/mnemonic_gen_script.XXXXXX.py)
@@ -2075,6 +2114,7 @@ create_python_script_temp_file() {
 }
 
 install_dependencies() {
+    echo "正在检查依赖..."
     local missing_pkg=()
     [ ! -x "$(command -v openssl)" ] && missing_pkg+=("openssl-tool")
     [ ! -x "$(command -v python)" ] && missing_pkg+=("python")
@@ -2084,25 +2124,20 @@ install_dependencies() {
     fi
 }
 
-generate_mnemonic_internal() {
-    local word_count="$1"
-    printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count"
-}
-
 get_password() {
     trap 'unset password password_confirm' EXIT
     while : ; do
-        read -sp "$1 (min ${MIN_PASSWORD_LENGTH} chars): " password
+        read -sp "$1（最少${MIN_PASSWORD_LENGTH}位）: " password
         echo
         [ ${#password} -ge ${MIN_PASSWORD_LENGTH} ] && break
-        echo "Password too short!"
+        echo "错误：密码长度不足！"
     done
 
     while : ; do
-        read -sp "Confirm password: " password_confirm
+        read -sp "请确认密码: " password_confirm
         echo
         [ "$password" == "$password_confirm" ] && break
-        echo "Mismatch!"
+        echo "错误：两次输入不匹配！"
     done
     printf "%s" "$password"
 }
@@ -2110,65 +2145,68 @@ get_password() {
 cleanup_vars() {
     unset mnemonic password_decrypt encrypted_string decrypted_mnemonic 
     unset password_input encrypted_string_input chosen_word_count
-    printf "\033c"  # Clear screen
+    printf "\033c"  # 清屏
 }
 
-# --- Main Functions ---
+# --- 主功能 ---
 perform_generation_and_encryption() {
     local chosen_word_count="$1"
-    echo "Generating ${chosen_word_count}-word mnemonic..."
+    echo "正在生成${chosen_word_count}位助记词..."
     
     local mnemonic=$(generate_mnemonic_internal "$chosen_word_count") || return 1
-    local password_input=$(get_password "Set encryption password") || return 1
+    local password_input=$(get_password "设置加密密码") || return 1
     
-    echo "Encrypting with ${ENCRYPTION_ALGO}..."
+    echo "使用${ENCRYPTION_ALGO}加密中..."
     local encrypted_string=$(printf "%s" "$mnemonic" | openssl enc $OPENSSL_OPTS -pass stdin <<<"$password_input")
     
     unset password_input mnemonic
-    echo "======= ENCRYPTED MNEMONIC ======="
+    echo "================ 加密后的助记词 ================"
     echo "$encrypted_string"
-    echo "=================================="
+    echo "=============================================="
 }
 
 decrypt_and_display() {
-    echo "Paste encrypted data (end with empty line):"
+    echo "请粘贴加密内容（以空行结束）："
     local encrypted_string_input=$(sed '/^$/q')
     
-    local password_input=$(get_password "Enter decryption password") || return 1
+    local password_input=$(get_password "输入解密密码") || return 1
     
-    echo "Decrypting..."
+    echo "解密中..."
     local decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass stdin <<<"$password_input")
     
     unset password_input encrypted_string_input
-    printf "\033c"  # Clear screen before showing
+    printf "\033c"  # 解密前清屏
     
-    echo "======= DECRYPTED MNEMONIC ======="
+    echo "================ 原始助记词 ================"
     echo "$decrypted_mnemonic"
-    echo "=================================="
+    echo "=========================================="
     cleanup_vars
 }
 
-# --- Main Program ---
+# --- 主程序 ---
 create_python_script_temp_file
 install_dependencies
 
 while : ; do
-    echo $'\n'"=== BIP39 Manager ==="
-    echo "1) Generate New"
-    echo "2) Decrypt"
-    echo "q) Quit"
-    read -p "Choice: " choice
+    echo ""
+    echo "============== BIP39 安全管理器 =============="
+    echo "1) 生成新助记词"
+    echo "2) 解密助记词"
+    echo "q) 退出"
+    read -p "请选择操作: " choice
     
     case "$choice" in
-        1)  # Word count selection
+        1)  
+            echo ""
+            echo "-------- 选择助记词长度 --------"
             select word_count in 12 18 24; do
                 perform_generation_and_encryption "$word_count"
                 break
             done ;;
         2)  decrypt_and_display ;;
         q)  cleanup_vars; exit 0 ;;
-        *)  echo "Invalid choice!" ;;
+        *)  echo "无效选择！" ;;
     esac
     
-    read -n1 -p $'\nPress any key to continue...'
+    read -n1 -p $'\n按任意键继续...'
 done
