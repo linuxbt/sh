@@ -2305,8 +2305,8 @@ generate_and_encrypt() {
     # 使用 -pass pass:"$password" 直接传递密码
     # IMPORTANT: openssl enc output includes Salted__ header and base64.
     # Using "-a" for base64 encoding.
-    hash -r # Force shell to re-find openssl
-    encrypted_string=$(printf "%s" "$mnemonic" | openssl enc $OPENSSL_OPTS -pass pass:"$password_input")
+    # hash -r # Force shell to re-find openssl
+    encrypted_string=$(printf "%s" "$mnemonic" | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass pass:"$password_input")
 
     local openssl_exit_code=$?
 
@@ -2369,8 +2369,8 @@ decrypt_and_display() {
     # 使用 2> /dev/null 隐藏 openssl 的错误信息 (如 bad decrypt)
     # openssl base64 decode (-d -a) is part of the decryption process when using -a flag
     # Need to pipe the input string to openssl
-    hash -r # Force shell to re-find openssl
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2> /dev/null)
+    # hash -r # Force shell to re-find openssl
+    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2> /dev/null)
 
     local openssl_exit_code=$?
 
