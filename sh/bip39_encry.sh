@@ -2,7 +2,8 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.22 - Corrected Python stderr capture on error
+# Version: 1.11 - Implemented secure password handling via stdin pipe.
+#                Added screen clear and immediate variable cleanup after decryption.
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -12,11 +13,9 @@ ENCRYPTION_ALGO="aes-256-cbc"
 # OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # 默认使用 PBKDF2
 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 先不默认加 -pbkdf2，在检查时根据 OpenSSL 版本决定
 MIN_PASSWORD_LENGTH=8 # 密码最小长度
-
-# --- Embedded BIP39 English Wordlist (using cat << for reliability) ---
-# 使用 cat << EOF 的方式来更稳定地将多行文本捕获到变量中
-# This list contains the full 2048 words.
-BIP39_WORDLIST_CONTENT=$(cat << 'EOF_WORDLIST_CONTENT'
+# --- Embedded BIP39 English Wordlist ---
+# (Full 2048 words embedded, only first few shown for brevity)
+read -r -d '' BIP39_WORDLIST << 'EOF_WORDLIST'
 abandon
 ability
 able
@@ -2064,27 +2063,20 @@ youth
 zebra
 zero
 zone
-EOF_WORDLIST_CONTENT
-) # End of cat << EOF_WORDLIST_CONTENT
+zoo
+EOF_WORDLIST
 
 # --- Embedded Python Script for Mnemonic Generation ---
-# This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
-# from cryptographically secure random bytes using the provided wordlist.
-# It relies only on standard Python libraries (os, hashlib, sys).
-# It expects the wordlist on standard input and the desired word count as the first command-line argument.
+# (Same Python script as before - no changes needed here)
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 import sys
 import os
 import hashlib
 
 # Read wordlist from stdin
-# Ensure we read all lines, then process. Stripping handles leading/trailing whitespace.
-# The check `if line.strip()` filters out empty lines.
-wordlist = [line.strip() for line in sys.stdin.readlines() if line.strip()]
-
+wordlist = [line.strip() for line in sys.stdin if line.strip()]
 if len(wordlist) != 2048:
-    # Added print to stderr here
-    print("Error: Wordlist has incorrect number of words (expected 2048), detected:", len(wordlist), file=sys.stderr)
+    print("Error: Wordlist has incorrect number of words (expected 2048).", file=sys.stderr)
     sys.exit(1)
 
 # Read desired word count from command line argument
@@ -2100,10 +2092,6 @@ except ValueError:
     sys.exit(1)
 
 # Determine entropy and checksum lengths based on word count
-# BIP39 standard: Entropy length (bits) | Checksum length (bits) | Mnemonic length (words)
-# 128 | 4 | 12
-# 192 | 6 | 18
-# 256 | 8 | 24
 entropy_bytes_length = 0
 checksum_bits_length = 0
 total_bits_length = 0 # Total bits = entropy + checksum
@@ -2124,55 +2112,26 @@ else:
     print(f"Error: Invalid word count '{word_count}'. Must be 12, 18, or 24.", file=sys.stderr)
     sys.exit(1)
 
-# Expected total bits must be word_count * 11
 if total_bits_length != word_count * 11:
      print(f"Internal Error: Mismatch between word count ({word_count}) and calculated total bits ({total_bits_length}).", file=sys.stderr)
      sys.exit(1)
 
 try:
-    # Generate entropy using a secure source
     entropy_bytes = os.urandom(entropy_bytes_length)
-
-    # Calculate checksum (first checksum_bits_length from SHA256 hash of entropy)
     checksum_full_bytes = hashlib.sha256(entropy_bytes).digest()
-    # Extract the required number of checksum bits
-    # Need to convert bytes to an integer and shift/mask
     checksum_int = int.from_bytes(checksum_full_bytes, 'big')
-
-    # The first `checksum_bits_length` bits of the hash are the checksum.
-    # The SHA256 hash is 256 bits. We want the top bits.
-    # Shift right by 256 - checksum_bits_length to move the desired bits to the LSB position.
-    # Mask with (1 << checksum_bits_length) - 1 to keep only those bits.
     checksum_value = (checksum_int >> (256 - checksum_bits_length)) & ((1 << checksum_bits_length) - 1)
-
-
-    # Combine entropy and checksum bits
-    # Convert entropy bytes to a large integer
     entropy_int = int.from_bytes(entropy_bytes, 'big')
-
-    # The combined integer has total_bits_length bits.
-    # The bits are arranged as [entropy][checksum] from MSB to LSB.
-    # To combine, shift the entropy bits left by the number of checksum bits, then OR with the checksum value.
     combined_int = (entropy_int << checksum_bits_length) | checksum_value
-
-    # Extract 11-bit chunks
     mnemonic_words = []
-
-    # The k-th word index (0-indexed) comes from bits [k*11] to [(k+1)*11 - 1] (MSB is bit 0)
-    # In terms of shifting from LSB (bit 0): shift right by (total_bits_length - (k+1)*11) and mask
     for i in range(word_count):
-        # Extract the i-th 11-bit chunk from the left (MSB)
-        # The index of the 11-bit chunk from LSB is total_bits_length - (i+1)*11
         shift = total_bits_length - (i + 1) * 11
         word_index = (combined_int >> shift) & 0x7FF # 0x7FF is 11 bits set to 1
-
         if word_index >= len(wordlist):
-             # Should not happen with correct bit manipulation and wordlist size
              print(f"Internal Error: Calculated word index {word_index} is out of bounds (wordlist size {len(wordlist)}).", file=sys.stderr)
              sys.exit(1)
         mnemonic_words.append(wordlist[word_index])
 
-    # Print the mnemonic separated by spaces
     print(' '.join(mnemonic_words))
     sys.stdout.flush()
 
@@ -2189,59 +2148,46 @@ EOF_PYTHON_SCRIPT
 
 # Create a temporary file for the Python script and set a trap for cleanup
 create_python_script_temp_file() {
-    # Ensure tmp directory exists and is writable in Termux
     mkdir -p /data/data/com.termux/files/usr/tmp || { echo "Error: Failed to create temp directory."; exit 1; }
     PYTHON_SCRIPT_TEMP_FILE=$(mktemp /data/data/com.termux/files/usr/tmp/mnemonic_gen_script.XXXXXX.py)
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
         echo "Error: Failed to create temporary file for Python script in /data/data/com.termux/files/usr/tmp." >&2
         exit 1
     fi
-    # Write the embedded Python script content to the temp file
     printf "%s" "$PYTHON_MNEMONIC_GENERATOR_SCRIPT" > "$PYTHON_SCRIPT_TEMP_FILE"
-    # Set a trap to remove the temp file on exit
-    trap "rm -f \"$PYTHON_SCRIPT_TEMP_FILE\"; cleanup_vars" EXIT
-    # echo "Debug: Python script temp file created: $PYTHON_SCRIPT_TEMP_FILE" # Debugging line
+    trap "rm -f \"$PYTHON_SCRIPT_TEMP_FILE\"; cleanup_vars; clear" EXIT # Added clear on exit trap
+    # echo "Debug: Python script temp file created: $PYTHON_SCRIPT_TEMP_FILE"
 }
-
-# Note: cleanup_python_script_temp_file function is implicitly handled by the trap.
-# No need for a separate function call unless you want to manually remove it early (not recommended with trap).
 
 # 检查并安装必要的命令
 install_dependencies() {
     echo "🚀 正在检查和安装必要的依赖项..."
-
     local missing_pkg=()
 
-    # 检查 Termux 包管理器 pkg
     if ! command -v pkg >/dev/null 2>&1; then
         echo "错误：Termux 包管理器 'pkg' 未找到！请确保您在 Termux 环境中运行此脚本。" >&2
         exit 1
     fi
 
-    # 检查 OpenSSL
     if ! command -v openssl >/dev/null 2>&1; then
         missing_pkg+=("openssl-tool")
     else
-        # 检查 OpenSSL 版本是否支持 PBKDF2 或 PKCS5 V2.0 PBE
-        # Note: grep -q suppresses output, -e allows multiple patterns
-        if openssl enc -help 2>&1 | grep -q -e '-pbkdf2' -e 'PKCS5 V2.0 PBE'; then
-             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # 如果支持 PBKDF2 则使用
-             # echo "Debug: OpenSSL supports PBKDF2. Using: $OPENSSL_OPTS" # Debugging line
+        # Check for PBKDF2 support *after* potential installation
+        if openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
+             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # Use PBKDF2 if supported
+             # echo "Debug: OpenSSL supports PBKDF2. Using: $OPENSSL_OPTS"
         else
-             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 否则不使用
-             echo "警告：您的 OpenSSL 版本可能较旧，不支持 PBKDF2 或 PKCS5 V2.0 PBE 选项。" >&2
+             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # Fallback without PBKDF2
+             echo "警告：您的 OpenSSL 版本可能较旧，不支持 PBKDF2 选项。" >&2
              echo "将使用默认的密钥派生函数，安全性稍低，建议升级 OpenSSL。" >&2
-             # echo "Debug: OpenSSL does not support PBKDF2. Using: $OPENSSL_OPTS" # Debugging line
+             # echo "Debug: OpenSSL does not support PBKDF2. Using: $OPENSSL_OPTS"
         fi
     fi
 
-
-    # 检查 Python (用于执行嵌入的生成脚本)
     if ! command -v python >/dev/null 2>&1; then
         missing_pkg+=("python")
     fi
 
-    # 如果有 Termux 包缺失，先安装这些包
     if [ ${#missing_pkg[@]} -ne 0 ]; then
         echo "安装 Termux 包: ${missing_pkg[*]}"
         pkg update -y
@@ -2250,9 +2196,18 @@ install_dependencies() {
             echo "尝试手动安装: pkg install ${missing_pkg[*]} -y" >&2
             exit 1
         fi
+        # Re-check OpenSSL version *after* installation/update if openssl was missing
+        if [[ " ${missing_pkg[*]} " =~ " openssl-tool " ]] && command -v openssl >/dev/null 2>&1; then
+             if openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
+                 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt"
+                 echo "✅ OpenSSL 已安装/更新，支持 PBKDF2。"
+             else
+                 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt"
+                 echo "警告：安装的 OpenSSL 版本仍可能不支持 PBKDF2。" >&2
+             fi
+        fi
     fi
 
-    # 再次检查 Python，确保它已被安装 (如果之前缺失的话)
     if ! command -v python >/dev/null 2>&1; then
          echo "错误：安装 Python 后仍然未找到 'python' 命令。请手动检查安装过程。" >&2
          exit 1
@@ -2262,59 +2217,33 @@ install_dependencies() {
     echo "------------------------------"
 }
 
-
-# 生成指定位数的 BIP39 助记词 (使用嵌入的 Python 脚本和单词列表)
-# 这个函数只应该被内部调用，并且其输出绝不直接打印到主脚本的 stdout
-# 参数: $1 - 助记词单词数量 (12, 18, 24)
+# 生成指定位数的 BIP39 助记词 (内部使用)
 generate_mnemonic_internal() {
-    local word_count="$1" # Keep local here as this is a function
-
-    # Ensure temp file exists before using it
+    local word_count="$1"
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
          echo "Error: Python script temporary file not found." >&2
          return 1
     fi
-
-    local mnemonic="" # Keep local here as this is a function
-    local py_exit_code
-
-    # Execute the embedded Python script, piping the wordlist to its stdin
-    # Pass the word count as a command-line argument to the Python script
-    # Use the more reliable BIP39_WORDLIST_CONTENT variable
-    # Capturing stdout into mnemonic, stderr will flow to our stderr by default.
-    # Using IFS= and -r with read in a process substitution could capture stderr,
-    # but for simplicity in this case, let's just rely on the error check and re-run stderr-only.
-    mnemonic=$(printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
-    py_exit_code=$? # Capture exit code immediately after command
-
+    local mnemonic
+    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    local py_exit_code=$?
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo "错误：生成助记词失败！" >&2
-        echo "请检查 Python 环境或嵌入的生成脚本是否有问题。" >&2
         echo "Python 退出码: $py_exit_code" >&2
-        # Rerun the command just to show stderr, discarding stdout.
-        # Corrected redirection: >/dev/null discards stdout, stderr (2) goes to parent's stderr (2).
-        echo "--- Python 错误输出 ---" >&2
-        printf "%s" "$BIP39_WORDLIST_CONTENT" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" >/dev/null
-        echo "-----------------------" >&2
-        # cleanup_vars is handled by the trap set by create_python_script_temp_file
-        return 1 # 返回错误状态
+        return 1
     fi
-    # If successful, $mnemonic should contain the mnemonic and stderr should have been empty or minor warnings.
-
-    # echo "Debug: Mnemonic generated (length: ${#mnemonic})" # 仅用于调试，生产中注释掉
-
-    # Return the generated mnemonic by printing it
     printf "%s" "$mnemonic"
 }
 
 # 获取并验证密码
 get_password() {
-    local prompt_message=$1 # Keep local
-    local password="" # Keep local
-    local password_confirm="" # Keep local
+    local prompt_message=$1
+    local password=""
+    local password_confirm=""
     while true; do
-        read -sp "$prompt_message (输入时不会显示，最少 $MIN_PASSWORD_LENGTH 位): " password
-        echo # 换行
+        # Use -r to prevent backslash interpretation, -s for silent, -p for prompt
+        read -rsp "$prompt_message (输入时不会显示，最少 $MIN_PASSWORD_LENGTH 位): " password
+        echo # Newline after reading password
         if [[ -z "$password" ]]; then
             echo "错误：密码不能为空！请重新输入。"
             continue
@@ -2323,75 +2252,63 @@ get_password() {
             echo "错误：密码太短，至少需要 $MIN_PASSWORD_LENGTH 个字符。请重新输入。"
             continue
         fi
-        # 基础复杂度检查：可以根据需要添加更多规则 (例如: =~ [A-Z] && =~ [a-z] && =~ [0-9])
-        # 为了通用性，这里只检查长度
-        read -sp "请再次输入密码以确认: " password_confirm
-        echo # 换行
+        read -rsp "请再次输入密码以确认: " password_confirm
+        echo # Newline after reading confirmation
         if [[ "$password" == "$password_confirm" ]]; then
             break
         else
             echo "错误：两次输入的密码不匹配！请重新输入。"
         fi
     done
-    # 将密码存储在提供的变量名中 (通过 caller)
-    # 注意：这里我们将密码直接返回给调用者处理，而不是存储在全局变量中
-    # 调用者负责在使用后 unset 变量
-     printf "%s" "$password" # 使用 printf avoids trailing newline
+    # Return password via stdout
+    printf "%s" "$password"
 }
 
 # 清理敏感变量
 cleanup_vars() {
-    # Note: PYTHON_SCRIPT_TEMP_FILE is cleaned by the trap.
-    # These variables are used across functions or in the main loop, so they are not 'local'
-    # Using ${!prefix*} expansion to dynamically find and unset variables starting with a prefix is possible,
-    # but explicitly listing them is clearer and less error-prone for a fixed set of variables.
-    unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
-    # Variables used by the flag logic in the main loop:
+    unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic
+    unset password_input encrypted_string_input chosen_word_count word_count_choice
     unset skip_main_pause
-    # Using bash 4.2+ `declare -p VARNAME > /dev/null` to check if a variable exists before unsetting is safer,
-    # but for these known variables, direct unset is fine in a simple script.
-    # echo "Debug: Sensitive variables cleared." # 用于调试
+    # echo "Debug: Sensitive variables cleared."
 }
 
-# 执行生成和加密的函数 (接受单词数量作为参数)
+# 执行生成和加密 (接受单词数量参数)
 perform_generation_and_encryption() {
-    local chosen_word_count="$1" # Keep local here as this is a function
-
+    local chosen_word_count="$1"
     echo "正在生成 ${chosen_word_count} 位 BIP39 助记词 (不会显示)..."
-    local mnemonic # Keep local
-    # 捕获内部函数的输出到变量，而不是打印
+    local mnemonic
     mnemonic=$(generate_mnemonic_internal "$chosen_word_count")
-    local gen_exit_code=$? # Keep local
-
+    local gen_exit_code=$?
     if [[ $gen_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        # Error message already printed by generate_mnemonic_internal
-        # cleanup_vars is called by the trap on exit or explicit call
-        return 1 # 返回错误状态
+        echo "错误：助记词生成过程失败。" >&2
+        return 1
     fi
-    # echo "Debug: Mnemonic generated (length: ${#mnemonic}, first 3 words: $(echo "$mnemonic" | cut -d ' ' -f 1-3))" # 仅用于调试
 
-    local password_input # Keep local
+    local password_input
     echo "请输入用于加密助记词的密码。"
     password_input=$(get_password "设置加密密码")
     if [[ -z "$password_input" ]]; then
          echo "错误: 未能获取有效密码。" >&2
-         # cleanup_vars is called by the trap on exit or explicit call
+         # Cleanup handled by trap on exit or explicit call
          return 1
     fi
 
     echo "正在使用 ${ENCRYPTION_ALGO} 加密助记词..."
-    local encrypted_string # Keep local
-    # *** SECURITY IMPROVEMENT: Pass password via stdin instead of command line ***
-    # Pipe mnemonic (printf %s "$mnemonic") to openssl, and password (<<< "$password_input") to openssl's stdin via Here String.
-    encrypted_string=$(printf "%s" "$mnemonic" | /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass stdin <<< "$password_input")
+    local encrypted_string
+    # --- Secure Password Handling ---
+    # Pipe password (with newline) and then mnemonic data (without newline)
+    # to openssl using -pass stdin
+    encrypted_string=$( (printf "%s\n" "$password_input"; printf "%s" "$mnemonic") | \
+        /data/data/com.termux/files/usr/bin/openssl enc $OPENSSL_OPTS -pass stdin )
+    local openssl_exit_code=$?
 
-    local openssl_exit_code=$? # Keep local
+    # Explicitly unset password variable immediately after use
+    unset password_input
 
     if [[ $openssl_exit_code -ne 0 ]] || [[ -z "$encrypted_string" ]]; then
         echo "错误：加密失败！" >&2
-        echo "请检查 openssl 是否正常工作或密码是否有特殊字符导致问题。" >&2
         echo "OpenSSL 退出码: $openssl_exit_code" >&2
-        # cleanup_vars is called by the trap on exit or explicit call
+        cleanup_vars # Clean other vars on failure
         return 1
     fi
 
@@ -2409,9 +2326,8 @@ perform_generation_and_encryption() {
     echo "--------------------------------------------------"
 
     # Operation completed successfully, ensure sensitive vars are cleaned
-    cleanup_vars
+    cleanup_vars # Includes mnemonic
 }
-
 
 # 选项 2: 解密并显示
 decrypt_and_display() {
@@ -2423,26 +2339,20 @@ decrypt_and_display() {
     echo "请粘贴之前保存的【加密字符串】："
     echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）"
     local encrypted_string_input=""
-    # 使用循环逐行读取，直到遇到空行
     while IFS= read -r line; do
-        if [[ -z "$line" ]]; then  # 检测到空行时停止读取
+        if [[ -z "$line" ]]; then
             break
         fi
         encrypted_string_input+="$line"$'\n'
     done
-    # 删除末尾多余的换行符，因为用户输入可能有多余的空行或者粘贴末尾有空行
-    # Trim trailing newlines. Using parameter expansion is safer than pipes here.
-    while [[ "$encrypted_string_input" =~ $'\n'$ ]]; do
-        encrypted_string_input="${encrypted_string_input%$'\n'}"
-    done
-
+    encrypted_string_input="${encrypted_string_input%$'\n'}"
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
-        cleanup_vars # Clean up potential password_input if get_password was called before this check (though it isn't)
+        cleanup_vars
         return 1
     fi
 
-    local password_input # Keep local
+    local password_input
     echo "请输入解密密码。"
     password_input=$(get_password "输入解密密码")
     if [[ -z "$password_input" ]]; then
@@ -2452,13 +2362,16 @@ decrypt_and_display() {
     fi
 
     echo "正在尝试解密..."
-    local decrypted_mnemonic # Keep local
-    # *** SECURITY IMPROVEMENT: Pass password via stdin instead of command line ***
-    # Pipe the input string to openssl. openssl needs the base64 input.
-    # Use printf "%s" to pass the string content exactly as is.
-    # openssl reads data from the pipe, password from stdin via <<<
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass stdin 2> /dev/null <<< "$password_input")
-    local openssl_exit_code=$? # Keep local
+    local decrypted_mnemonic
+    # --- Secure Password Handling ---
+    # Pipe password (with newline) and then encrypted data (without newline)
+    # to openssl using -pass stdin. Suppress stderr (2>/dev/null).
+    decrypted_mnemonic=$( (printf "%s\n" "$password_input"; printf "%s" "$encrypted_string_input") | \
+        /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass stdin 2>/dev/null )
+    local openssl_exit_code=$?
+
+    # Explicitly unset password variable immediately after use
+    unset password_input
 
     if [[ $openssl_exit_code -ne 0 ]]; then
         echo "--------------------------------------------------"
@@ -2466,23 +2379,18 @@ decrypt_and_display() {
         echo "   - 请检查加密字符串和密码是否正确。" >&2
         echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
         echo "--------------------------------------------------"
-        cleanup_vars # Clean up password_input and decrypted_mnemonic if exists
+        cleanup_vars # Clean other vars on failure
         return 1
     fi
 
-    # Check if the decrypted result looks like a valid mnemonic (at least the word count)
-    local word_count=$(echo "$decrypted_mnemonic" | wc -w) # Keep local
-    # BIP39 standard supports 12, 15, 18, 21, 24 words. Our generator only does 12, 18, 24.
-    # A simple check for 12, 18, or 24 is sufficient for strings generated by *this* script.
-    # Note: A valid mnemonic must have 12, 15, 18, 21, or 24 words. Let's be stricter
-    # and only accept 12, 18, 24 as generated by *this* script, but add a note about standard.
+    local word_count=$(echo "$decrypted_mnemonic" | wc -w)
     if [[ -z "$decrypted_mnemonic" || ! ( "$word_count" -eq 12 || "$word_count" -eq 18 || "$word_count" -eq 24 ) ]]; then
         echo "--------------------------------------------------"
         echo "❌ 错误：解密结果无效或格式不正确！" >&2
-        echo "   (解密后检测到 ${word_count} 个单词，预期 12, 18 或 24 个，BIP39 标准也支持 15 和 21)" >&2
+        echo "   (解密后检测到 ${word_count} 个单词，预期 12, 18 或 24 个)" >&2
         echo "   请检查加密字符串和密码是否正确。" >&2
         echo "--------------------------------------------------"
-        cleanup_vars # Clean up password_input and decrypted_mnemonic if exists
+        cleanup_vars
         return 1
     fi
 
@@ -2492,138 +2400,94 @@ decrypt_and_display() {
     echo "$decrypted_mnemonic"
     echo ""
     echo "--------------------------------------------------"
-    echo "☝️ 助记词已显示。请尽快记录并妥善保管，**强烈建议**在物理介质上备份！"
+    echo "⚠️ 助记词已显示。为安全起见，将在一秒后清除屏幕..."
+    sleep 1
+    clear # Clear the screen immediately after showing
+    echo "屏幕已清除。" # Optional confirmation message after clearing
 
-    # *** SECURITY IMPROVEMENT: Pause, Clear Screen, and Cleanup after displaying mnemonic ***
-    read -n 1 -s -r -p "完成后按任意键清除屏幕并返回主菜单..."
-    echo # Newline after key press
-
-    # Clear the screen immediately after user interaction
-    clear
-
-    # Explicitly call cleanup_vars again for maximum safety
-    # This ensures the decrypted_mnemonic variable is unset right after display+clear.
+    # Explicitly cleanup sensitive variables immediately after display & clear
     cleanup_vars
-
-    # No return code needed here if clearing and returning to main loop is the desired flow
 }
-
 
 # --- 脚本入口 ---
 
-# 首先创建临时的 Python 脚本文件并设置清理 trap
 create_python_script_temp_file
-
-# 然后检查并安装依赖
 install_dependencies
 
-# Flag to control skipping the main pause prompt
-skip_main_pause=false # This variable is used in the main loop, outside of functions
+skip_main_pause=false
 
-# Main menu loop
 while true; do
-    # Clear screen on each loop iteration except the first one after startup/dependencies?
-    # Or clear screen after a successful operation? Let's clear at the start of the main loop for consistency.
-    # Only clear if not skipping the pause (i.e., not just coming back from a sub-menu 'b')
-    if [ "$skip_main_pause" = "false" ]; then
-        clear
-    fi
-
-
+    # Check if screen was cleared by decrypt function, if so, maybe skip extra newline
+    # Basic approach: Print menu regardless
     echo ""
     echo "=============================="
-    echo "  BIP39 助记词安全管理器"
+    echo "  BIP39 助记词安全管理器 V1.11" # Updated Version
     echo "=============================="
     echo "请选择操作:"
     echo "  1. 生成新的 BIP39 助记词并加密保存"
-    echo "  2. 解密已保存的字符串以查看助记词 (建议离线操作)"
+    echo "  2. 解密已保存的字符串以查看助记词 (执行后将清屏)"
     echo "  q. 退出脚本"
     echo "------------------------------"
     read -p "请输入选项 [1/2/q]: " choice
 
-    # Use esac to close the case statement
     case "$choice" in
         1)
-            # Variables used within this case block (not in a function)
             word_count_choice=""
             chosen_word_count=""
-
-            # Sub-menu loop for word count selection
             while true; do
-                clear # Clear screen for sub-menu
-                echo "" # Add newline for clarity
+                echo ""
                 echo "------------------------------"
                 echo "  生成助记词 - 选择长度"
                 echo "------------------------------"
-                echo "请选择要生成的助记词长度："
                 echo "  1. 12 个单词 (128位熵)"
                 echo "  2. 18 个单词 (192位熵)"
                 echo "  3. 24 个单词 (256位熵) - 推荐安全级别"
                 echo "  b. 返回主菜单"
                 echo "------------------------------"
-                # Prompt using 1, 2, 3
                 read -p "请输入选项 [1/2/3/b]: " word_count_choice
-
-                # Map user input (1, 2, 3) to actual word count (12, 18, 24)
                 case "$word_count_choice" in
-                    1) chosen_word_count=12; break;; # User chose 1, meaning 12 words
-                    2) chosen_word_count=18; break;; # User chose 2, meaning 18 words
-                    3) chosen_word_count=24; break;; # User chose 3, meaning 24 words
-                    b | B) echo "返回主菜单..."; chosen_word_count=""; skip_main_pause=true; break;; # Back to main menu, clear choice, set skip flag
+                    1) chosen_word_count=12; break;;
+                    2) chosen_word_count=18; break;;
+                    3) chosen_word_count=24; break;;
+                    b | B) echo "返回主菜单..."; chosen_word_count=""; break;;
                     *) echo "无效选项 '$word_count_choice'，请重新输入。";;
                 esac
-                # If invalid input, pause before re-showing sub-menu
-                # Only pause if it wasn't a 'b' or 'B' choice that led to the break
-                if [[ -z "$chosen_word_count" && ! ("$word_count_choice" == "b" || "$word_count_choice" == "B") ]]; then
-                     read -n 1 -s -r -p "按任意键继续选择..."
-                     echo # Newline
-                fi
-            done # End of sub-menu loop
+            done
 
-            # After inner loop breaks:
-            if [[ -z "$chosen_word_count" ]]; then # If user chose 'b'
-                # skip_main_pause is already set to true inside the inner loop
-                : # Do nothing, just return to main loop
+            if [[ -z "$chosen_word_count" ]]; then
+                skip_main_pause=true
             else
-                # If user chose a word count, perform the generation and encryption
-                # This function handles its own cleanup_vars call on success/failure
                 perform_generation_and_encryption "$chosen_word_count"
-                # perform_generation_and_encryption exits or returns non-zero on error.
-                # If it succeeded (returned 0), we want to pause. If it failed, the error message is shown, and we pause.
-                skip_main_pause=false # Ensure pause happens after an operation (success or failure)
+                # cleanup_vars called inside the function on success/failure
+                skip_main_pause=false
             fi
             ;; # End of main case 1
 
         2)
             decrypt_and_display
-            # decrypt_and_display handles its own clear screen and cleanup_vars call
-            skip_main_pause=false # Ensure pause happens after decryption
+            # cleanup_vars called inside the function on success/failure/after display
+            # Screen is cleared inside decrypt_and_display
+            skip_main_pause=true # Skip the usual pause as screen was just cleared
             ;;
 
         q | Q)
-            echo "正在退出..."
-            # Trap will handle cleanup, including calling cleanup_vars
-            # Explicitly call cleanup_vars here one last time for clarity/safety, although trap covers it.
-            cleanup_vars
-            sleep 1
-            clear # Clear screen before exiting
+            echo "正在退出并清理..."
+            # Trap handles cleanup, including final clear and var unset
             exit 0
             ;;
 
         *)
             echo "无效选项 '$choice'，请重新输入。"
-            skip_main_pause=false # Ensure pause happens after invalid input
+            skip_main_pause=false
             ;;
     esac # Main case ends
 
-    # --- Pause before showing main menu again ---
-    # Skip pause if the flag is set (user chose 'b' in sub-menu)
     if [ "$skip_main_pause" = "false" ]; then
-        echo "" # Add a newline before the prompt for better formatting
+        echo ""
+        # Use -n 1 (read 1 char), -s (silent), -r (raw), -p (prompt)
         read -n 1 -s -r -p "按任意键返回主菜单..."
-        echo # Print a newline after the user presses a key
+        echo # Newline after key press
     fi
-    # Reset the flag regardless, so the next loop iteration doesn't skip automatically
-    skip_main_pause=false
+    skip_main_pause=false # Reset flag for next loop
 
 done # Main loop ends
