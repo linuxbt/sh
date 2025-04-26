@@ -2402,20 +2402,17 @@ decrypt_and_display() {
     read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
     
     echo "请粘贴之前保存的【加密字符串】："
-    echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）" # Clarified input method
-
-    local encrypted_string_input="" # Keep local
-    # Using read -r -d '' to read the entire block until an empty line is encountered.
-    # This is a standard shell trick for reading multi-line input until blank line.
-    # The prompt needs to be printed before this read.
-    # Added a timeout with -t 0.1 to prevent it from blocking indefinitely if stdin is weird.
-    # Also added an explicit echo before it to ensure the prompt appears right before input.
-    echo # Print a newline before reading the input block
-    read -r -d '' encrypted_string_input
-
-    # No need to strip trailing newline with this method if input ended with blank line.
-    # If the last line *wasn't* blank, this would still work, but the prompt asks for blank.
-
+    echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）"
+    local encrypted_string_input=""
+    # 使用循环逐行读取，直到遇到空行
+    while IFS= read -r line; do
+        if [[ -z "$line" ]]; then  # 检测到空行时停止读取
+            break
+        fi
+        encrypted_string_input+="$line"$'\n'
+    done
+    # 删除末尾多余的换行符
+    encrypted_string_input="${encrypted_string_input%$'\n'}"
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
         cleanup_vars
