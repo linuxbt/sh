@@ -2431,6 +2431,8 @@ while true; do
         q | Q)
             echo "正在退出..."
             # Trap will handle cleanup
+            sleep 1
+            clear
             exit 0
             ;;
         *)
