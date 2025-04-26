@@ -2164,7 +2164,7 @@ install_dependencies() {
 
     # 检查 OpenSSL
     if ! command -v openssl >/dev/null 2>&1; then
-        missing_pkg+=("openssl")
+        missing_pkg+=("openssl openssl-tool")
     else
         # 检查 OpenSSL 版本是否支持 PBKDF2
         # 使用 -pass arg to check command line options reliably
