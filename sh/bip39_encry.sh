@@ -16,34 +16,38 @@ MIN_PASSWORD_LENGTH=8 # 密码最小长度
 
 # 检查并安装必要的依赖
 check_dependencies() {
-    # 检查并安装系统包
-    local missing_pkg=()
-    command -v openssl >/dev/null 2>&1 || missing_pkg+=("openssl")
-    command -v python >/dev/null 2>&1 || missing_pkg+=("python")
-    if [ ${#missing_pkg[@]} -ne 0 ]; then
-        echo "检测到缺少依赖项: ${missing_pkg[*]}，正在自动安装..."
-        if ! pkg update -y >/dev/null 2>&1 || ! pkg install -y "${missing_pkg[@]}" >/dev/null 2>&1; then
-            echo "错误：依赖安装失败，请检查网络连接后重试！" >&2
-            exit 1
+    # 安装系统级依赖
+    local sys_deps=(clang make python-dev)
+    for dep in "${sys_deps[@]}"; do
+        if ! pkg list-install | grep -q "$dep"; then
+            echo "安装系统依赖: $dep..."
+            pkg install -y "$dep" >/dev/null 2>&1 || {
+                echo "错误：安装 $dep 失败，请检查网络连接后重试！" >&2
+                exit 1
+            }
         fi
-        echo "依赖安装完成！"
-    fi
-    # 检查并安装 Python 库
+    done
+    # 安装Python库
     if ! python -m pip show bip_utils >/dev/null 2>&1; then
-        echo "正在安装 bip_utils 库..."
-        if ! python -m pip install --user bip_utils >/dev/null 2>&1; then
-            echo "错误：bip_utils 安装失败，请手动尝试: python -m pip install bip_utils" >&2
-            exit 1
+        echo "安装Python依赖: bip_utils..."
+        # 尝试使用二进制包安装
+        if ! python -m pip install --user --no-cache-dir bip_utils >/dev/null 2>&1; then
+            echo "警告：标准安装失败，尝试使用替代方法..."
+            # 尝试从源码安装并禁用部分依赖
+            if ! python -m pip install --user --no-cache-dir --no-build-isolation --no-binary bip_utils bip_utils >/dev/null 2>&1; then
+                echo "错误：无法安装 bip_utils，请尝试以下方法：" >&2
+                echo "1. 手动安装Rust工具链: pkg install rust" >&2
+                echo "2. 手动安装: python -m pip install bip_utils" >&2
+                exit 1
+            fi
         fi
     fi
-    # 检查 OpenSSL 版本是否支持 PBKDF2
-    if ! openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
-        echo "警告：您的 OpenSSL 版本可能较旧，不支持 PBKDF2 选项。" >&2
-        echo "将使用默认的密钥派生函数，安全性稍低。" >&2
-        OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt"
+    # 再次验证安装
+    if ! python -m pip show bip_utils >/dev/null 2>&1; then
+        echo "错误：bip_utils 安装验证失败，请检查安装日志！" >&2
+        exit 1
     fi
 }
-
 # 生成 24 位 BIP39 助记词 (使用 Python 和 bip_utils 库)
 # 这个函数只应该被内部调用，并且其输出绝不直接打印到主脚本的 stdout
 generate_mnemonic_internal() {
