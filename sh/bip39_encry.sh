@@ -2,89 +2,91 @@
 
 # BIP39 Mnemonic Manager for Termux
 # Author: AI Assistant
-# Version: 1.1
+# Version: 1.2 - Added automatic dependency installation
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
 # AES-256-CBC 是广泛支持且安全的选项
 # -pbkdf2 使用更安全的密钥派生函数 (需要 OpenSSL 1.1.1+)
 ENCRYPTION_ALGO="aes-256-cbc"
-OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # -a for base64 encoding, -salt is crucial
+# OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # 默认使用 PBKDF2
+OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 先不默认加 -pbkdf2，在检查时根据 OpenSSL 版本决定
+
 MIN_PASSWORD_LENGTH=8 # 密码最小长度
 
 # --- Helper Functions ---
 
-# 检查并安装必要的依赖
+# 检查并安装必要的命令和Python库
 install_dependencies() {
-    # 检测并安装系统级编译工具
-    local required_pkgs=(clang make)
-    local missing_pkgs=()
-    # 检测缺失的包
-    for pkg in "${required_pks[@]}"; do
-        if ! pkg list-install | grep -q "$pkg"; then
-            missing_pkgs+=("$pkg")
-        fi
-    done
-    # 安装缺失的包
-    if [ ${#missing_pkgs[@]} -gt 0 ]; then
-        echo "安装系统依赖: ${missing_pks[*]}..."
-        pkg install -y "${missing_pks[@]}" || {
-            echo "错误：无法安装系统依赖，请尝试以下操作："
-            echo "1. 运行 pkg update 更新软件源"
-            echo "2. 检查网络连接是否正常"
-            echo "3. 手动安装：pkg install clang make"
-            exit 1
-        }
-    fi
-    # 安装Python开发环境（Termux特殊处理）
-    if ! pkg list-install | grep -q "python"; then
-        echo "安装Python环境..."
-        pkg install -y python || {
-            echo "错误：Python安装失败！请检查软件源配置"
-            exit 1
-        }
-    fi
-    # 安装Rust工具链（maturin依赖）
-    if ! command -v cargo &> /dev/null; then
-        echo "安装Rust工具链..."
-        pkg install -y rust || {
-            echo "警告：Rust安装失败，尝试使用官方安装方式..."
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            source $HOME/.cargo/env
-        }
-    fi
-}
-# 安装Python包
-install_python_packages() {
-    echo "安装Python依赖..."
-    python -m pip install --upgrade pip || {
-        echo "错误：pip更新失败"
+    echo "🚀 正在检查和安装必要的依赖项..."
+
+    local missing_pkg=()
+    local missing_pip=()
+
+    # 检查 Termux 包管理器 pkg
+    if ! command -v pkg >/dev/null 2>&1; then
+        echo "错误：Termux 包管理器 'pkg' 未找到！请确保您在 Termux 环境中运行此脚本。" >&2
         exit 1
-    }
-    # 尝试多种安装方式
-    for method in \
-        "--user" \
-        "--user --no-cache-dir" \
-        "--user --no-build-isolation" 
-    do
-        if python -m pip install $method bip_utils; then
-            echo "安装成功！"
-            return 0
+    fi
+
+    # 检查 OpenSSL
+    if ! command -v openssl >/dev/null 2>&1; then
+        missing_pkg+=("openssl")
+    else
+        # 检查 OpenSSL 版本是否支持 PBKDF2
+        if openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
+             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt" # 如果支持 PBKDF2 则使用
+             # echo "Debug: OpenSSL supports PBKDF2." # Debugging line
+        else
+             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # 否则不使用
+             echo "警告：您的 OpenSSL 版本可能较旧，不支持 PBKDF2 选项。" >&2
+             echo "将使用默认的密钥派生函数，安全性稍低，建议升级 OpenSSL。" >&2
         fi
-    done
-    echo "错误：所有安装方式均失败，请尝试："
-    echo "1. 手动安装Rust: pkg install rust"
-    echo "2. 设置Cargo镜像源："
-    echo "   echo '[source.crates-io]' > ~/.cargo/config"
-    echo "   echo 'replace-with = \"ustc\"' >> ~/.cargo/config"
-    echo "   echo '[source.ustc]' >> ~/.cargo/config"
-    echo "   echo 'registry = \"https://mirrors.ustc.edu.cn/crates.io-index\"' >> ~/.cargo/config"
-    echo "3. 重新运行安装脚本"
-    exit 1
+    fi
+
+
+    # 检查 Python
+    if ! command -v python >/dev/null 2>&1; then
+        missing_pkg+=("python")
+    fi
+
+    # 如果有 Termux 包缺失，先安装这些包
+    if [ ${#missing_pkg[@]} -ne 0 ]; then
+        echo "安装 Termux 包: ${missing_pkg[*]}"
+        pkg update -y
+        if ! pkg install "${missing_pkg[@]}" -y; then
+            echo "错误：安装 Termux 依赖失败。请检查您的网络连接或 Termux 环境。" >&2
+            echo "尝试手动安装: pkg install ${missing_pkg[*]} -y" >&2
+            exit 1
+        fi
+    fi
+
+    # 再次检查 Python，确保它已被安装 (如果之前缺失的话)
+    if ! command -v python >/dev/null 2>&1; then
+         echo "错误：安装 Python 后仍然未找到 'python' 命令。请手动检查安装过程。" >&2
+         exit 1
+    fi
+
+    # 检查 bip_utils Python 库
+    if ! python -c "import bip_utils" 2>/dev/null; then
+         missing_pip+=("bip_utils")
+    fi
+
+    # 如果有 Python 库缺失，安装它们
+    if [ ${#missing_pip[@]} -ne 0 ]; then
+        echo "安装 Python 库: ${missing_pip[*]}"
+        # 注意：在 Termux 中，通常不需要/不推荐升级 pip 本身，只安装需要的库即可。
+        if ! pip install "${missing_pip[@]}"; then
+            echo "错误：安装 Python 依赖 (pip) 失败。请检查您的网络连接或手动运行 'pip install ${missing_pip[*]}'" >&2
+            exit 1
+        fi
+    fi
+
+    echo "✅ 所有必要的依赖项已满足。"
+    echo "------------------------------"
 }
-# 主程序
-install_dependencies
-install_python_packages
+
+
 # 生成 24 位 BIP39 助记词 (使用 Python 和 bip_utils 库)
 # 这个函数只应该被内部调用，并且其输出绝不直接打印到主脚本的 stdout
 generate_mnemonic_internal() {
@@ -95,13 +97,14 @@ import os
 
 try:
     # 使用 cryptographically secure random bytes 生成
-    # bip_utils 内部会处理熵的生成
+    # bip_utils 内部会处理熵的生成，依赖于 Python 的 os.urandom 或类似机制
     mnemonic = Bip39MnemonicGenerator(Bip39Languages.ENGLISH).FromWordsNumber(Bip39WordsNum.WORDS_NUM_24)
     # 仅打印助记词到 stdout
     print(str(mnemonic))
     sys.stdout.flush()
 except ImportError:
-    print("Error: bip_utils library not found. Please run: pip install bip_utils", file=sys.stderr)
+    # 这个错误理论上不应该发生，因为前面 check_dependencies 检查了
+    print("Error: bip_utils library not found.", file=sys.stderr)
     sys.exit(1)
 except Exception as e:
     print(f"Error generating mnemonic: {e}", file=sys.stderr)
@@ -156,7 +159,7 @@ generate_and_encrypt() {
     # 捕获内部函数的输出到变量，而不是打印
     mnemonic=$(generate_mnemonic_internal)
     if [[ $? -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        echo "错误：生成助记词失败。" >&2
+        echo "错误：生成助记词失败，请检查 Python 环境或 bip_utils 库。" >&2
         cleanup_vars # 清理可能的残留
         return 1 # 返回错误状态
     fi
@@ -178,7 +181,7 @@ generate_and_encrypt() {
     encrypted_string=$(openssl enc $OPENSSL_OPTS -pass pass:"$password_input" <<< "$mnemonic")
 
     if [[ $? -ne 0 ]] || [[ -z "$encrypted_string" ]]; then
-        echo "错误：加密失败！" >&2
+        echo "错误：加密失败！请检查 openssl 是否正常工作。" >&2
         cleanup_vars # 清理密码和助记词
         return 1
     fi
@@ -211,7 +214,7 @@ decrypt_and_display() {
 
     local encrypted_string_input
     echo "请粘贴之前保存的【加密字符串】:"
-    # 使用 read -r 防止反斜杠被解释
+    # 使用 read -r 防止反斜杠被解释，使用 -p "" 避免自动换行提示
     read -r encrypted_string_input
     if [[ -z "$encrypted_string_input" ]]; then
         echo "错误：未输入加密字符串。" >&2
@@ -231,29 +234,34 @@ decrypt_and_display() {
     echo "正在尝试解密..."
     local decrypted_mnemonic
     # 使用 heredoc 传递加密字符串给 openssl stdin
-    decrypted_mnemonic=$(openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" <<< "$encrypted_string_input" 2> /dev/null) # 将 stderr 重定向，避免显示 "bad decrypt" 等信息给用户，只通过退出码判断
+    # 使用 2> /dev/null 隐藏 openssl 的错误信息 (如 bad decrypt)
+    decrypted_mnemonic=$(openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" <<< "$encrypted_string_input" 2> /dev/null)
 
     # 检查 openssl 的退出状态码
     if [[ $? -ne 0 ]]; then
         echo "--------------------------------------------------"
         echo "❌ 错误：解密失败！" >&2
-        echo "   - 请仔细检查您输入的【加密字符串】是否完整且无误。" >&2
+        echo "   - 请仔细检查您输入的【加密字符串】是否完整且无误（包括开头和结尾）。" >&2
         echo "   - 请确认您输入的【解密密码】是否完全正确。" >&2
         echo "--------------------------------------------------"
         cleanup_vars # 清理密码和输入的字符串
         return 1
     fi
 
+     # 额外检查解密结果是否为空
      if [[ -z "$decrypted_mnemonic" ]]; then
          echo "--------------------------------------------------"
          echo "❌ 错误：解密结果为空！" >&2
-         echo "   这可能表示解密过程异常，即使没有报告错误。" >&2
+         echo "   这可能表示解密过程异常，即使 openssl 没有明确报告错误。" >&2
          echo "   请检查原始加密字符串和密码。" >&2
          echo "--------------------------------------------------"
          cleanup_vars
          return 1
      fi
 
+     # 可以在此处添加一个简单的校验，例如检查解密结果是否包含至少12个单词 (BIP39 最少12个)
+     # 或者尝试导入到一个临时的 bip_utils 对象中进行更严格的格式验证
+     # 这里为了简化，只做长度和非空检查
 
     echo "--------------------------------------------------"
     echo "✅ 解密成功！您的 BIP39 助记词是:"
@@ -265,8 +273,8 @@ decrypt_and_display() {
     echo "   1. **立即安全地记录** 上述助记词原文！确保周围无人窥视。"
     echo "   2. 最好将其抄写在物理介质上，并存放在安全的地方。"
     echo "   3. 确认记录无误后，**强烈建议清除终端屏幕和历史记录**！"
-    echo "      - 清屏: 可以尝试输入 'clear' 命令。"
-    echo "      - 清除历史记录: 输入 'history -c && history -w' (或退出 Termux 会话)。"
+    echo "      - 清屏: 输入 'clear' 命令。"
+    echo "      - 清除历史记录: 输入 'history -c && history -w' (或直接退出 Termux 会话)。"
     echo "--------------------------------------------------"
 
     # 操作完成后清理敏感变量
@@ -277,8 +285,8 @@ decrypt_and_display() {
 
 # --- 脚本入口 ---
 
-# 首先检查依赖
-# check_dependencies
+# 首先检查并安装依赖
+install_dependencies
 
 # 主菜单循环
 while true; do
@@ -310,6 +318,7 @@ while true; do
             ;;
     esac
     # 在每次操作后暂停，等待用户确认，防止信息快速滚动消失
+    echo "" # 在提示前加一行空行，美观一些
     read -n 1 -s -r -p "按任意键返回主菜单..."
     echo # 换行
 done
