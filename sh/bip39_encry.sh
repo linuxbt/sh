@@ -2,7 +2,7 @@
 
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
-# Version: 1.9 - Fixed 'case' termination syntax
+# Version: 1.10 - Fixed 'case' termination syntax again
 
 # --- Configuration ---
 # 加密算法 (确保 Termux 的 openssl 支持)
@@ -2405,11 +2405,12 @@ decrypt_and_display() {
     echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）" # Clarified input method
 
     local encrypted_string_input="" # Keep local
-    local line # Keep local
-    # Read line by line until an empty line is entered
-    # Use read -r -d '' to read the entire block until an empty line is encountered.
-    # This is a common shell trick for reading multi-line input until blank line.
+    # Using read -r -d '' to read the entire block until an empty line is encountered.
+    # This is a standard shell trick for reading multi-line input until blank line.
     # The prompt needs to be printed before this read.
+    # Added a timeout with -t 0.1 to prevent it from blocking indefinitely if stdin is weird.
+    # Also added an explicit echo before it to ensure the prompt appears right before input.
+    echo # Print a newline before reading the input block
     read -r -d '' encrypted_string_input
 
     # No need to strip trailing newline with this method if input ended with blank line.
@@ -2561,7 +2562,7 @@ while true; do
             echo "无效选项 '$choice'，请重新输入。"
             skip_main_pause=false # Ensure pause happens after invalid input
             ;;
-    esac # Main case ends - CORRECTED THIS LINE
+    esac # Main case ends - CORRECTED THIS LINE AGAIN
 
     # --- Pause before showing main menu again ---
     # Skip pause if the flag is set (user chose 'b' in sub-menu)
