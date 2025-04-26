@@ -2273,7 +2273,7 @@ generate_mnemonic_internal() {
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
          echo "Error: Python script temporary file not found." >&2
          return 1
-    }
+    fi
 
     local mnemonic="" # Keep local here as this is a function
     local py_exit_code
