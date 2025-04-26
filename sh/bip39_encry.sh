@@ -15,39 +15,76 @@ MIN_PASSWORD_LENGTH=8 # 密码最小长度
 # --- Helper Functions ---
 
 # 检查并安装必要的依赖
-check_dependencies() {
-    # 安装系统级依赖
-    local sys_deps=(clang make python-dev)
-    for dep in "${sys_deps[@]}"; do
-        if ! pkg list-install | grep -q "$dep"; then
-            echo "安装系统依赖: $dep..."
-            pkg install -y "$dep" >/dev/null 2>&1 || {
-                echo "错误：安装 $dep 失败，请检查网络连接后重试！" >&2
-                exit 1
-            }
+install_dependencies() {
+    # 检测并安装系统级编译工具
+    local required_pkgs=(clang make)
+    local missing_pkgs=()
+    # 检测缺失的包
+    for pkg in "${required_pks[@]}"; do
+        if ! pkg list-install | grep -q "$pkg"; then
+            missing_pkgs+=("$pkg")
         fi
     done
-    # 安装Python库
-    if ! python -m pip show bip_utils >/dev/null 2>&1; then
-        echo "安装Python依赖: bip_utils..."
-        # 尝试使用二进制包安装
-        if ! python -m pip install --user --no-cache-dir bip_utils >/dev/null 2>&1; then
-            echo "警告：标准安装失败，尝试使用替代方法..."
-            # 尝试从源码安装并禁用部分依赖
-            if ! python -m pip install --user --no-cache-dir --no-build-isolation --no-binary bip_utils bip_utils >/dev/null 2>&1; then
-                echo "错误：无法安装 bip_utils，请尝试以下方法：" >&2
-                echo "1. 手动安装Rust工具链: pkg install rust" >&2
-                echo "2. 手动安装: python -m pip install bip_utils" >&2
-                exit 1
-            fi
-        fi
+    # 安装缺失的包
+    if [ ${#missing_pkgs[@]} -gt 0 ]; then
+        echo "安装系统依赖: ${missing_pks[*]}..."
+        pkg install -y "${missing_pks[@]}" || {
+            echo "错误：无法安装系统依赖，请尝试以下操作："
+            echo "1. 运行 pkg update 更新软件源"
+            echo "2. 检查网络连接是否正常"
+            echo "3. 手动安装：pkg install clang make"
+            exit 1
+        }
     fi
-    # 再次验证安装
-    if ! python -m pip show bip_utils >/dev/null 2>&1; then
-        echo "错误：bip_utils 安装验证失败，请检查安装日志！" >&2
-        exit 1
+    # 安装Python开发环境（Termux特殊处理）
+    if ! pkg list-install | grep -q "python"; then
+        echo "安装Python环境..."
+        pkg install -y python || {
+            echo "错误：Python安装失败！请检查软件源配置"
+            exit 1
+        }
+    fi
+    # 安装Rust工具链（maturin依赖）
+    if ! command -v cargo &> /dev/null; then
+        echo "安装Rust工具链..."
+        pkg install -y rust || {
+            echo "警告：Rust安装失败，尝试使用官方安装方式..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source $HOME/.cargo/env
+        }
     fi
 }
+# 安装Python包
+install_python_packages() {
+    echo "安装Python依赖..."
+    python -m pip install --upgrade pip || {
+        echo "错误：pip更新失败"
+        exit 1
+    }
+    # 尝试多种安装方式
+    for method in \
+        "--user" \
+        "--user --no-cache-dir" \
+        "--user --no-build-isolation" 
+    do
+        if python -m pip install $method bip_utils; then
+            echo "安装成功！"
+            return 0
+        fi
+    done
+    echo "错误：所有安装方式均失败，请尝试："
+    echo "1. 手动安装Rust: pkg install rust"
+    echo "2. 设置Cargo镜像源："
+    echo "   echo '[source.crates-io]' > ~/.cargo/config"
+    echo "   echo 'replace-with = \"ustc\"' >> ~/.cargo/config"
+    echo "   echo '[source.ustc]' >> ~/.cargo/config"
+    echo "   echo 'registry = \"https://mirrors.ustc.edu.cn/crates.io-index\"' >> ~/.cargo/config"
+    echo "3. 重新运行安装脚本"
+    exit 1
+}
+# 主程序
+install_dependencies
+install_python_packages
 # 生成 24 位 BIP39 助记词 (使用 Python 和 bip_utils 库)
 # 这个函数只应该被内部调用，并且其输出绝不直接打印到主脚本的 stdout
 generate_mnemonic_internal() {
@@ -241,7 +278,7 @@ decrypt_and_display() {
 # --- 脚本入口 ---
 
 # 首先检查依赖
-check_dependencies
+# check_dependencies
 
 # 主菜单循环
 while true; do
