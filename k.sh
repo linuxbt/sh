@@ -3114,7 +3114,7 @@ bip39_manage() {
           2)
               clear
               send_stats "苹果手机 | 助记词安全管理工具 "
-              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry.sh)
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry_ios.sh)
 
               ;;
 
