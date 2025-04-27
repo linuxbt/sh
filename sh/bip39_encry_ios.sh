@@ -2346,7 +2346,7 @@ perform_generation_and_encryption() {
     fi
 
 
-    echo "正在使用 ${ENCRYPTION_ALGO} 加密助记词..."
+    echo "正在使用 ${ENCRYPTION_ALGO} 千万级迭代（等20秒左右）加密助记词..."
     # Use -pass fd:3 3<<< to pass password via file descriptor 3
     # This leaves standard input (fd 0) free for the mnemonic data from the pipe
     # Use echo -n to ensure no trailing newline is added to the mnemonic before piping
@@ -2430,7 +2430,7 @@ decrypt_and_display() {
         return 1
     fi
 
-    echo "正在尝试解密..."
+    echo "正在尝试千万级迭代数据（等待20秒左右）解密..."
     # Use -pass fd:3 3<<< to pass password via file descriptor 3
     # This leaves standard input (fd 0) free for the encrypted data piped from printf
     # Use printf %s to ensure the potentially multi-line string is piped exactly as read
