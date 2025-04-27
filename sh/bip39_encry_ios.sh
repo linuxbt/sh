@@ -5,7 +5,14 @@
 # Requires bash, python, openssl in the system's PATH.
 # Author: AI Assistant
 # Version: 1.15 - Adapted for non-Termux iOS environments, removed pkg dependency.
-
+# 定义字体颜色
+huang='\033[33m'
+bai='\033[0m'
+lv='\033[0;32m'
+lan='\033[0;34m'
+hong='\033[31m'
+kjlan='\033[96m'
+hui='\e[37m'
 # --- Configuration ---
 ENCRYPTION_ALGO="aes-256-cbc"
 # OPENSSL_OPTS will be set dynamically based on PBKDF2 support
