@@ -3120,7 +3120,7 @@ bip39_manage() {
 
 
           0)
-              break_end
+              exit
               ;;
           *)
               echo "无效的输入!"
