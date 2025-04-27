@@ -16,7 +16,7 @@ hui='\e[37m'
 # --- Configuration ---
 ENCRYPTION_ALGO="aes-256-cbc"
 # OPENSSL_OPTS will be set dynamically based on PBKDF2 support
-OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 5000000 -a -salt" # Default, will be updated
+OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 10000000 -a -salt" # Default, will be updated
 MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
@@ -2210,7 +2210,7 @@ check_dependencies() {
     else
         # Check if openssl supports -pbkdf2
         if openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
-             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -iter 5000000 -a -salt"
+             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -iter 10000000 -a -salt"
              # echo "OpenSSL supports PBKDF2. Using: $OPENSSL_OPTS" # For debugging
         else
              # --- MODIFICATION START for Improvement 1 ---
