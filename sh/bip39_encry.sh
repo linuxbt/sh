@@ -2515,8 +2515,8 @@ while true; do
                 clear
             fi
             # Variables for word count selection
-            local word_count_choice=""
-            local chosen_word_count=""
+            word_count_choice=""
+            chosen_word_count=""
 
             while true; do
                 echo ""
