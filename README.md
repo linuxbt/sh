@@ -23,7 +23,7 @@ yum install -y curl
 ***
 ### 一键脚本
 ```bash
-curl -sS -kO https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh && ./k.sh
+curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh && ./k.sh
 
 ```
 
