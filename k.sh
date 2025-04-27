@@ -3088,6 +3088,49 @@ linux_backup() {
     done
 }
 
+bip39_manage() {
+    while true; do
+      clear
+      echo -e "▶ ${kjlan}助记词安全管理工具"
+      echo "K脚本为你提供：各种命令行工具脚本"
+      echo -e "${huang}拒绝繁琐: 只需一键。"
+      echo "------------------------"
+      echo "1. 安卓手机 | 助记词安全管理工具"
+      echo "2. 苹果手机 | 助记词安全管理工具"    
+      echo "------------------------"
+      echo "0. 返回主菜单"
+      echo -e "------------------------${bai}"
+      read -p "请输入你的选择: " sub_choice
+
+      case $sub_choice in
+
+          1)
+              clear
+              send_stats "安卓手机 | 助记词安全管理工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry.sh)
+
+              ;;
+
+          2)
+              clear
+              send_stats "苹果手机 | 助记词安全管理工具 "
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry.sh)
+
+              ;;
+
+
+          0)
+              linuxbt
+              ;;
+          *)
+              echo "无效的输入!"
+              ;;
+      esac
+      break_end
+
+    done
+}
+
 linux_docker() {
 
     while true; do
@@ -8231,6 +8274,7 @@ echo -e "${huang}15. Linux远程桌面 ▶${bai}"
 #echo -e "${huang}16. 科学上网工具 ▶${bai}"
 echo -e "${kjlan}17. 组网神器 ▶${bai}"
 echo -e "${kjlan}18. 文件同步备份 ▶${bai}"
+echo -e "${kjlan}19. 助记词安全管理工具 ▶${bai}"
 echo -e "${huang}99. 快捷命令菜单 ▶${bai}"
 echo -e "${kjlan}------------------------${bai}"
 echo -e "${bai}00. 脚本更新${bai}"
@@ -8320,6 +8364,10 @@ case $choice in
 
   18)
     linux_backup
+    ;;
+
+  19)
+    bip39_manage
     ;;
 
   99)
