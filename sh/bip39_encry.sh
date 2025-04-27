@@ -1,5 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/env bash
-
+# 定义字体颜色
+huang='\033[33m'
+bai='\033[0m'
+lv='\033[0;32m'
+lan='\033[0;34m'
+hong='\033[31m'
+kjlan='\033[96m'
+hui='\e[37m'
 # BIP39 Mnemonic Manager for Termux (Standalone)
 # Author: AI Assistant
 # Version: 1.14 - Fixed openssl input conflict by using -pass fd:3
