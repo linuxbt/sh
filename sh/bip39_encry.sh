@@ -2223,7 +2223,7 @@ install_dependencies() {
 
     if [ ${#missing_pkg[@]} -ne 0 ]; then
         echo "安装 Termux 包: ${missing_pkg[*]}"
-        pkg update -y
+        # pkg update -y
         if ! pkg install "${missing_pkg[@]}" -y; then
             echo "错误：安装 Termux 依赖失败。请检查您的网络连接或 Termux 环境。" >&2
             echo "尝试手动安装: pkg install ${missing_pkg[*]} -y" >&2
