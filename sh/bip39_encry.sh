@@ -2215,7 +2215,7 @@ install_dependencies() {
         # Check if openssl supports -pbkdf2
         # Use -- to ensure -pbkdf2 is treated as pattern, not grep option
         if openssl enc -help 2>&1 | grep -q -- '-pbkdf2'; then
-             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt"
+             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -iter 1000000 -a -salt"
              # echo "OpenSSL supports PBKDF2. Using: $OPENSSL_OPTS" # For debugging
         else
              # --- MODIFICATION START for Improvement 1 ---
