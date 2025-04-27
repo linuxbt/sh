@@ -14,7 +14,7 @@ hui='\e[37m'
 # --- Configuration ---
 ENCRYPTION_ALGO="aes-256-cbc"
 # OPENSSL_OPTS will be set dynamically based on PBKDF2 support
-OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt" # Default, will be updated
+OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 1000000 -a -salt" # Default, will be updated
 MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
