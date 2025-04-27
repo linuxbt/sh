@@ -2210,17 +2210,21 @@ install_dependencies() {
     fi
 
     if ! command -v openssl >/dev/null 2>&1; then
-        missing_pkg+=("openssl-tool")
+            missing_pkg+=("openssl-tool")
     else
         # Check if openssl supports -pbkdf2
-        if openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
+        # Use -- to ensure -pbkdf2 is treated as pattern, not grep option
+        if openssl enc -help 2>&1 | grep -q -- '-pbkdf2'; then
              OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -a -salt"
              # echo "OpenSSL supports PBKDF2. Using: $OPENSSL_OPTS" # For debugging
         else
-             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -a -salt"
-             echo "警告：您的 OpenSSL 版本可能较旧，不支持 PBKDF2 选项。" >&2
-             echo "将使用默认的密钥派生函数，安全性稍低，建议升级 openssl-tool。" >&2
-             # echo "Using: $OPENSSL_OPTS" # For debugging
+             # --- MODIFICATION START for Improvement 1 ---
+             echo -e "${hong}错误：您的 OpenSSL 版本不支持 PBKDF2 (--pbkdf2 选项)！${bai}" >&2
+             echo -e "${hong}出于安全考虑，此脚本要求 OpenSSL 支持 PBKDF2，因为它提供了更强的密钥派生功能。${bai}" >&2
+             echo -e "${hong}请在 Termux 中运行 'pkg update && pkg install openssl-tool -y' 升级您的 OpenSSL。${bai}" >&2
+             echo -e "${hong}如果升级后问题依旧，请检查 Termux 或设备兼容性问题。${bai}" >&2
+             exit 1 # Exit the script if PBKDF2 is not supported
+             # --- MODIFICATION END for Improvement 1 ---
         fi
     fi
 
