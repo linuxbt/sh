@@ -2188,17 +2188,35 @@ EOF_PYTHON_SCRIPT
 # --- Helper Functions ---
 
 create_python_script_temp_file() {
-    # Use standard /tmp directory for temporary files
-    PYTHON_SCRIPT_TEMP_FILE=$(mktemp /tmp/mnemonic_gen_script.XXXXXX.py)
-    if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-        echo "Error: Failed to create temporary file for Python script in /tmp." >&2
-        echo "Please check if /tmp directory is writable in your environment." >&2
+    # 创建用户专属临时目录（在 ~/.mnemonic_script_tmp）
+    USER_TMP_DIR="${HOME}/.mnemonic_script_tmp"
+    mkdir -p "$USER_TMP_DIR" || {
+        echo "Error: 无法创建用户临时目录 $USER_TMP_DIR" >&2
         exit 1
+    }
+    # 尝试兼容iSH的mktemp（可能需要 -t参数）
+    if mktemp -t mnemo.XXXXXX &>/dev/null; then
+        # 兼容支持 -t 参数的系统（如BSD）
+        PYTHON_SCRIPT_TEMP_FILE=$(mktemp -t "${USER_TMP_DIR}/mnemonic_gen_script.XXXXXX.py")
+    else
+        # GNU风格的mktemp（带路径参数）
+        PYTHON_SCRIPT_TEMP_FILE=$(mktemp "${USER_TMP_DIR}/mnemonic_gen_script.XXXXXX.py")
     fi
-    printf "%s" "$PYTHON_MNEMONIC_GENERATOR_SCRIPT" > "$PYTHON_SCRIPT_TEMP_FILE"
-    # Use bash's built-in 'trap' to clean up the temp file and other vars on exit/signal
-    # Use 'clear' conditionally as part of exit cleanup if running interactively
-    trap 'rm -f "$PYTHON_SCRIPT_TEMP_FILE"; cleanup_vars; if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then clear; fi' EXIT HUP INT TERM
+    [[ -f "$PYTHON_SCRIPT_TEMP_FILE" ]] || {
+        echo "备用方案：手动生成临时文件..." >&2
+        PYTHON_SCRIPT_TEMP_FILE="${USER_TMP_DIR}/mnemonic_script_$(date +%s)_$(openssl rand -hex 3).py"
+        touch "$PYTHON_SCRIPT_TEMP_FILE" || {
+            echo "Error: 创建临时文件失败：$PYTHON_SCRIPT_TEMP_FILE" >&2
+            exit 1
+        }
+    }
+    # 写入Python脚本内容
+    printf "%s" "$PYTHON_MNEMONIC_GENERATOR_SCRIPT" > "$PYTHON_SCRIPT_TEMP_FILE" || {
+        echo "Error: 无法写入Python脚本到临时文件" >&2
+        exit 1
+    }
+    # 设置退出自动清理
+    trap 'rm -f "$PYTHON_SCRIPT_TEMP_FILE" 2>/dev/null; cleanup_vars' EXIT HUP INT TERM
 }
 
 check_dependencies() {
