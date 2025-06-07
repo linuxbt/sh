@@ -2071,7 +2071,7 @@ zero
 zone
 zoo
 EOF_WORDLIST
-)
+)"$'\n'"
 
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
