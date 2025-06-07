@@ -2211,51 +2211,27 @@ create_python_script_temp_file() {
 }
 
 check_dependencies() {
-    echo "🚀 正在检查必要的依赖项 (openssl, python)..."
-    local missing_cmd=()
-
-    if ! command -v openssl >/dev/null 2>&1; then
-        missing_cmd+=("openssl")
-    else
-        # Check if openssl supports -pbkdf2
-        if openssl enc -help 2>&1 | grep -q -e '-pbkdf2'; then
-             OPENSSL_OPTS="-${ENCRYPTION_ALGO} -pbkdf2 -iter 10000000 -a -salt"
-             # echo "OpenSSL supports PBKDF2. Using: $OPENSSL_OPTS" # For debugging
-        else
-             # --- MODIFICATION START for Improvement 1 ---
-             echo -e "${hong}错误：您的 OpenSSL 版本不支持 PBKDF2 (--pbkdf2 选项)！${bai}" >&2
-             echo -e "${hong}出于安全考虑，此脚本要求 OpenSSL 支持 PBKDF2，因为它提供了更强的密钥派生功能。${bai}" >&2
-             echo -e "${hong}请在 Termux 中运行 'pkg update && pkg install openssl-tool -y' 升级您的 OpenSSL。${bai}" >&2
-             echo -e "${hong}如果升级后问题依旧，请检查 Termux 或设备兼容性问题。${bai}" >&2
-             exit 1 # Exit the script if PBKDF2 is not supported
-             # --- MODIFICATION END for Improvement 1 ---
+    # 安装OpenSSL
+    if ! command -v openssl &>/dev/null; then
+        echo -e "${huang}自动安装openssl...${bai}"
+        if ! apk add openssl-tool >/dev/null 2>&1; then
+            # 处理无root权限情况
+            if ! sudo apk add openssl >/dev/null 2>&1; then
+                echo -e "${hong}错误：无法自动安装openssl，请尝试: sudo apk add openssl${bai}" >&2
+                exit 1
+            fi
         fi
     fi
-
-    if ! command -v python >/dev/null 2>&1; then
-        missing_cmd+=("python")
-    fi
-
-    if [ ${#missing_cmd[@]} -ne 0 ]; then
-        echo "错误：未找到以下命令: ${missing_cmd[*]}。" >&2
-        echo "您需要在您的 iOS Shell 环境中手动安装它们。" >&2
-        echo "例如在 iSH 中使用 'apk add openssl python3' (如果 'python' 命令不可用，可能需要链接或使用 'python3' 替换)。" >&2
-        echo "或者根据您使用的特定环境查找安装方法。" >&2
-        exit 1
-    fi
-
-    # Check if 'python' command is python3 (common alias issue)
-    if command -v python >/dev/null 2>&1; then
-        if python -c 'import sys; print(sys.version_info.major)' 2>/dev/null | grep -q "^3"; then
-             : # It's python3, good
-        else
-             echo "警告：找到 'python' 命令，但它不是 Python 3。此脚本需要 Python 3。" >&2
-             echo "请检查您的环境配置，或尝试使用 'python3' 命令。"
+    # 安装Python3
+    if ! command -v python3 &>/dev/null; then
+        echo -e "${huang}自动安装python3...${bai}"
+        if ! apk add python3 >/dev/null 2>&1; then
+            if ! sudo apk add python3 >/dev/null 2>&1; then
+                echo -e "${hong}错误：无法自动安装python3，请尝试: sudo apk add python3${bai}" >&2
+                exit 1
+            fi
         fi
     fi
-
-    echo "✅ 所有必要的依赖项已在 PATH 中找到 (openssl, python)。"
-    echo "------------------------------"
 }
 
 generate_mnemonic_internal() {
