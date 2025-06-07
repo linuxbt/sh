@@ -2192,6 +2192,7 @@ except Exception as e:
 EOF_PYTHON_SCRIPT
 
 # --- Helper Functions ---
+echo "$BIP39_WORDLIST" | wc -l
 
 create_python_script_temp_file() {
     # 使用用户主目录存储临时文件（iSH保证可写）
