@@ -2351,7 +2351,7 @@ perform_generation_and_encryption() {
     # This leaves standard input (fd 0) free for the mnemonic data from the pipe
     # Use echo -n to ensure no trailing newline is added to the mnemonic before piping
     # Call 'openssl' from PATH
-    encrypted_string=$(echo -n "$mnemonic" | openssl enc $OPENSSL_OPTS -pass fd:3 3<<<"$password_input")
+    encrypted_string=$(echo -n "$mnemonic" | echo -n "$password_input" | openssl enc $OPENSSL_OPTS -pass stdin)
     openssl_exit_code=$?
 
     unset password_input mnemonic # Clean sensitive vars immediately after use
@@ -2435,7 +2435,8 @@ decrypt_and_display() {
     # This leaves standard input (fd 0) free for the encrypted data piped from printf
     # Use printf %s to ensure the potentially multi-line string is piped exactly as read
     # Call 'openssl' from PATH
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass fd:3 3<<<"$password_input" 2>/dev/null)
+    # decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass fd:3 3<<<"$password_input" 2>/dev/null)
+    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | echo -n "$password_input" | openssl enc -d $OPENSSL_OPTS -pass stdin 2>/dev/null)
     openssl_exit_code=$?
 
     unset password_input # Clean password immediately
