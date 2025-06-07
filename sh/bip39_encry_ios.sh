@@ -2070,7 +2070,6 @@ zebra
 zero
 zone
 zoo
-
 EOF_WORDLIST
 )
 
@@ -2084,6 +2083,26 @@ read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 import sys
 import os
 import hashlib
+
+# ▼▼▼ 新增修复：彻底清除回车符并确保末尾换行符 ▼▼▼
+BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r'; echo)  # 强制添加末尾换行符
+BIP39_WORDLIST=${BIP39_WORDLIST%$'\n'}  # 去除因上方echo添加的多余空行，但保留原Heredoc的换行符
+# --- 新增行数验证区块 ---
+verify_wordlist() {
+    local line_count=$(echo "$BIP39_WORDLIST" | wc -l | awk '{print $1}')
+    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1)
+    local hexdump_tail=$(echo "$BIP39_WORDLIST" | tail -n 2 | hexdump -C)
+    if [[ $line_count -ne 2048 ]]; then
+        echo -e "\033[31mFATAL: 单词列表应为2048行，实际检测到：${line_count}行\033[0m" >&2
+        echo -e "尾部16进制内容：\n$hexdump_tail" >&2
+        exit 1
+    fi
+    if [[ "$last_word" != "zoo" ]]; then
+        echo -e "\033[31mFATAL: 最后一个单词应为'zoo'，实际检测到：'${last_word}'\033[0m" >&2
+        exit 1
+    fi
+}
+verify_wordlist  # 在脚本初始化阶段执行强制验证
 
 # 严格校验单词列表
 wordlist = []
@@ -2193,7 +2212,6 @@ except Exception as e:
 EOF_PYTHON_SCRIPT
 
 # --- Helper Functions ---
-echo "$BIP39_WORDLIST" | wc -l
 
 create_python_script_temp_file() {
     # 使用用户主目录存储临时文件（iSH保证可写）
