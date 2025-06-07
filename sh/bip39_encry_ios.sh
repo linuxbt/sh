@@ -2094,17 +2094,6 @@ if len(wordlist) != 2048:
     print(f"Error: Wordlist has {len(wordlist)} words (expected 2048).", file=sys.stderr)
     sys.exit(1)
 
-# Read wordlist from stdin
-wordlist = [line.strip() for line in sys.stdin if line.strip()]
-if len(wordlist) != 2048:
-    print("Error: Wordlist has incorrect number of words (expected 2048).", file=sys.stderr)
-    sys.exit(1)
-
-# Read desired word count from command line argument
-if len(sys.argv) < 2:
-    print("Error: No word count provided as argument.", file=sys.stderr)
-    print("Usage: python script.py <word_count>", file=sys.stderr)
-    sys.exit(1)
 
 try:
     word_count = int(sys.argv[1])
