@@ -3098,7 +3098,7 @@ bip39_manage() {
       echo "1. 安卓 | Termux 版本"
       echo "2. 苹果 | a-Shell 或iSH 版本"    
       echo "------------------------"
-      echo "0. 退出脚本"
+      echo "0. 返回主菜单"
       echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
 
@@ -3120,7 +3120,7 @@ bip39_manage() {
 
 
           0)
-              exit
+              linuxbt
               ;;
           *)
               echo "无效的输入!"
