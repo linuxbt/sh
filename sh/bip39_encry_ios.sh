@@ -2214,7 +2214,7 @@ check_dependencies() {
     # 安装OpenSSL
     if ! command -v openssl &>/dev/null; then
         echo -e "${huang}自动安装openssl...${bai}"
-        if ! apk add openssl-tool >/dev/null 2>&1; then
+        if ! apk add openssl >/dev/null 2>&1; then
             # 处理无root权限情况
             if ! sudo apk add openssl >/dev/null 2>&1; then
                 echo -e "${hong}错误：无法自动安装openssl，请尝试: sudo apk add openssl${bai}" >&2
