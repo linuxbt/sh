@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 sh_v="3.0.3"
 
