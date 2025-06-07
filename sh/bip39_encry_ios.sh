@@ -2090,10 +2090,14 @@ for line in sys.stdin:
     line = line.strip()
     if line:
         wordlist.append(line)
+# ▼▼▼ 新增调试代码 ▼▼▼
+print(f"[Python Debug] 读取单词总数: {len(wordlist)}", file=sys.stderr)
+print(f"前3个单词: {wordlist[:3]}", file=sys.stderr)
+print(f"最后3个单词: {wordlist[-3:]}", file=sys.stderr)
+# ▲▲▲▲▲▲▲▲▲▲▲▲▲
 if len(wordlist) != 2048:
     print(f"Error: Wordlist has {len(wordlist)} words (expected 2048).", file=sys.stderr)
     sys.exit(1)
-
 
 try:
     word_count = int(sys.argv[1])
