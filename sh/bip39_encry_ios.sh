@@ -22,6 +22,7 @@ MIN_PASSWORD_LENGTH=16
 # --- Embedded BIP39 English Wordlist ---
 # This list contains 2048 words as per BIP39 standard.
 BIP39_WORDLIST=$(cat <<'EOF_WORDLIST'
+
 abandon
 ability
 able
@@ -2069,6 +2070,7 @@ youth
 zebra
 zero
 zone
+zoo
 
 EOF_WORDLIST
 )
