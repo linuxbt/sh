@@ -21,7 +21,7 @@ MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
 # This list contains 2048 words as per BIP39 standard.
-read -r -d '' BIP39_WORDLIST << 'EOF_WORDLIST'
+BIP39_WORDLIST=$(cat <<'EOF_WORDLIST'
 abandon
 ability
 able
@@ -2069,7 +2069,9 @@ youth
 zebra
 zero
 zone
+
 EOF_WORDLIST
+)
 
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
@@ -2081,6 +2083,16 @@ read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 import sys
 import os
 import hashlib
+
+# 严格校验单词列表
+wordlist = []
+for line in sys.stdin:
+    line = line.strip()
+    if line:
+        wordlist.append(line)
+if len(wordlist) != 2048:
+    print(f"Error: Wordlist has {len(wordlist)} words (expected 2048).", file=sys.stderr)
+    sys.exit(1)
 
 # Read wordlist from stdin
 wordlist = [line.strip() for line in sys.stdin if line.strip()]
@@ -2237,6 +2249,14 @@ check_dependencies() {
 
 generate_mnemonic_internal() {
     local word_count="$1"
+        # ▼▼▼ 新增行数验证 ▼▼▼
+    local line_count=$(echo "$BIP39_WORDLIST" | grep -c '^') 
+    if [[ $line_count -ne 2048 ]]; then
+        echo "错误：BIP39单词列表行数应为2048，实际检测到：$line_count 行" >&2
+        return 1
+    fi
+    # ▼▼▼ 修复管道传递方式 ▼▼▼
+    mnemonic=$(echo "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     local mnemonic=""
     local py_exit_code
 
