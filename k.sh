@@ -263,7 +263,7 @@ break_end() {
 }
 
 linuxbt() {
-            k
+            k || ./k.sh
             exit
 }
 
