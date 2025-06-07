@@ -2250,29 +2250,34 @@ check_dependencies() {
 
 generate_mnemonic_internal() {
     local word_count="$1"
-        # ▼▼▼ 新增行数验证 ▼▼▼
-    local line_count=$(echo "$BIP39_WORDLIST" | grep -c '^') 
-    if [[ $line_count -ne 2048 ]]; then
-        echo "错误：BIP39单词列表行数应为2048，实际检测到：$line_count 行" >&2
-        return 1
-    fi
-    # ▼▼▼ 修复管道传递方式 ▼▼▼
-    mnemonic=$(echo "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     local mnemonic=""
     local py_exit_code
 
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-         echo "Error: Python script temporary file not found ($PYTHON_SCRIPT_TEMP_FILE)." >&2
+         echo "错误：未找到Python模板文件 $PYTHON_SCRIPT_TEMP_FILE" >&2
          return 1
+    fi
+
+    # ▼▼▼ 精准行数校验 ▼▼▼
+    local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
+    if [[ $line_count -ne 2048 ]]; then
+        echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
+        echo -e "${hui}可能原因："
+        echo -e "  1. 单词列表存在空行"
+        echo -e "  2. EOF标记位置错误"
+        echo -e "  3. 文本编码异常${bai}" >&2
+        return 1
     fi
 
     mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     py_exit_code=$?
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        echo "错误：生成助记词失败！" >&2
-        echo "Python 退出码: $py_exit_code" >&2
-        echo "请检查 Python 安装是否正确，以及 Python 脚本是否有执行权限." >&2
+        echo -e "${hong}错误：助记词生成失败！" >&2
+        echo -e "Python 错误码: $py_exit_code" >&2
+        echo -e "请检查："
+        echo -e "  1. Python是否安装正确"
+        echo -e "  2. 脚本权限是否正确${bai}" >&2
         return 1
     fi
     printf "%s" "$mnemonic"
