@@ -2329,8 +2329,8 @@ perform_generation_and_encryption() {
     fi
 
     echo "正在使用 ${ENCRYPTION_ALGO} 千万级迭代（等20秒左右）加密助记词..."
-    # —— 修复点：避免 /dev/fd，不使用 fd:3 或 stdin 传递密码 —— 
-    encrypted_string=$(echo -n "$mnemonic" | openssl enc $OPENSSL_OPTS -pass pass:"$password_input")
+    # —— 修复点：避免 /dev/fd —— 
+    encrypted_string=$(echo -n "$mnemonic" | openssl enc $OPENSSL_OPTS -pass stdin <<<"$password_input")
     openssl_exit_code=$?
 
     unset password_input mnemonic
@@ -2400,8 +2400,8 @@ decrypt_and_display() {
     fi
 
     echo "正在尝试千万级迭代数据（等待20秒左右）解密..."
-    # —— 修复点：避免 /dev/fd，不使用 fd:3 或 stdin 传递密码 —— 
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>/dev/null)
+    # —— 修复点：避免 /dev/fd —— 
+    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass stdin 2>/dev/null <<<"$password_input")
     openssl_exit_code=$?
 
     unset password_input
