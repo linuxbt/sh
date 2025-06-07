@@ -2077,6 +2077,7 @@ EOF_WORDLIST
 # It relies only on standard Python libraries (os, hashlib, sys).
 # It expects the wordlist on standard input and the desired word count as the first command-line argument.
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
+#!/usr/bin/env python3
 import sys
 import os
 import hashlib
@@ -2214,7 +2215,7 @@ check_dependencies() {
     # 安装OpenSSL
     if ! command -v openssl &>/dev/null; then
         echo -e "${huang}自动安装openssl...${bai}"
-        if ! apk add openssl >/dev/null 2>&1; then
+        if ! sudo apk add openssl >/dev/null 2>&1; then
             # 处理无root权限情况
             if ! sudo apk add openssl >/dev/null 2>&1; then
                 echo -e "${hong}错误：无法自动安装openssl，请尝试: sudo apk add openssl${bai}" >&2
@@ -2225,7 +2226,7 @@ check_dependencies() {
     # 安装Python3
     if ! command -v python3 &>/dev/null; then
         echo -e "${huang}自动安装python3...${bai}"
-        if ! apk add python3 >/dev/null 2>&1; then
+        if ! sudo apk add python3 >/dev/null 2>&1; then
             if ! sudo apk add python3 >/dev/null 2>&1; then
                 echo -e "${hong}错误：无法自动安装python3，请尝试: sudo apk add python3${bai}" >&2
                 exit 1
@@ -2244,7 +2245,7 @@ generate_mnemonic_internal() {
          return 1
     fi
 
-    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     py_exit_code=$?
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
