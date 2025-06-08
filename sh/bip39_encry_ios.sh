@@ -19,30 +19,41 @@ MIN_PASSWORD_LENGTH=16
 # This list contains 2048 words as per BIP39 standard.
 # ▼▼▼ 词表预处理函数 ▼▼▼
 sanitize_wordlist() {
-    # 从标准输入读取词表，代替引用未初始化的全局变量
     cat | 
-    tr -d '\r' | 
-    LC_ALL=C tr -cd '[:alnum:][:space:]\n' | 
+    tr -d '\r' |          # 移除 Windows 换行符
+    sed 's/\s*$//' |      # 清理行尾空格
+    LC_ALL=C tr -cd '[:alnum:][:space:]\n' |  # 保留字母、数字、换行符和空格
     awk '
     function trim(str) {
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", str)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", str);
         return str
     }
     {
-        word = tolower(trim($0))
-        if (word != "") {
-            words[++count] = word
+        original = $0;
+        word = tolower(trim(original));
+        if (word == "") {
+            print "跳过空行或全空格行: \"" original "\"" > "/dev/stderr";
+            next;
         }
+        if (word !~ /^[a-z]+$/) {  # 匹配纯小写字母
+            print "跳过非法单词: \"" original "\" → \"" word "\"" > "/dev/stderr";
+            next;
+        }
+        words[++count] = word;
     }
     END {
-        target = 2048
-        if (count > target) count = target
-        for (i=1; i<=count; i++) print words[i]
-        for (i=count+1; i<=target; i++) print "zoo"
+        target = 2048;
+        if (count > target) count = target;
+        for (i=1; i<=count; i++) print words[i];
+        for (i=count+1; i<=target; i++) print "zoo";
         # 调试信息
-        print "处理后的单词总数: " count "/2048" > "/dev/stderr"
-        print "首单词: " words[1] > "/dev/stderr"
-        print "末单词: " words[count] > "/dev/stderr"
+        print "实际处理有效单词数: " count > "/dev/stderr";
+        if (count >= target) {
+            print "首单词: " words[1] > "/dev/stderr";
+            print "末单词: " words[target] > "/dev/stderr";
+        } else {
+            print "末单词为填充词: zoo" > "/dev/stderr";
+        }
     }'
 }
 
@@ -2101,6 +2112,8 @@ EOF
 
 
 # ▼▼▼ 验证关键点 ▼▼▼
+echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
 # ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'END{print NR}')
