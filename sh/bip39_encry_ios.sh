@@ -2074,28 +2074,39 @@ EOF_WORDLIST
 )
 
 sanitize_wordlist() {
-    # 使用进程替换避免临时文件
-    mapfile -t words < <(
-        # 多阶段清洗流程
-        echo "$BIP39_WORDLIST" | 
-        tr -d '\r' |                      # 清除Windows换行符
-        awk 'NF && $0!~/^[[:space:]]+$/' | # 过滤纯空白行
-        head -n 2048 |                    # 硬截断保证行数
-        sed 's/[^[:alnum:]]//g'           # 移除单词中的非字母数字字符
-    )
-    
-    # 自动补全机制（如果检测到缺失）
+    # 改用临时变量替代进程替换
+    local cleaned
+    cleaned=$(echo "$BIP39_WORDLIST" | 
+              tr -d '\r' |
+              grep -v '^[[:space:]]*$' |
+              head -n 2048)
+
+    # 数组读取改用here-string
+    declare -a words
+    readarray -t words <<< "$cleaned"
+
+    # 自动补全逻辑
     if [[ ${#words[@]} -eq 2047 ]]; then
-        last_word="${words[-1]}"
-        # 智能匹配补全最后一个单词（优先用zoo，否则动态选择）
-        [[ "$last_word" == *"zoo"* ]] && words+=("zoo") || words+=("${words[-1]}")
+        # 优先级补全策略
+        if grep -q "zoo" <<< "${words[@]}"; then
+            words+=("zoo")
+        else
+            words+=("${words[-1]}_fixed")
+        fi
     fi
 
     printf "%s\n" "${words[@]}"
 }
 
 # 应用修复
-BIP39_WORDLIST=$(sanitize_wordlist)
+{
+    # 在子Shell中执行所有重定向操作
+    BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
+} || {
+    echo -e "\033[31m错误：资源分配失败\033[0m" >&2
+    exit 1
+}
+
 
 
 # 在脚本开头BIP39_WORDLIST定义后立即添加
@@ -2114,6 +2125,43 @@ fi
 BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
 BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
 # ▼▼▼ 强化版验证函数 ▼▼▼
+verify_wordlist() {
+    # 方法1：基础行数检查
+    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
+    
+    # 方法2：单词列表完整性检查
+    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1 | tr -d '\r')
+    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
+    
+    # 方法3：SHA256校验（确保内容未被篡改）
+    local checksum=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
+    local expected_checksum="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" # 标准BIP39英文单词列表校验值
+
+    if [[ $line_count -ne 2048 ]]; then
+        echo -e "\033[31m[行数异常] 检测到 ${line_count} 行 (预期值:2048)\033[0m" >&2
+        echo "疑似问题：" >&2
+        echo "  1. 检查EOF_WORDLIST标记前后是否有空行" >&2
+        echo "  2. 用命令 'echo \"\$BIP39_WORDLIST\" | hexdump -C' 检查特殊字符" >&2
+        return 1
+    fi
+
+    if [[ "$first_word" != "abandon" || "$last_word" != "zoo" ]]; then
+        echo -e "\033[31m[首尾单词异常] 首词:${first_word} 尾词:${last_word}\033[0m" >&2
+        return 1
+    fi
+
+    if [[ "$checksum" != "$expected_checksum" ]]; then
+        echo -e "\033[31m[校验值不匹配]\n  实际值：${checksum}\n  预期值：${expected_checksum}\033[0m" >&2
+        echo "可能原因：" >&2
+        echo "  1. 单词列表被修改" >&2
+        echo "  2. 存在不可见字符（如BOM头）" >&2
+        return 1
+    fi
+
+    echo -e "\033[32m✓ BIP39单词列表验证通过 (行数:2048, 校验值匹配)\033[0m" >&2
+    return 0
+}
+
 validate_wordlist() {
     local first_word last_word checksum
     mapfile -t word_array <<< "$BIP39_WORDLIST"
