@@ -2091,7 +2091,6 @@ EOF
 
 
 # ▼▼▼ 验证关键点 ▼▼▼
-# ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'END{print NR}')
     if [[ $line_count -ne 2048 ]]; then
@@ -2105,7 +2104,7 @@ EOF
         exit 1
     }
 }
-sleep 30
+
 
 
 
