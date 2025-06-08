@@ -2108,7 +2108,7 @@ echo "${BIP39_WORDLIST}" | wc -l  # 必现显示2048
 echo "----- 验证首尾词 -----"
 echo "首词: $(echo "${BIP39_WORDLIST}" | head -1)"
 echo "尾词: $(echo "${BIP39_WORDLIST}" | tail -1)"
-
+sleep 30
 
 
 
