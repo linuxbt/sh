@@ -21,7 +21,7 @@ MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
 # This list contains 2048 words as per BIP39 standard.
-BIP39_WORDLIST=$(cat <<'EOF_WORDLIST'
+BIP39_WORDLIST=$(cat <<'EOF'
 abandon
 ability
 able
@@ -2070,7 +2070,7 @@ zebra
 zero
 zone
 zoo
-EOF_WORDLIST
+EOF
 )
 
 # ▼▼▼ 原子化清洗流程 ▼▼▼
@@ -2133,7 +2133,13 @@ verify_wordlist() {
         return 1
     fi
 
-
+    if [[ "$checksum" != "$expected_checksum" ]]; then
+        echo -e "\033[31m[校验值不匹配]\n  实际值：${checksum}\n  预期值：${expected_checksum}\033[0m" >&2
+        echo "可能原因：" >&2
+        echo "  1. 单词列表被修改" >&2
+        echo "  2. 存在不可见字符（如BOM头）" >&2
+        return 1
+    fi
     echo -e "\033[32m✓ BIP39单词列表验证通过 (行数:2048, 校验值匹配)\033[0m" >&2
     return 0
 }
