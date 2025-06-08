@@ -2072,6 +2072,30 @@ zone
 zoo
 EOF_WORDLIST
 )
+
+# ▼▼▼ 修正换行符问题并验证 ▼▼▼
+# 在Bash部分处理换行符问题
+BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
+BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
+# 验证函数
+verify_wordlist() {
+    local line_count=$(echo "$BIP39_WORDLIST" | grep -c .)
+    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1)
+    
+    if [[ $line_count -ne 2048 ]]; then
+        echo -e "\033[31mFATAL: 单词列表应为2048行，实际检测到：${line_count}行\033[0m" >&2
+        exit 1
+    fi
+    
+    if [[ "$last_word" != "zoo" ]]; then
+        echo -e "\033[31mFATAL: 最后一个单词应为'zoo'，实际检测到：'${last_word}'\033[0m" >&2
+        exit 1
+    fi
+}
+# 验证单词列表
+verify_wordlist
+
+
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
 # from cryptographically secure random bytes using the provided wordlist.
@@ -2082,41 +2106,6 @@ read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 import sys
 import os
 import hashlib
-
-# ▼▼▼ 修正换行符问题 ▼▼▼
-# 1. 先移除所有CRLF换行符（\r），再确保最后有且仅有一个换行符
-BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
-BIP39_WORDLIST="${BIP39_WORDLIST}"$'\n'  # 确保末尾有换行符
-BIP39_WORDLIST=${BIP39_WORDLIST%$'\n'}   # 移除可能多余的换行符（如果有多个）
-# --- 强化验证函数 ---
-verify_wordlist() {
-    # 计算非空行数
-    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
-    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1)
-    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
-    
-    if [[ $line_count -ne 2048 ]]; then
-        echo -e "\033[31mFATAL: Wordlist should have 2048 words, found $line_count\033[0m" >&2
-        echo "First word: '$first_word'" >&2
-        echo "Last word: '$last_word'" >&2
-        # 打印单词列表的十六进制表示用于调试
-        echo "Hex dump of first and last lines:" >&2
-        echo "$BIP39_WORDLIST" | head -n 1 | hexdump -C >&2
-        echo "$BIP39_WORDLIST" | tail -n 1 | hexdump -C >&2
-        return 1
-    fi
-    
-    if [[ "$last_word" != "zoo" ]]; then
-        echo -e "\033[31mFATAL: Last word should be 'zoo', found '$last_word'\033[0m" >&2
-        return 1
-    fi
-    
-    return 0
-}
-# --- 在脚本初始化时调用验证 ---
-if ! verify_wordlist; then
-    exit 1
-fi
 
 # 处理单词列表输入，去除空行和重复换行
 wordlist = []
