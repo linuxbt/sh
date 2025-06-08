@@ -19,22 +19,30 @@ MIN_PASSWORD_LENGTH=16
 # This list contains 2048 words as per BIP39 standard.
 # ▼▼▼ 词表预处理函数 ▼▼▼
 sanitize_wordlist() {
-    echo "$BIP39_WORDLIST" | 
+    # 从标准输入读取词表，代替引用未初始化的全局变量
+    cat | 
     tr -d '\r' | 
-    # 修正字符集：保留空格、换行符和可打印ASCII字符 (0x20-0x7E)
-    LC_ALL=C tr -cd '\040-\176\n' |
+    LC_ALL=C tr -cd '[:alnum:][:space:]\n' | 
     awk '
     function trim(str) {
-        gsub(/^[ \t]+|[ \t]+$/, "", str)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", str)
         return str
     }
-    { word = tolower(trim($0)) }
-    word { words[++count] = word }
+    {
+        word = tolower(trim($0))
+        if (word != "") {
+            words[++count] = word
+        }
+    }
     END {
         target = 2048
         if (count > target) count = target
         for (i=1; i<=count; i++) print words[i]
         for (i=count+1; i<=target; i++) print "zoo"
+        # 调试信息
+        print "处理后的单词总数: " count "/2048" > "/dev/stderr"
+        print "首单词: " words[1] > "/dev/stderr"
+        print "末单词: " words[count] > "/dev/stderr"
     }'
 }
 
