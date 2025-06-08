@@ -21,7 +21,8 @@ MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
 # This list contains 2048 words as per BIP39 standard.
-BIP39_WORDLIST=$(cat <<'EOF'
+BIP39_WORDLIST=$(curl -s https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt | tr -d '\r')
+BIP39_WORDLIST_aaa=$(cat <<'EOF'
 abandon
 ability
 able
