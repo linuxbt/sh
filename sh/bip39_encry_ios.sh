@@ -2102,9 +2102,23 @@ zoo
 EOF
 )
 
-# ▼ 关键修复：强制确保词表末尾有换行符 ▼
-BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST" | sed -e '$a\')
-
+# 修改行尾符控制 ▼▼▼ 使用 awk 强制控制行数
+# BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'NR<=2048')
+BIP39_WORDLIST=$(printf "%s" "$BIP39_WORDLIST" | awk '
+    BEGIN { count=0 }
+    { 
+        if (count < 2048) { 
+            print $0
+            count++
+        }
+    }
+    END { 
+        for (i=count; i<2048; i++) print "zoo"
+    }'
+)
+# ▼ 传输验证代码 ▼
+echo "词表传输哈希: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
+echo "词表行数终检: $(echo "$BIP39_WORDLIST" | wc -l)" >&2
 # ▼▼▼ 验证关键点 ▼▼▼
 echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
 echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
@@ -2136,6 +2150,29 @@ sleep 30
 # --- Python Script for Mnemonic Generation ---
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 #!/usr/bin/env python3
+# 在 Python 脚本顶部添加以下内容 ▼▼▼
+import sys
+from hashlib import sha256
+
+print("[PY_DEBUG] 传输哈希:", sha256("".join(sys.stdin.readlines()).encode()).hexdigest(), file=sys.stderr)
+sys.stdin.seek(0)  # 重置读取位置
+
+# ▼ 修复后的 Python 词表读取 ▼
+import sys
+
+raw_data = sys.stdin.read().split('\n')
+wordlist = [line for line in raw_data if line.strip()][:2048]
+
+# 调试输出
+print(f"[DEBUG] Raw count: {len(raw_data)}", file=sys.stderr)
+print(f"[DEBUG] Cleaned count: {len(wordlist)}", file=sys.stderr)
+print(f"[DEBUG] 首词: |{wordlist[0]}|", file=sys.stderr) 
+print(f"[DEBUG] 末词: |{wordlist[-1]}|", file=sys.stderr)
+
+if len(wordlist) != 2048:
+    sys.exit(f"词表不合法：{len(wordlist)} 行（应为2048）")
+
+
 import sys, os, hashlib
 wordlist = [line.strip() for line in sys.stdin if line.strip()]
 
@@ -2307,7 +2344,14 @@ generate_mnemonic_internal() {
         return 1
     fi
     # 关键修复：使用printf确保词表完整传递 ▼▼▼
-    mnemonic=$(printf "%s\n" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    # mnemonic=$(printf "%s\n" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    # 修改 generate_mnemonic_internal 函数中的调用方式 ▼▼▼
+    mnemonic=$(
+        {
+            printf "%s\n" "$BIP39_WORDLIST" 
+            echo "===DEBUG_END===" >&2  # 确保完整输出
+        } | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2>&1 | grep -v '^\[PY_DEBUG\]'
+    )    
     py_exit_code=$?
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo -e "${hong}错误：助记词生成失败！" >&2
