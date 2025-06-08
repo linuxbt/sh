@@ -21,7 +21,8 @@ MIN_PASSWORD_LENGTH=16
 sanitize_wordlist() {
     echo "$BIP39_WORDLIST" | 
     tr -d '\r' | 
-    LC_ALL=C tr -cd '\n -~' |
+    # 修正字符集：保留空格、换行符和可打印ASCII字符 (0x20-0x7E)
+    LC_ALL=C tr -cd '\040-\176\n' |
     awk '
     function trim(str) {
         gsub(/^[ \t]+|[ \t]+$/, "", str)
@@ -36,6 +37,7 @@ sanitize_wordlist() {
         for (i=count+1; i<=target; i++) print "zoo"
     }'
 }
+
 BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
 abandon
 ability
@@ -2091,6 +2093,7 @@ EOF
 
 
 # ▼▼▼ 验证关键点 ▼▼▼
+# ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'END{print NR}')
     if [[ $line_count -ne 2048 ]]; then
