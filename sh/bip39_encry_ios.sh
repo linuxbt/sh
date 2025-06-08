@@ -2315,6 +2315,7 @@ generate_mnemonic_internal() {
     fi
 
     # ▼▼▼ 精准行数校验 ▼▼▼
+    echo "生成助记词前词表行数验证: $(wc -l <<< "$BIP39_WORDLIST")"
     local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
     if [[ $line_count -ne 2048 ]]; then
         echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
@@ -2325,7 +2326,8 @@ generate_mnemonic_internal() {
         return 1
     fi
 
-    mnemonic=$(echo "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    # 使用herestring传递词表，避免换行符问题
+    mnemonic=$(python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" <<< "$BIP39_WORDLIST")
     py_exit_code=$?
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
@@ -2338,6 +2340,7 @@ generate_mnemonic_internal() {
     fi
     printf "%s" "$mnemonic"
 }
+
 
 get_password() {
     local prompt_message=$1
