@@ -22,7 +22,7 @@ sanitize_wordlist() {
     # 移除BOM头、DOS换行符、尾部空行、前后空白字符
     echo "$BIP39_WORDLIST" | 
     sed -e '1s/^\xEF\xBB\xBF//' -e 's/\r$//' | # 移除BOM和CR
-    awk 'NF {line=$0; print} END{if(NF) print line}' # 去空行保尾行
+    awk 'NF {print}' # 仅输出非空行
 }
 BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
 abandon
