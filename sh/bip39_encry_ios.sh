@@ -2115,7 +2115,6 @@ BIP39_WORDLIST=$(printf "%s" "$BIP39_WORDLIST" | awk '
 # ▼ 验证哈希传输 ▼
 echo "Bash层SHA256: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
 # ▼ 传输验证代码 ▼
-echo "词表传输哈希: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
 echo "词表行数终检: $(echo "$BIP39_WORDLIST" | wc -l)" >&2
 # ▼▼▼ 验证关键点 ▼▼▼
 echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
