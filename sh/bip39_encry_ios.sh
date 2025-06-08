@@ -2102,22 +2102,23 @@ zoo
 EOF
 )
 
-
+# 关键修复：补上命令替换丢失的末尾换行符
+BIP39_WORDLIST+=$'\n'
 
 # ▼▼▼ 验证关键点 ▼▼▼
-# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-# sleep 30
+echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
+echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
+sleep 30
 # ▼▼▼ Critical Validation ▼▼▼
 {
-    line_count=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'END{print NR}')
+    line_count=$(printf "%s" "$BIP39_WORDLIST" | awk 'END{print NR}')  # ▼▼▲▲▲ 移除 "%s\n" 修正为 "%s"
     if [[ $line_count -ne 2048 ]]; then
         echo -e "${hong}FATAL: 处理后的词表行数为${line_count}（应为2048）${bai}" >&2
         exit 1
     fi
-    first_word=$(printf "%s\n" "$BIP39_WORDLIST" | head -n1)
-    last_word=$(printf "%s\n" "$BIP39_WORDLIST" | tail -n1)
+    first_word=$(printf "%s" "$BIP39_WORDLIST" | head -n1 | tr -d '\n')        # ▲ args忽略尾自动换行符
+    last_word=$(printf "%s" "$BIP39_WORDLIST" | tail -n1 | tr -d '\n')         # ▲ 同上
     [[ "$first_word" == "abandon" && "$last_word" == "zoo" ]] || {
         echo -e "${hong}词表头尾校验失败：${first_word}/abandon | ${last_word}/zoo${bai}" >&2
         exit 1
@@ -2129,14 +2130,15 @@ EOF
 
 
 
-# # 应用修复
-# {
-#     # 在子Shell中执行所有重定向操作
-#     BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
-# } || {
-#     echo -e "\033[31m错误：资源分配失败\033[0m" >&2
-#     exit 1
-# }
+
+# 应用修复
+{
+    # 在子Shell中执行所有重定向操作
+    BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
+} || {
+    echo -e "\033[31m错误：资源分配失败\033[0m" >&2
+    exit 1
+}
 
 
 
@@ -2320,17 +2322,17 @@ generate_mnemonic_internal() {
          return 1
     fi
 
-    # # ▼▼▼ 精准行数校验 ▼▼▼
-    # echo "生成助记词前词表行数验证: $(wc -l <<< "$BIP39_WORDLIST")"
-    # local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
-    # if [[ $line_count -ne 2048 ]]; then
-    #     echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
-    #     echo -e "${hui}可能原因："
-    #     echo -e "  1. 单词列表存在空行"
-    #     echo -e "  2. EOF标记位置错误"
-    #     echo -e "  3. 文本编码异常${bai}" >&2
-    #     return 1
-    # fi
+    # ▼▼▼ 精准行数校验 ▼▼▼
+    echo "生成助记词前词表行数验证: $(wc -l <<< "$BIP39_WORDLIST")"
+    local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
+    if [[ $line_count -ne 2048 ]]; then
+        echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
+        echo -e "${hui}可能原因："
+        echo -e "  1. 单词列表存在空行"
+        echo -e "  2. EOF标记位置错误"
+        echo -e "  3. 文本编码异常${bai}" >&2
+        return 1
+    fi
 
     # 使用herestring传递词表，避免换行符问题
     mnemonic=$(python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" <<< "$BIP39_WORDLIST")
@@ -2622,8 +2624,3 @@ while true; do
     skip_main_pause=false
 
 done
-# ▼▼▼ 验证关键点 ▼▼▼
-# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-# sleep 30
