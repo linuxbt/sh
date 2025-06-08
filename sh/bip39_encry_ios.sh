@@ -2073,27 +2073,54 @@ zoo
 EOF_WORDLIST
 )
 
+# 在脚本开头BIP39_WORDLIST定义后立即添加
+BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
+    tr -cd '\11\12\15\40-\176' |  # 删除非打印字符
+    sed '/^$/d' |                 # 删除空行
+    head -n 2048)                 # 强制截取2048行
+# 然后执行验证
+if ! verify_wordlist; then
+    echo -e "\033[31m FATAL: 自动修复单词列表失败，请手动检查脚本!\033[0m" >&2
+    exit 1
+fi
+
 # ▼▼▼ 修正换行符问题并验证 ▼▼▼
 # 在Bash部分处理换行符问题
 BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
 BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
-# 验证函数
+# ▼▼▼ 强化版验证函数 ▼▼▼
 verify_wordlist() {
-    local line_count=$(echo "$BIP39_WORDLIST" | grep -c .)
-    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1)
+    # 方法1：基础行数检查
+    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
     
+    # 方法2：单词列表完整性检查
+    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1 | tr -d '\r')
+    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
+    
+    # 方法3：SHA256校验（确保内容未被篡改）
+    local checksum=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
+    local expected_checksum="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" # 标准BIP39英文单词列表校验值
     if [[ $line_count -ne 2048 ]]; then
-        echo -e "\033[31mFATAL: 单词列表应为2048行，实际检测到：${line_count}行\033[0m" >&2
-        exit 1
+        echo -e "\033[31m[行数异常] 检测到 ${line_count} 行 (预期值:2048)\033[0m" >&2
+        echo "疑似问题：" >&2
+        echo "  1. 检查EOF_WORDLIST标记前后是否有空行" >&2
+        echo "  2. 用命令 'echo \"\$BIP39_WORDLIST\" | hexdump -C' 检查特殊字符" >&2
+        return 1
     fi
-    
-    if [[ "$last_word" != "zoo" ]]; then
-        echo -e "\033[31mFATAL: 最后一个单词应为'zoo'，实际检测到：'${last_word}'\033[0m" >&2
-        exit 1
+    if [[ "$first_word" != "abandon" || "$last_word" != "zoo" ]]; then
+        echo -e "\033[31m[首尾单词异常] 首词:${first_word} 尾词:${last_word}\033[0m" >&2
+        return 1
     fi
+    if [[ "$checksum" != "$expected_checksum" ]]; then
+        echo -e "\033[31m[校验值不匹配]\n  实际值：${checksum}\n  预期值：${expected_checksum}\033[0m" >&2
+        echo "可能原因：" >&2
+        echo "  1. 单词列表被修改" >&2
+        echo "  2. 存在不可见字符（如BOM头）" >&2
+        return 1
+    fi
+    echo -e "\033[32m✓ BIP39单词列表验证通过 (行数:2048, 校验值匹配)\033[0m" >&2
+    return 0
 }
-# 验证单词列表
-verify_wordlist
 
 
 # --- Embedded Python Script for Mnemonic Generation ---
