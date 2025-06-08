@@ -46,6 +46,7 @@ sanitize_wordlist() {
         actual = (count > target) ? target : count;
         for (i=1; i<=actual; i++) print words[i];
         for (i=actual+1; i<=target; i++) print "zoo";
+        printf "";  # 确保输出以换行符结束
         print "[日志] 有效行数/填充: " actual "/" target-actual > "/dev/stderr";
     }'
 }
@@ -2102,7 +2103,7 @@ zoo
 EOF
 )
 
-
+BIP39_WORDLIST+=$'\n'
 
 # ▼▼▼ 验证关键点 ▼▼▼
 echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
