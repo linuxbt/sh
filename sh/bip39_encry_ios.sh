@@ -2071,8 +2071,7 @@ zero
 zone
 zoo
 EOF_WORDLIST
-)"$'\n'"
-
+)
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
 # from cryptographically secure random bytes using the provided wordlist.
@@ -2084,39 +2083,52 @@ import sys
 import os
 import hashlib
 
-# ▼▼▼ 新增修复：彻底清除回车符并确保末尾换行符 ▼▼▼
-BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r'; echo)  # 强制添加末尾换行符
-BIP39_WORDLIST=${BIP39_WORDLIST%$'\n'}  # 去除因上方echo添加的多余空行，但保留原Heredoc的换行符
-# --- 新增行数验证区块 ---
+# ▼▼▼ 修正换行符问题 ▼▼▼
+# 1. 先移除所有CRLF换行符（\r），再确保最后有且仅有一个换行符
+BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
+BIP39_WORDLIST="${BIP39_WORDLIST}"$'\n'  # 确保末尾有换行符
+BIP39_WORDLIST=${BIP39_WORDLIST%$'\n'}   # 移除可能多余的换行符（如果有多个）
+# --- 强化验证函数 ---
 verify_wordlist() {
-    local line_count=$(echo "$BIP39_WORDLIST" | wc -l | awk '{print $1}')
-    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1)
-    local hexdump_tail=$(echo "$BIP39_WORDLIST" | tail -n 2 | hexdump -C)
+    # 计算非空行数
+    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
+    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1)
+    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
+    
     if [[ $line_count -ne 2048 ]]; then
-        echo -e "\033[31mFATAL: 单词列表应为2048行，实际检测到：${line_count}行\033[0m" >&2
-        echo -e "尾部16进制内容：\n$hexdump_tail" >&2
-        exit 1
+        echo -e "\033[31mFATAL: Wordlist should have 2048 words, found $line_count\033[0m" >&2
+        echo "First word: '$first_word'" >&2
+        echo "Last word: '$last_word'" >&2
+        # 打印单词列表的十六进制表示用于调试
+        echo "Hex dump of first and last lines:" >&2
+        echo "$BIP39_WORDLIST" | head -n 1 | hexdump -C >&2
+        echo "$BIP39_WORDLIST" | tail -n 1 | hexdump -C >&2
+        return 1
     fi
+    
     if [[ "$last_word" != "zoo" ]]; then
-        echo -e "\033[31mFATAL: 最后一个单词应为'zoo'，实际检测到：'${last_word}'\033[0m" >&2
-        exit 1
+        echo -e "\033[31mFATAL: Last word should be 'zoo', found '$last_word'\033[0m" >&2
+        return 1
     fi
+    
+    return 0
 }
-verify_wordlist  # 在脚本初始化阶段执行强制验证
+# --- 在脚本初始化时调用验证 ---
+if ! verify_wordlist; then
+    exit 1
+fi
 
-# 严格校验单词列表
+# 处理单词列表输入，去除空行和重复换行
 wordlist = []
-for line in sys.stdin:
-    line = line.strip()
-    if line:
-        wordlist.append(line)
-# ▼▼▼ 新增调试代码 ▼▼▼
-print(f"[Python Debug] 读取单词总数: {len(wordlist)}", file=sys.stderr)
-print(f"前3个单词: {wordlist[:3]}", file=sys.stderr)
-print(f"最后3个单词: {wordlist[-3:]}", file=sys.stderr)
-# ▲▲▲▲▲▲▲▲▲▲▲▲▲
+for word in sys.stdin:
+    word = word.strip()
+    if word:  # 只处理非空行
+        wordlist.append(word)
+# 严格验证单词列表长度
 if len(wordlist) != 2048:
-    print(f"Error: Wordlist has {len(wordlist)} words (expected 2048).", file=sys.stderr)
+    print(f"Critical Error: Wordlist has {len(wordlist)} words (expected 2048)", file=sys.stderr)
+    print(f"First 3 words: {wordlist[:3]}", file=sys.stderr)
+    print(f"Last 3 words: {wordlist[-3:]}", file=sys.stderr)
     sys.exit(1)
 
 try:
