@@ -2103,7 +2103,7 @@ EOF
 )
 
 # 关键修复：补上命令替换丢失的末尾换行符
-BIP39_WORDLIST+=$'\n'
+BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST")
 
 # ▼▼▼ 验证关键点 ▼▼▼
 echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
@@ -2124,22 +2124,6 @@ sleep 30
         exit 1
     }
 }
-
-
-
-
-
-
-
-# # 应用修复
-# {
-#     # 在子Shell中执行所有重定向操作
-#     BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
-# } || {
-#     echo -e "\033[31m错误：资源分配失败\033[0m" >&2
-#     exit 1
-# }
-
 
 
 
