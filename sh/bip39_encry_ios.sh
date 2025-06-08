@@ -2102,14 +2102,14 @@ zoo
 EOF
 )
 
-# 关键修复：补上命令替换丢失的末尾换行符
-BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST")
+# ▼ 关键修复：强制确保词表末尾有换行符 ▼
+BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST" | sed -e '$a\')
 
 # ▼▼▼ 验证关键点 ▼▼▼
-# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-# sleep 30
+echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
+echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
+sleep 30
 # ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s" "$BIP39_WORDLIST" | awk 'END{print NR}')  # ▼▼▲▲▲ 移除 "%s\n" 修正为 "%s"
@@ -2138,6 +2138,14 @@ read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 #!/usr/bin/env python3
 import sys, os, hashlib
 wordlist = [line.strip() for line in sys.stdin if line.strip()]
+
+# ▼ 调试信息 ▼
+print("[Python调试] 接收行数:", len(wordlist), file=sys.stderr)
+print("[Python调试] 首单词 -->|{}|<--".format(wordlist[0]), file=sys.stderr)
+print("[Python调试] 末单词 -->|{}|<--".format(wordlist[-1]), file=sys.stderr)
+print("[Python调试]SHA256:", hashlib.sha
+# ▼ 调试信息 ▼
+
 if len(wordlist) != 2048:
     sys.exit(f"词表行数不合法：{len(wordlist)}（应为2048）")
 
