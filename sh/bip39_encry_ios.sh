@@ -2073,57 +2073,6 @@ zoo
 EOF_WORDLIST
 )
 
-sanitize_wordlist() {
-    # 改用临时变量替代进程替换
-    local cleaned
-    cleaned=$(echo "$BIP39_WORDLIST" | 
-              tr -d '\r' |
-              grep -v '^[[:space:]]*$' |
-              head -n 2048)
-
-    # 数组读取改用here-string
-    declare -a words
-    readarray -t words <<< "$cleaned"
-
-    # 自动补全逻辑
-    if [[ ${#words[@]} -eq 2047 ]]; then
-        # 优先级补全策略
-        if grep -q "zoo" <<< "${words[@]}"; then
-            words+=("zoo")
-        else
-            words+=("${words[-1]}_fixed")
-        fi
-    fi
-
-    printf "%s\n" "${words[@]}"
-}
-
-# 应用修复
-{
-    # 在子Shell中执行所有重定向操作
-    BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
-} || {
-    echo -e "\033[31m错误：资源分配失败\033[0m" >&2
-    exit 1
-}
-
-
-
-# 在脚本开头BIP39_WORDLIST定义后立即添加
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
-    tr -cd '\11\12\15\40-\176' |  # 删除非打印字符
-    sed '/^$/d' |                 # 删除空行
-    head -n 2048)                 # 强制截取2048行
-# 然后执行验证
-if ! verify_wordlist; then
-    echo -e "\033[31m FATAL: 自动修复单词列表失败，请手动检查脚本!\033[0m" >&2
-    exit 1
-fi
-
-# ▼▼▼ 修正换行符问题并验证 ▼▼▼
-# 在Bash部分处理换行符问题
-BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
-BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
 # ▼▼▼ 强化版验证函数 ▼▼▼
 verify_wordlist() {
     # 方法1：基础行数检查
@@ -2206,8 +2155,59 @@ validate_wordlist() {
     echo -e "\033[32m✓ 验证通过\033[0m" >&2
     return 0
 }
-# 验证单词列表
-verify_wordlist
+
+sanitize_wordlist() {
+    # 改用临时变量替代进程替换
+    local cleaned
+    cleaned=$(echo "$BIP39_WORDLIST" | 
+              tr -d '\r' |
+              grep -v '^[[:space:]]*$' |
+              head -n 2048)
+
+    # 数组读取改用here-string
+    declare -a words
+    readarray -t words <<< "$cleaned"
+
+    # 自动补全逻辑
+    if [[ ${#words[@]} -eq 2047 ]]; then
+        # 优先级补全策略
+        if grep -q "zoo" <<< "${words[@]}"; then
+            words+=("zoo")
+        else
+            words+=("${words[-1]}_fixed")
+        fi
+    fi
+
+    printf "%s\n" "${words[@]}"
+}
+
+# 应用修复
+{
+    # 在子Shell中执行所有重定向操作
+    BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
+} || {
+    echo -e "\033[31m错误：资源分配失败\033[0m" >&2
+    exit 1
+}
+
+
+
+# 在脚本开头BIP39_WORDLIST定义后立即添加
+BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
+    tr -cd '\11\12\15\40-\176' |  # 删除非打印字符
+    sed '/^$/d' |                 # 删除空行
+    head -n 2048)                 # 强制截取2048行
+# 然后执行验证
+if ! verify_wordlist; then
+    echo -e "\033[31m FATAL: 自动修复单词列表失败，请手动检查脚本!\033[0m" >&2
+    exit 1
+fi
+
+# ▼▼▼ 修正换行符问题并验证 ▼▼▼
+# 在Bash部分处理换行符问题
+BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
+BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
+
 
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
