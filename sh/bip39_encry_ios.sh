@@ -2141,19 +2141,6 @@ wordlist = [line.strip() for line in sys.stdin if line.strip()]
 if len(wordlist) != 2048:
     sys.exit(f"词表行数不合法：{len(wordlist)}（应为2048）")
 
-# Python代码完全保留（维持原有防御逻辑）
-wordlist = [line.strip() for line in sys.stdin if line.strip()]
-if len(wordlist) != 2048:
-    print(f"Critical Error: Wordlist has {len(wordlist)} words (expected 2048)", file=sys.stderr)
-    print("\nDebug Details 调试详情:", file=sys.stderr)
-    print(f"Total words 单词总数: {len(wordlist)}", file=sys.stderr)
-    print("First 5 words 前5个单词:", wordlist[:5], file=sys.stderr)
-    print("Last 5 words 最后5个单词:", wordlist[-5:], file=sys.stderr)   
-    empty_words = [w for w in wordlist if not w.strip()]
-    if empty_words:
-        print(f"发现空单词位置: 共{len(empty_words)}处", file=sys.stderr)    
-    sys.exit(1)
-
 
 try:
     word_count = int(sys.argv[1])
