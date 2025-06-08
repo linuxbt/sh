@@ -2130,21 +2130,7 @@ if ! validate_busybox; then
 fi
 
 
-# ▼▼▼ 原子化清洗流程 ▼▼▼
-sanitize_atomic() {
-    # 使用LC_ALL=C保证二进制处理
-    LC_ALL=C echo "$BIP39_WORDLIST" | 
-    # 移除BOM头（EF BB BF）
-    sed '1s/^\xEF\xBB\xBF//' |
-    # 统一换行符为LF
-    tr -d '\r' |
-    # 删除所有非ASCII字符
-    tr -cd '\11\12\15\40-\176' |
-    # 精确词数控制
-    awk 'length($0)>0 {print tolower($0)} NR>=2048{exit}' |
-    # 补全缺失行（动态选择策略）
-    awk 'BEGIN{last=""} {print; last=$0} END{if(NR==2047) print (last=="zoo"? "zoom" : "zoo")}'
-}
+
 
 validate_strict() {
     # 内存比对替代文件操作
@@ -2246,30 +2232,7 @@ validate_wordlist() {
     return 0
 }
 
-sanitize_wordlist() {
-    # 改用临时变量替代进程替换
-    local cleaned
-    cleaned=$(echo "$BIP39_WORDLIST" | 
-              tr -d '\r' |
-              grep -v '^[[:space:]]*$' |
-              head -n 2048)
 
-    # 数组读取改用here-string
-    declare -a words
-    readarray -t words <<< "$cleaned"
-
-    # 自动补全逻辑
-    if [[ ${#words[@]} -eq 2047 ]]; then
-        # 优先级补全策略
-        if grep -q "zoo" <<< "${words[@]}"; then
-            words+=("zoo")
-        else
-            words+=("${words[-1]}_fixed")
-        fi
-    fi
-
-    printf "%s\n" "${words[@]}"
-}
 
 # 应用修复
 {
@@ -2282,21 +2245,6 @@ sanitize_wordlist() {
 
 
 
-# 在脚本开头BIP39_WORDLIST定义后立即添加
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
-    tr -cd '\11\12\15\40-\176' |  # 删除非打印字符
-    sed '/^$/d' |                 # 删除空行
-    head -n 2048)                 # 强制截取2048行
-# 然后执行验证
-if ! verify_wordlist; then
-    echo -e "\033[31m FATAL: 自动修复单词列表失败，请手动检查脚本!\033[0m" >&2
-    exit 1
-fi
-
-# ▼▼▼ 修正换行符问题并验证 ▼▼▼
-# 在Bash部分处理换行符问题
-BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
-BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
 
 
 # --- Embedded Python Script for Mnemonic Generation ---
