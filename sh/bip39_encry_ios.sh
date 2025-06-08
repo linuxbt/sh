@@ -50,7 +50,7 @@ sanitize_wordlist() {
     }'
 }
 
-BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
+BIP39_WORDLIST=$(sanitize_wordlist <<'EOF' | grep -v '^$'
 abandon
 ability
 able
@@ -2102,16 +2102,9 @@ zoo
 EOF
 )
 
-# ▼ 防止行尾意外添加空行 ▼
-BIP39_WORDLIST=$(printf "%s" "$BIP39_WORDLIST" | awk '
-    NR <= 2048 { print }
-    END { 
-        if (NR < 2048) { 
-            print "缺少" 2048-NR "行，使用填充" > "/dev/stderr"
-            for(i=NR+1;i<=2048;i++) print "zoo"
-        }
-    }'
-)
+# 确保行数绝对为2048（双重保险）
+BIP39_WORDLIST=$(awk 'NR <= 2048 {print} END {for(i=NR+1;i<=2048;i++)print "zoo"}' <<< "$BIP39_WORDLIST")
+
 # ▼ 验证哈希传输 ▼
 echo "Bash层SHA256: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
 # ▼ 传输验证代码 ▼
@@ -2147,13 +2140,34 @@ sleep 30
 # --- Python Script for Mnemonic Generation ---
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 #!/usr/bin/env python3
-# 修改后的Python脚本头部 ▼▼▼
 import sys, os, hashlib
-# 单次读取所有输入数据
+# 修正后的Python解析核心代码
 raw_input = sys.stdin.read()
-# 分割并清理词表
-wordlist = [line.strip() for line in raw_input.split('\n') if line.strip()]
-wordlist = wordlist[:2048]  # 确保不超过2048行
+lines = [line.rstrip('\n') for line in raw_input.split('\n')]
+wordlist = []
+
+# 严格过滤逻辑
+for line in lines:
+    cleaned = line.strip()  # 移除两端的空白
+    if cleaned:
+        wordlist.append(cleaned)
+    # 提前断裂以提高性能
+    if len(wordlist) >= 2048:
+        break
+
+# 填充至2048行 （双保险）
+while len(wordlist) < 2048:
+    wordlist.append("zoo”)
+
+# ▼ 验证密钥指纹一致性 ▼
+expected_hash = os.environ.get('BASH_HASH')
+actual_hash = hashlib.sha256(raw_input.encode()).hexdigest()
+if expected_hash and actual_hash != expected_hash:
+    sys.exit(f"指纹不一致！BASH侧:{expected_hash} Python侧:{actual_hash}")
+# ▼ 打印精确调试信息 ▼
+print(f"[密钥调试] 原始字节长度:{len(raw_input)}", file=sys.stderr)
+print(f"[密钥调试] 首行指纹:{hashlib.sha256(lines[0].encode()).hexdigest()}", file=sys.stderr)
+print(f"[密钥调试] 尾行指纹:{hashlib.sha256(lines[-1].encode()).hexdigest()}", file=sys.stderr)
 # ▼ 调试信息 ▼
 print(f"[DEBUG] 原始输入行数: {len(raw_input.split('\n'))}", file=sys.stderr)
 print(f"[DEBUG] 有效词表行数: {len(wordlist)}", file=sys.stderr)
@@ -2318,16 +2332,15 @@ generate_mnemonic_internal() {
         echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
         return 1
     fi
-    # 关键修复：使用printf确保词表完整传递 ▼▼▼
-    # mnemonic=$(printf "%s\n" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
-    # 修改后的调用方式 ▼▼▼
+    # 生成传输检测指纹
+    local bash_hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
     mnemonic=$(
         {
             printf "%s\n" "$BIP39_WORDLIST"
-            echo "===DEBUG_END===" >&2
-        } | tee /dev/stderr |  # 调试输出完整传输内容
-        python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 
-    )   
+            echo "[BASH_DEBUG] 传输哈希: $bash_hash" >&2
+        } | tee /dev/stderr |
+        python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> >(grep -v DEBUG >&2)
+    ) 
     py_exit_code=$?
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo -e "${hong}错误：助记词生成失败！" >&2
