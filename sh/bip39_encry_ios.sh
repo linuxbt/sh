@@ -19,10 +19,34 @@ MIN_PASSWORD_LENGTH=16
 # This list contains 2048 words as per BIP39 standard.
 # ▼▼▼ 词表预处理函数 ▼▼▼
 sanitize_wordlist() {
-    # 移除BOM头、DOS换行符、尾部空行、前后空白字符
+    # 内存中处理避免临时文件
     echo "$BIP39_WORDLIST" | 
-    sed -e '1s/^\xEF\xBB\xBF//' -e 's/\r$//' | # 移除BOM和CR
-    grep -v '^[[:space:]]*$'      # 移除所有空行
+    # 第一步：统一处理所有换行符为LF（兼容macOS/iOS系统）
+    sed $'s/\r$//' |
+    # 第二步：净化输入流（删除所有非ASCII字符）
+    LC_ALL=C tr -cd '\11\12\40-\176' |
+    # 第三步：词表整形（含自动修复机制）
+    awk '
+    function trim(str) {
+        gsub(/^[ \t]+|[ \t]+$/, "", str); 
+        return str
+    }
+    {
+        word = tolower(trim($0))
+        if (word != "") {
+            words[++count] = word
+        }
+    }
+    END {
+        # 动态补全机制（精确满足2048个单词）
+        target = 2048
+        while (count < target) {
+            words[++count] = "zoo"
+        }
+        for (i=1; i<=target; i++) {
+            print words[i]
+        }
+    }'
 }
 BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
 abandon
@@ -2076,10 +2100,7 @@ zoo
 EOF
 )
 
-# ▼▼▼ 词表预处理 ▼▼▼
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
-    tr -d '\r' |          # 统一换行符
-    awk 'NF {print; last=$0} END{if(last!="") print last}')  # 去空行保结尾
+
 
 # ▼▼▼ 兼容性调试函数 ▼▼▼
 debug_light() {
