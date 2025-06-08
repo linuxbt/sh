@@ -2066,7 +2066,8 @@ zebra
 zero
 zone
 zoo
-EOF)
+EOF
+)
 
 # 移除词表末尾可能的空行（适用于硬编码/下载的词表）
 BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | awk 'NF {print; line=$0} END{printf "%s", line}')
