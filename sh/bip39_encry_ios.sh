@@ -2158,7 +2158,8 @@ validate_wordlist() {
     echo -e "\033[32m✓ 验证通过\033[0m" >&2
     return 0
 }
-
+# 验证单词列表
+verify_wordlist
 
 # --- Embedded Python Script for Mnemonic Generation ---
 # This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
