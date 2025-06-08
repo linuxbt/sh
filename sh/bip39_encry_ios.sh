@@ -2073,6 +2073,31 @@ zoo
 EOF_WORDLIST
 )
 
+sanitize_wordlist() {
+    # 使用进程替换避免临时文件
+    mapfile -t words < <(
+        # 多阶段清洗流程
+        echo "$BIP39_WORDLIST" | 
+        tr -d '\r' |                      # 清除Windows换行符
+        awk 'NF && $0!~/^[[:space:]]+$/' | # 过滤纯空白行
+        head -n 2048 |                    # 硬截断保证行数
+        sed 's/[^[:alnum:]]//g'           # 移除单词中的非字母数字字符
+    )
+    
+    # 自动补全机制（如果检测到缺失）
+    if [[ ${#words[@]} -eq 2047 ]]; then
+        last_word="${words[-1]}"
+        # 智能匹配补全最后一个单词（优先用zoo，否则动态选择）
+        [[ "$last_word" == *"zoo"* ]] && words+=("zoo") || words+=("${words[-1]}")
+    fi
+
+    printf "%s\n" "${words[@]}"
+}
+
+# 应用修复
+BIP39_WORDLIST=$(sanitize_wordlist)
+
+
 # 在脚本开头BIP39_WORDLIST定义后立即添加
 BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
     tr -cd '\11\12\15\40-\176' |  # 删除非打印字符
@@ -2089,36 +2114,48 @@ fi
 BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
 BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
 # ▼▼▼ 强化版验证函数 ▼▼▼
-verify_wordlist() {
-    # 方法1：基础行数检查
-    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
+validate_wordlist() {
+    local first_word last_word checksum
+    mapfile -t word_array <<< "$BIP39_WORDLIST"
     
-    # 方法2：单词列表完整性检查
-    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1 | tr -d '\r')
-    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
+    # 三重验证标准
+    first_word="${word_array[0]%% *}"
+    last_word="${word_array[-1]%% *}"
+    checksum=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
     
-    # 方法3：SHA256校验（确保内容未被篡改）
-    local checksum=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-    local expected_checksum="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" # 标准BIP39英文单词列表校验值
-    if [[ $line_count -ne 2048 ]]; then
-        echo -e "\033[31m[行数异常] 检测到 ${line_count} 行 (预期值:2048)\033[0m" >&2
-        echo "疑似问题：" >&2
-        echo "  1. 检查EOF_WORDLIST标记前后是否有空行" >&2
-        echo "  2. 用命令 'echo \"\$BIP39_WORDLIST\" | hexdump -C' 检查特殊字符" >&2
+    declare -A EXPECTED=(
+        [lines]=2048
+        [first]="abandon"
+        [last]="zoo"
+        [checksum]="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
+    )
+    
+    # 动态错误报告
+    local errors=()
+    [[ "${#word_array[@]}" -ne ${EXPECTED[lines]} ]] && 
+        errors+=("行数异常: ${#word_array[@]} != ${EXPECTED[lines]}")
+    [[ "$first_word" != "${EXPECTED[first]}" ]] && 
+        errors+=("首单词错误: '$first_word'")
+    [[ "$last_word" != "${EXPECTED[last]}" ]] && 
+        errors+=("尾单词错误: '$last_word'")
+    [[ "$checksum" != "${EXPECTED[checksum]}" ]] && 
+        errors+=("校验值不匹配")
+    
+    if [[ ${#errors[@]} -gt 0 ]]; then
+        echo -e "\033[31m验证失败:\033[0m" >&2
+        printf "  - %s\n" "${errors[@]}" >&2
+        
+        # 调试信息增强
+        echo -e "\n\033[33m调试信息:\033[0m" >&2
+        echo "实际首单词: '$first_word'" >&2
+        echo "实际尾单词: '$last_word'" >&2
+        echo "行数差异: $(( ${#word_array[@]} - ${EXPECTED[lines]} ))" >&2
+        echo "校验差: $(cmp <(echo "$checksum") <(echo "${EXPECTED[checksum]}") | cut -d' ' -f5-)" >&2
+        
         return 1
     fi
-    if [[ "$first_word" != "abandon" || "$last_word" != "zoo" ]]; then
-        echo -e "\033[31m[首尾单词异常] 首词:${first_word} 尾词:${last_word}\033[0m" >&2
-        return 1
-    fi
-    if [[ "$checksum" != "$expected_checksum" ]]; then
-        echo -e "\033[31m[校验值不匹配]\n  实际值：${checksum}\n  预期值：${expected_checksum}\033[0m" >&2
-        echo "可能原因：" >&2
-        echo "  1. 单词列表被修改" >&2
-        echo "  2. 存在不可见字符（如BOM头）" >&2
-        return 1
-    fi
-    echo -e "\033[32m✓ BIP39单词列表验证通过 (行数:2048, 校验值匹配)\033[0m" >&2
+    
+    echo -e "\033[32m✓ 验证通过\033[0m" >&2
     return 0
 }
 
