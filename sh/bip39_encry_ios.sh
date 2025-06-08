@@ -2102,20 +2102,18 @@ zoo
 EOF
 )
 
-# 修改行尾符控制 ▼▼▼ 使用 awk 强制控制行数
-# BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'NR<=2048')
+# ▼ 防止行尾意外添加空行 ▼
 BIP39_WORDLIST=$(printf "%s" "$BIP39_WORDLIST" | awk '
-    BEGIN { count=0 }
-    { 
-        if (count < 2048) { 
-            print $0
-            count++
-        }
-    }
+    NR <= 2048 { print }
     END { 
-        for (i=count; i<2048; i++) print "zoo"
+        if (NR < 2048) { 
+            print "缺少" 2048-NR "行，使用填充" > "/dev/stderr"
+            for(i=NR+1;i<=2048;i++) print "zoo"
+        }
     }'
 )
+# ▼ 验证哈希传输 ▼
+echo "Bash层SHA256: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
 # ▼ 传输验证代码 ▼
 echo "词表传输哈希: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
 echo "词表行数终检: $(echo "$BIP39_WORDLIST" | wc -l)" >&2
@@ -2150,43 +2148,21 @@ sleep 30
 # --- Python Script for Mnemonic Generation ---
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 #!/usr/bin/env python3
-# 在 Python 脚本顶部添加以下内容 ▼▼▼
-import sys
-from hashlib import sha256
-
-print("[PY_DEBUG] 传输哈希:", sha256("".join(sys.stdin.readlines()).encode()).hexdigest(), file=sys.stderr)
-sys.stdin.seek(0)  # 重置读取位置
-
-# ▼ 修复后的 Python 词表读取 ▼
-import sys
-
-raw_data = sys.stdin.read().split('\n')
-wordlist = [line for line in raw_data if line.strip()][:2048]
-
-# 调试输出
-print(f"[DEBUG] Raw count: {len(raw_data)}", file=sys.stderr)
-print(f"[DEBUG] Cleaned count: {len(wordlist)}", file=sys.stderr)
-print(f"[DEBUG] 首词: |{wordlist[0]}|", file=sys.stderr) 
-print(f"[DEBUG] 末词: |{wordlist[-1]}|", file=sys.stderr)
-
-if len(wordlist) != 2048:
-    sys.exit(f"词表不合法：{len(wordlist)} 行（应为2048）")
-
-
+# 修改后的Python脚本头部 ▼▼▼
 import sys, os, hashlib
-wordlist = [line.strip() for line in sys.stdin if line.strip()]
-
+# 单次读取所有输入数据
+raw_input = sys.stdin.read()
+# 分割并清理词表
+wordlist = [line.strip() for line in raw_input.split('\n') if line.strip()]
+wordlist = wordlist[:2048]  # 确保不超过2048行
 # ▼ 调试信息 ▼
-print("[Python调试] 接收行数:", len(wordlist), file=sys.stderr)
-print("[Python调试] 首单词 -->|{}|<--".format(wordlist[0]), file=sys.stderr)
-print("[Python调试] 末单词 -->|{}|<--".format(wordlist[-1]), file=sys.stderr)
-print("[Python调试]SHA256:", hashlib.sha
-# ▼ 调试信息 ▼
-
+print(f"[DEBUG] 原始输入行数: {len(raw_input.split('\n'))}", file=sys.stderr)
+print(f"[DEBUG] 有效词表行数: {len(wordlist)}", file=sys.stderr)
+print(f"[DEBUG] 首词: {repr(wordlist[0])}", file=sys.stderr)
+print(f"[DEBUG] 末词: {repr(wordlist[-1])}", file=sys.stderr)
+print(f"[DEBUG] SHA256: {hashlib.sha256(raw_input.encode()).hexdigest()}", file=sys.stderr)
 if len(wordlist) != 2048:
-    sys.exit(f"词表行数不合法：{len(wordlist)}（应为2048）")
-
-
+    sys.exit(f"词表不合法：{len(wordlist)}行，应为2048行")
 try:
     word_count = int(sys.argv[1])
 except ValueError:
@@ -2345,13 +2321,14 @@ generate_mnemonic_internal() {
     fi
     # 关键修复：使用printf确保词表完整传递 ▼▼▼
     # mnemonic=$(printf "%s\n" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
-    # 修改 generate_mnemonic_internal 函数中的调用方式 ▼▼▼
+    # 修改后的调用方式 ▼▼▼
     mnemonic=$(
         {
-            printf "%s\n" "$BIP39_WORDLIST" 
-            echo "===DEBUG_END===" >&2  # 确保完整输出
-        } | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2>&1 | grep -v '^\[PY_DEBUG\]'
-    )    
+            printf "%s\n" "$BIP39_WORDLIST"
+            echo "===DEBUG_END===" >&2
+        } | tee /dev/stderr |  # 调试输出完整传输内容
+        python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 
+    )   
     py_exit_code=$?
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
         echo -e "${hong}错误：助记词生成失败！" >&2
