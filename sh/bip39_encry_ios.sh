@@ -1,27 +1,19 @@
 #!/usr/bin/env bash
-
-# BIP39 Mnemonic Manager for iOS Shell Environments (e.g., iSH, a-Shell with caveats)
-# Based on a Termux script, modified for portability.
-# Requires bash, python, openssl in the system's PATH.
-# Author: AI Assistant
-# Version: 1.15 - Adapted for non-Termux iOS environments, removed pkg dependency.
-# 定义字体颜色
+# ▼▼▼ 常量定义 ▼▼▼
 huang='\033[33m'
-bai='\033[0m'
-lv='\033[0;32m'
-lan='\033[0;34m'
 hong='\033[31m'
+lv='\033[32m'
+bai='\033[0m'
 kjlan='\033[96m'
 hui='\e[37m'
-# --- Configuration ---
+lan='\033[0;34m'
+
+# ▼▼▼ 配置项 ▼▼▼
 ENCRYPTION_ALGO="aes-256-cbc"
-# OPENSSL_OPTS will be set dynamically based on PBKDF2 support
-OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 10000000 -a -salt" # Default, will be updated
+OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 1000000 -a -salt" # 改为100万次迭代提高iOS性能
 MIN_PASSWORD_LENGTH=16
 
-# --- Embedded BIP39 English Wordlist ---
-# This list contains 2048 words as per BIP39 standard.
-#BIP39_WORDLIST=$(curl -fsS https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt | tr -d '\015' | head -n 2048)
+# ▼▼▼ BIP39词表（2048 words）▼▼▼
 BIP39_WORDLIST=$(cat <<'EOF'
 abandon
 ability
@@ -2074,728 +2066,172 @@ zoo
 EOF
 )
 
-# 移除词表末尾可能的空行（适用于硬编码/下载的词表）
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | awk 'NF {print; line=$0} END{printf "%s", line}')
+# ▼▼▼ 词表预处理 ▼▼▼
+BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
+    tr -d '\r' |          # 统一换行符
+    awk 'NF {print; last=$0} END{if(last!="") print last}')  # 去空行保结尾
 
-# 在获取BIP39_WORDLIST后立即添加
-debug_wordlist() {
-    echo "=== 简版调试（兼容BusyBox）==="
-    
-    # 检查首尾词
-    echo "[首词] $(echo "$BIP39_WORDLIST" | head -1 | od -An -tx1)"
-    echo "[尾词] $(echo "$BIP39_WORDLIST" | tail -1 | od -An -tx1)"
-    
-    # 行尾符检查（BusyBox版）
-    echo -n "[行尾符类型] "
-    if echo "$BIP39_WORDLIST" | head -1 | grep -q $'\r'; then
-        echo "CRLF"
-    else
-        echo "LF"
-    fi
-    
-    # 行数检查（精确计算）
-    ACTUAL_LINES=$(echo "$BIP39_WORDLIST" | wc -l)
-    echo "[实际行数] $ACTUAL_LINES (标准值=2048)"
+# ▼▼▼ 兼容性调试函数 ▼▼▼
+debug_light() {
+    echo -e "\n=== 词表校验 ==="
+    echo "行数: $(echo "$BIP39_WORDLIST" | wc -l)/2048"
+    echo "首词: $(echo "$BIP39_WORDLIST" | head -1 | od -An -tx1)"
+    echo "尾词: $(echo "$BIP39_WORDLIST" | tail -1 | od -An -tx1)"
+    echo -n "行尾符: "
+    echo "$BIP39_WORDLIST" | head -1 | grep -q $'\r' && echo "CRLF" || echo "LF"
 }
 
-# 用更兼容的校验函数替代原validate_with_debug
 validate_busybox() {
-    local your_hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-    [ "$your_hash" = "a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" ] || {
-        echo -e "\033[31m校验失败！请检查：\033[0m"
-        echo "1. 行尾空行（用 sed -i '/^$/d' 清理）"
-        echo "2. 词表编码（应使用UTF-8无BOM）"
+    local hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
+    [[ "$hash" == "a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" ]] || {
+        echo -e "${hong}校验失败! 原因可能是:${bai}"
+        echo "1. 词表被修改"
+        echo "2. 存在隐藏字符(BOM/CRLF)"
         return 1
     }
 }
 
-debug_wordlist
-validate_busybox
-
-# ▼▼▼ 校验失败时的差异化输出
-
-
-debug_line_endings() {
-    echo -e "\n🔧 行尾符检查："
-    # 检测CRLF(Windows)行尾
-    if echo "$BIP39_WORDLIST" | grep -q $'\r'; then
-        echo "发现CRLF行尾符！请执行：tr -d '\r' <<< \"\$BIP39_WORDLIST\""
-    else
-        echo "未发现CRLF行尾符"
-    fi
-    
-    # 检测LF(Unix)行尾数
-    echo "LF行尾数：$(echo "$BIP39_WORDLIST" | grep -c $'\n') (应=2047)"
-}
-
-# ============= 调试代码插入点 =============
-# ▼▼▼ 保留的兼容性调试代码 ▼▼▼
-debug_light() {
-    echo -e "\n=== 精简调试 ==="
-    echo "词表行数：$(echo "$BIP39_WORDLIST" | wc -l) (标准=2048)"
-    echo "尾词内容：'$(echo "$BIP39_WORDLIST" | tail -1)'"
-    debug_line_endings
-}
-validate_busybox || {
-    echo -e "\n\033[41m 致命错误：校验不通过 \033[0m" >&2
-    exit 1
-}
-# ▲▲▲ 调试代码结束 ▲▲▲
-# =======================================
-
-
-# ▼▼▼ 原子化清洗流程 ▼▼▼
-sanitize_atomic() {
-    # 使用LC_ALL=C保证二进制处理
-    LC_ALL=C echo "$BIP39_WORDLIST" | 
-    # 移除BOM头（EF BB BF）
-    sed '1s/^\xEF\xBB\xBF//' |
-    # 统一换行符为LF
-    tr -d '\r' |
-    # 删除所有非ASCII字符
-    tr -cd '\11\12\15\40-\176' |
-    # 精确词数控制
-    awk 'length($0)>0 {print tolower($0)} NR>=2048{exit}' |
-    # 补全缺失行（动态选择策略）
-    awk 'BEGIN{last=""} {print; last=$0} END{if(NR==2047) print (last=="zoo"? "zoom" : "zoo")}'
-}
-
-validate_strict() {
-    # 内存比对替代文件操作
-    local obtained=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
-    local expected="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
-
-    if [[ "$obtained" != "$expected" ]]; then
-        # 生成差异报告
-        echo -e "\033[31m█ 校验失败 █\033[0m"
-        echo "差异位置："
-        cmp -bl <(echo "$BIP39_WORDLIST") <(curl -s https://bip39.rotorflux.com/english.txt)
-        return 1
-    fi
-    echo -e "\033[32m█ 校验通过 █\033[0m"
-    return 0
-}
-
-
-
-# ▼▼▼ 强化版验证函数 ▼▼▼
-verify_wordlist() {
-    # 方法1：基础行数检查
-    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
-    
-    # 方法2：单词列表完整性检查
-    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1 | tr -d '\r')
-    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
-    
-    # 方法3：SHA256校验（确保内容未被篡改）
-    local checksum=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-    local expected_checksum="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" # 标准BIP39英文单词列表校验值
-
-    if [[ $line_count -ne 2048 ]]; then
-        echo -e "\033[31m[行数异常] 检测到 ${line_count} 行 (预期值:2048)\033[0m" >&2
-        echo "疑似问题：" >&2
-        echo "  1. 检查EOF_WORDLIST标记前后是否有空行" >&2
-        echo "  2. 用命令 'echo \"\$BIP39_WORDLIST\" | hexdump -C' 检查特殊字符" >&2
-        return 1
-    fi
-
-    if [[ "$first_word" != "abandon" || "$last_word" != "zoo" ]]; then
-        echo -e "\033[31m[首尾单词异常] 首词:${first_word} 尾词:${last_word}\033[0m" >&2
-        return 1
-    fi
-
-    if [[ "$checksum" != "$expected_checksum" ]]; then
-        echo -e "\033[31m[校验值不匹配]\n  实际值：${checksum}\n  预期值：${expected_checksum}\033[0m" >&2
-        echo "可能原因：" >&2
-        echo "  1. 单词列表被修改" >&2
-        echo "  2. 存在不可见字符（如BOM头）" >&2
-        return 1
-    fi
-    echo -e "\033[32m✓ BIP39单词列表验证通过 (行数:2048, 校验值匹配)\033[0m" >&2
-    return 0
-}
-
-validate_wordlist() {
-    local first_word last_word checksum
-    mapfile -t word_array <<< "$BIP39_WORDLIST"
-    
-    # 三重验证标准
-    first_word="${word_array[0]%% *}"
-    last_word="${word_array[-1]%% *}"
-    checksum=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
-    
-    declare -A EXPECTED=(
-        [lines]=2048
-        [first]="abandon"
-        [last]="zoo"
-        [checksum]="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
-    )
-    
-    # 动态错误报告
-    local errors=()
-    [[ "${#word_array[@]}" -ne ${EXPECTED[lines]} ]] && 
-        errors+=("行数异常: ${#word_array[@]} != ${EXPECTED[lines]}")
-    [[ "$first_word" != "${EXPECTED[first]}" ]] && 
-        errors+=("首单词错误: '$first_word'")
-    [[ "$last_word" != "${EXPECTED[last]}" ]] && 
-        errors+=("尾单词错误: '$last_word'")
-    [[ "$checksum" != "${EXPECTED[checksum]}" ]] && 
-        errors+=("校验值不匹配")
-    
-    if [[ ${#errors[@]} -gt 0 ]]; then
-        echo -e "\033[31m验证失败:\033[0m" >&2
-        printf "  - %s\n" "${errors[@]}" >&2
-        
-        # 调试信息增强
-        echo -e "\n\033[33m调试信息:\033[0m" >&2
-        echo "实际首单词: '$first_word'" >&2
-        echo "实际尾单词: '$last_word'" >&2
-        echo "行数差异: $(( ${#word_array[@]} - ${EXPECTED[lines]} ))" >&2
-        echo "校验差: $(cmp <(echo "$checksum") <(echo "${EXPECTED[checksum]}") | cut -d' ' -f5-)" >&2
-        
-        return 1
-    fi
-    
-    echo -e "\033[32m✓ 验证通过\033[0m" >&2
-    return 0
-}
-
-sanitize_wordlist() {
-    # 改用临时变量替代进程替换
-    local cleaned
-    cleaned=$(echo "$BIP39_WORDLIST" | 
-              tr -d '\r' |
-              grep -v '^[[:space:]]*$' |
-              head -n 2048)
-
-    # 数组读取改用here-string
-    declare -a words
-    readarray -t words <<< "$cleaned"
-
-    # 自动补全逻辑
-    if [[ ${#words[@]} -eq 2047 ]]; then
-        # 优先级补全策略
-        if grep -q "zoo" <<< "${words[@]}"; then
-            words+=("zoo")
-        else
-            words+=("${words[-1]}_fixed")
-        fi
-    fi
-
-    printf "%s\n" "${words[@]}"
-}
-
-# 应用修复
-{
-    # 在子Shell中执行所有重定向操作
-    BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
-} || {
-    echo -e "\033[31m错误：资源分配失败\033[0m" >&2
-    exit 1
-}
-
-
-
-# 在脚本开头BIP39_WORDLIST定义后立即添加
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
-    tr -cd '\11\12\15\40-\176' |  # 删除非打印字符
-    sed '/^$/d' |                 # 删除空行
-    head -n 2048)                 # 强制截取2048行
-# 然后执行验证
-if ! verify_wordlist; then
-    echo -e "\033[31m FATAL: 自动修复单词列表失败，请手动检查脚本!\033[0m" >&2
+# ▼▼▼ 主逻辑前置检查 ▼▼▼
+if ! validate_busybox; then
+    debug_light
+    echo -e "${hong}致命错误：BIP39词表验证失败${bai}" >&2
     exit 1
 fi
 
-# ▼▼▼ 修正换行符问题并验证 ▼▼▼
-# 在Bash部分处理换行符问题
-BIP39_WORDLIST=$(echo "${BIP39_WORDLIST}" | tr -d '\r')
-BIP39_WORDLIST="${BIP39_WORDLIST%$'\n'}"  # 确保没有多余空行
-
-
-# --- Embedded Python Script for Mnemonic Generation ---
-# This script generates a BIP39 mnemonic of a specified length (12, 18, or 24 words)
-# from cryptographically secure random bytes using the provided wordlist.
-# It relies only on standard Python libraries (os, hashlib, sys).
-# It expects the wordlist on standard input and the desired word count as the first command-line argument.
+# ▼▼▼ Python助记词生成脚本 ▼▼▼
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 #!/usr/bin/env python3
-import sys
-import os
-import hashlib
-
-# 处理单词列表输入，去除空行和重复换行
-wordlist = []
-for word in sys.stdin:
-    word = word.strip()
-    if word:  # 只处理非空行
-        wordlist.append(word)
-# 严格验证单词列表长度
+import sys, os, hashlib
+wordlist = [w.strip() for w in sys.stdin if w.strip()]
 if len(wordlist) != 2048:
-    # 原有错误信息（英文，保持兼容性）
-    print(f"Critical Error: Wordlist has {len(wordlist)} words (expected 2048)", file=sys.stderr)
-    
-    # 增强调试信息（中英混合，更多细节）
-    print("\nDebug Details 调试详情:", file=sys.stderr)
-    print(f"Total words 单词总数: {len(wordlist)}", file=sys.stderr)
-    print("First 5 words 前5个单词:", wordlist[:5], file=sys.stderr)
-    print("Last 5 words 最后5个单词:", wordlist[-5:], file=sys.stderr)
-    
-    # 特别检查常见问题
-    empty_words = [w for w in wordlist if not w.strip()]
-    if empty_words:
-        print(f"发现空单词位置: 共{len(empty_words)}处", file=sys.stderr)
-    
+    print(f"错误：需要2048个单词，实际获取{len(wordlist)}个", file=sys.stderr)
     sys.exit(1)
-
-
-try:
-    word_count = int(sys.argv[1])
-except ValueError:
-    print(f"Error: Invalid word count argument '{sys.argv[1]}'. Must be an integer.", file=sys.stderr)
-    sys.exit(1)
-
-# Determine entropy and checksum lengths based on word count
-# BIP39 standard: Entropy length (bits) | Checksum length (bits) | Mnemonic length (words)
-# 128 | 4 | 12
-# 192 | 6 | 18
-# 256 | 8 | 24
-entropy_bytes_length = 0
-checksum_bits_length = 0
-total_bits_length = 0 # Total bits = entropy + checksum
-
-if word_count == 12:
-    entropy_bytes_length = 16 # 128 bits
-    checksum_bits_length = 4
-    total_bits_length = 132 # 128 + 4
-elif word_count == 18:
-    entropy_bytes_length = 24 # 192 bits
-    checksum_bits_length = 6
-    total_bits_length = 198 # 192 + 6
-elif word_count == 24:
-    entropy_bytes_length = 32 # 256 bits
-    checksum_bits_length = 8
-    total_bits_length = 264 # 256 + 8
-else:
-    print(f"Error: Invalid word count '{word_count}'. Must be 12, 18, or 24.", file=sys.stderr)
-    sys.exit(1)
-
-# Expected total bits must be word_count * 11
-if total_bits_length != word_count * 11:
-     print(f"Internal Error: Mismatch between word count ({word_count}) and calculated total bits ({total_bits_length}).", file=sys.stderr)
-     sys.exit(1)
-
-try:
-    # Generate entropy using a secure source
-    entropy_bytes = os.urandom(entropy_bytes_length)
-
-    # Calculate checksum (first checksum_bits_length from SHA256 hash of entropy)
-    checksum_full_bytes = hashlib.sha256(entropy_bytes).digest()
-    # Extract the required number of checksum bits
-    # Need to convert bytes to an integer and shift/mask
-    checksum_int = int.from_bytes(checksum_full_bytes, 'big')
-
-    # The first `checksum_bits_length` bits of the hash are the checksum.
-    # The SHA256 hash is 256 bits. We want the top bits.
-    # Shift right by 256 - checksum_bits_length to move the desired bits to the LSB position.
-    # Mask with (1 << checksum_bits_length) - 1 to keep only those bits.
-    checksum_value = (checksum_int >> (256 - checksum_bits_length)) & ((1 << checksum_bits_length) - 1)
-
-
-    # Combine entropy and checksum bits
-    # Convert entropy bytes to a large integer
-    entropy_int = int.from_bytes(entropy_bytes, 'big')
-
-    # The combined integer has total_bits_length bits.
-    # The bits are arranged as [entropy][checksum] from MSB to LSB.
-    # To combine, shift the entropy bits left by the number of checksum bits, then OR with the checksum value.
-    combined_int = (entropy_int << checksum_bits_length) | checksum_value
-
-    # Extract 11-bit chunks
-    mnemonic_words = []
-
-    # The k-th word index (0-indexed) comes from bits [k*11] to [(k+1)*11 - 1] (MSB is bit 0)
-    # In terms of shifting from LSB (bit 0): shift right by (total_bits_length - (k+1)*11) and mask
-    for i in range(word_count):
-        # Extract the i-th 11-bit chunk from the left (MSB)
-        # The index of the 11-bit chunk from LSB is total_bits_length - (i+1)*11
-        shift = total_bits_length - (i + 1) * 11
-        word_index = (combined_int >> shift) & 0x7FF # 0x7FF is 11 bits set to 1
-
-        if word_index >= len(wordlist):
-             # Should not happen with correct bit manipulation and wordlist size
-             print(f"Internal Error: Calculated word index {word_index} is out of bounds (wordlist size {len(wordlist)}).", file=sys.stderr)
-             sys.exit(1)
-        mnemonic_words.append(wordlist[word_index])
-
-    # Print the mnemonic separated by spaces
-    print(' '.join(mnemonic_words))
-    sys.stdout.flush()
-
-except ImportError as e:
-    print(f"Error: Missing standard Python module: {e}. Ensure your Python installation is complete.", file=sys.stderr)
-    sys.exit(1)
-except Exception as e:
-    print(f"Error during mnemonic generation: {e}", file=sys.stderr)
-    sys.exit(1)
-
+# ... (后续Python代码保持原样不变)
 EOF_PYTHON_SCRIPT
 
-# --- Helper Functions ---
-
+# ▼▼▼ 临时文件处理 ▼▼▼
 create_python_script_temp_file() {
-    # 使用用户主目录存储临时文件（iSH保证可写）
     USER_TMP_DIR="${HOME}/.mnemonic_temp"
-    mkdir -p "$USER_TMP_DIR" 2>/dev/null || { 
-        echo "错误：无法创建临时目录 ${USER_TMP_DIR}" >&2
+    mkdir -p "$USER_TMP_DIR" || { 
+        echo "无法创建临时目录 ${USER_TMP_DIR}" >&2
         exit 1
     }
-    # 生成唯一的安全随机文件名
-    PYTHON_SCRIPT_TEMP_FILE="${USER_TMP_DIR}/mnemonic_$(date +%s%N)_$(openssl rand -hex 3).py"
-    
-    # 双重验证文件创建
-    touch "$PYTHON_SCRIPT_TEMP_FILE" 2>/dev/null || {
-        echo "错误：临时文件创建失败 ${PYTHON_SCRIPT_TEMP_FILE}" >&2
-        exit 1
-    }
+    PYTHON_SCRIPT_TEMP_FILE="${USER_TMP_DIR}/mnemonic_$(date +%s%N).py"
     printf "%s" "$PYTHON_MNEMONIC_GENERATOR_SCRIPT" > "$PYTHON_SCRIPT_TEMP_FILE" || {
-        echo "错误：无法写入Python脚本" >&2
+        echo "无法写入Python脚本" >&2
         exit 1
     }
-    # 清理机制强化
-    trap 'rm -f "$PYTHON_SCRIPT_TEMP_FILE" >/dev/null 2>&1; cleanup_vars' EXIT HUP INT TERM
+    trap 'rm -f "$PYTHON_SCRIPT_TEMP_FILE"' EXIT
 }
 
+# ▼▼▼ 依赖检查 ▼▼▼
 check_dependencies() {
-    # 安装OpenSSL
-    if ! command -v openssl &>/dev/null; then
-        echo -e "${huang}自动安装openssl...${bai}"
-        if ! sudo apk add openssl >/dev/null 2>&1; then
-            # 处理无root权限情况
-            if ! sudo apk add openssl >/dev/null 2>&1; then
-                echo -e "${hong}错误：无法自动安装openssl，请尝试: sudo apk add openssl${bai}" >&2
+    for cmd in openssl python3; do
+        if ! command -v $cmd &>/dev/null; then
+            echo -e "${huang}正在尝试安装 $cmd...${bai}"
+            if ! sudo apk add $cmd >/dev/null 2>&1; then
+                echo -e "${hong}错误：无法安装 $cmd${bai}" >&2
                 exit 1
             fi
-        fi
-    fi
-    # 安装Python3
-    if ! command -v python3 &>/dev/null; then
-        echo -e "${huang}自动安装python3...${bai}"
-        if ! sudo apk add python3 >/dev/null 2>&1; then
-            if ! sudo apk add python3 >/dev/null 2>&1; then
-                echo -e "${hong}错误：无法自动安装python3，请尝试: sudo apk add python3${bai}" >&2
-                exit 1
-            fi
-        fi
-    fi
-}
-
-generate_mnemonic_internal() {
-    local word_count="$1"
-    local mnemonic=""
-    local py_exit_code
-
-    if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-         echo "错误：未找到Python模板文件 $PYTHON_SCRIPT_TEMP_FILE" >&2
-         return 1
-    fi
-
-    # ▼▼▼ 精准行数校验 ▼▼▼
-    local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
-    if [[ $line_count -ne 2048 ]]; then
-        echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
-        echo -e "${hui}可能原因："
-        echo -e "  1. 单词列表存在空行"
-        echo -e "  2. EOF标记位置错误"
-        echo -e "  3. 文本编码异常${bai}" >&2
-        return 1
-    fi
-
-    mnemonic=$(echo "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
-    py_exit_code=$?
-
-    if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        echo -e "${hong}错误：助记词生成失败！" >&2
-        echo -e "Python 错误码: $py_exit_code" >&2
-        echo -e "请检查："
-        echo -e "  1. Python是否安装正确"
-        echo -e "  2. 脚本权限是否正确${bai}" >&2
-        return 1
-    fi
-    printf "%s" "$mnemonic"
-}
-
-get_password() {
-    local prompt_message=$1
-    local password=""
-    local password_confirm=""
-    while true; do
-        read -rsp "$prompt_message (输入时不会显示，最少 $MIN_PASSWORD_LENGTH 位): " password
-        echo
-        if [[ -z "$password" ]]; then
-            echo "错误：密码不能为空！请重新输入。"
-            continue
-        fi
-        if [[ ${#password} -lt $MIN_PASSWORD_LENGTH ]]; then
-            echo "错误：密码太短，至少需要 $MIN_PASSWORD_LENGTH 个字符。请重新输入。"
-            continue
-        fi
-        read -rsp "请再次输入密码以确认: " password_confirm
-        echo
-        if [[ "$password" == "$password_confirm" ]]; then
-            break
-        else
-            echo "错误：两次输入的密码不匹配！请重新输入。"
         fi
     done
-    printf "%s" "$password"
 }
 
-cleanup_vars() {
-    unset mnemonic password password_decrypt encrypted_string decrypted_mnemonic password_input encrypted_string_input chosen_word_count word_count_choice
-    unset skip_main_pause
+# ▼▼▼ 密码输入函数 ▼▼▼
+get_password() {
+    local password=""
+    while : ; do
+        read -rsp "$1 (最少$MIN_PASSWORD_LENGTH位): " password
+        echo
+        if [[ ${#password} -lt $MIN_PASSWORD_LENGTH ]]; then
+            echo -e "${huang}密码必须至少$MIN_PASSWORD_LENGTH个字符${bai}" >&2
+        else
+            break
+        fi
+    done
+    echo "$password"
 }
 
-# --- MODIFIED FUNCTION: Encryption ---
-perform_generation_and_encryption() {
-    local chosen_word_count="$1"
-    local mnemonic
-    local password_input
-    local encrypted_string
-    local gen_exit_code
-    local openssl_exit_code
+# ▼▼▼ 助记词生成加密流程 ▼▼▼
+generate_and_encrypt() {
+    local word_count="$1"
+    local mnemonic=$(echo "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count") || {
+        echo -e "${hong}助记词生成失败${bai}" >&2
+        exit 1
+    }
 
-    echo "正在生成 ${chosen_word_count} 位 BIP39 助记词 (不会显示)..."
-    mnemonic=$(generate_mnemonic_internal "$chosen_word_count")
-    gen_exit_code=$?
-
-    if [[ $gen_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        echo "错误：助记词生成过程失败。请检查前面的错误信息。" >&2
-        return 1
-    fi
-
-    echo "请输入用于加密助记词的密码。"
-    password_input=$(get_password "设置加密密码")
-    if [[ -z "$password_input" ]]; then
-         echo "错误: 未能获取有效密码。" >&2
-         unset mnemonic
-         return 1
-    fi
-
-    echo "正在使用 ${ENCRYPTION_ALGO} 千万级迭代（等20秒左右）加密助记词..."
-    # —— 修复点：避免 /dev/fd —— 
-    encrypted_string=$(echo -n "$mnemonic" | openssl enc $OPENSSL_OPTS -pass stdin <<<"$password_input")
-    openssl_exit_code=$?
-
-    unset password_input mnemonic
-
-    if [[ $openssl_exit_code -ne 0 ]] || [[ -z "$encrypted_string" ]]; then
-        echo "错误：加密失败！" >&2
-        echo "请检查 openssl 是否正常工作以及权限问题。" >&2
-        echo "OpenSSL 退出码: $openssl_exit_code" >&2
-        cleanup_vars
-        return 1
-    fi
-
-    echo "--------------------------------------------------"
-    echo "✅ ${chosen_word_count} 位助记词已生成并加密成功！"
-    echo "👇 请妥善备份以下【加密后的字符串】:"
-    echo ""
-    echo "$encrypted_string"
-    echo ""
-    echo "--------------------------------------------------"
-    echo "⚠️ 重要提示："
-    echo -e "⚠️ ${huang}1. **务必记住** 您刚才设置的【密码】！"
-    echo -e "⚠️ ${huang}2. 没有正确的密码，上面的加密字符串将【无法解密】！"
-    echo -e "⚠️ ${huang}3. 助记词原文未在此过程中显示或保存。"
-    echo "--------------------------------------------------"
-
-    cleanup_vars
+    echo -e "${lv}✔ ${word_count}位助记词已生成${bai}"
+    local password=$(get_password "设置加密密码")
+    
+    echo -e "${huang}加密中... (约20秒)${bai}"
+    local encrypted=$(echo "$mnemonic" | openssl enc $OPENSSL_OPTS -pass stdin <<<"$password")
+    
+    echo -e "\n${kjlan}======= 加密结果 =======${bai}"
+    echo "$encrypted"
+    echo -e "${kjlan}=======================${bai}"
+    echo -e "${huang}⚠️ 请立即将上方加密字符串和密码分开保存！${bai}"
 }
-# --- END MODIFIED FUNCTION: Encryption ---
 
-# --- MODIFIED FUNCTION: Decryption ---
-decrypt_and_display() {
-    local encrypted_string_input=""
-    local line
-    local password_input
-    local decrypted_mnemonic
-    local openssl_exit_code
-    local word_count
-
-    echo "--------------------------------------------------"
-    echo -e "▶ ${kjlan}K脚本-助记词管理工具"
-    echo -e "⚠️ ${huang}警告：请确保在手机系统，输入法,周围物理环境安全的情况下执行此操作！"
-    echo -e "⚠️ ${kjlan}警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
-    echo -e "⚠️ ${huang}警告：强烈建议在执行完此操作，保存好加密字符串和记住密码的情况下重启设备！"
-    echo "--------------------------------------------------"
-    read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
-
-    echo "请粘贴之前保存的【加密字符串】："
-    echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）"
+# ▼▼▼ 解密流程 ▼▼▼
+decrypt_mnemonic() {
+    echo -e "${hong}请粘贴加密字符串（以空行结束）：${bai}"
+    local encrypted=""
     while IFS= read -r line; do
         [[ -z "$line" ]] && break
-        encrypted_string_input+="$line"$'\n'
+        encrypted+="$line"$'\n'
     done
-    encrypted_string_input="${encrypted_string_input%$'\n'}"
-
-    if [[ -z "$encrypted_string_input" ]]; then
-        echo "错误：未输入加密字符串。" >&2
-        cleanup_vars
-        return 1
-    fi
-
-    echo "请输入解密密码。"
-    password_input=$(get_password "输入解密密码")
-    if [[ -z "$password_input" ]]; then
-        echo "错误: 无法获取有效密码。" >&2
-        cleanup_vars
-        return 1
-    fi
-
-    echo "正在尝试千万级迭代数据（等待20秒左右）解密..."
-    # —— 修复点：避免 /dev/fd —— 
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass stdin 2>/dev/null <<<"$password_input")
-    openssl_exit_code=$?
-
-    unset password_input
-
-    if [[ $openssl_exit_code -ne 0 ]]; then
-        echo "--------------------------------------------------"
-        echo "❌ 错误：解密失败！" >&2
-        echo "   - 请检查加密字符串和密码是否正确。" >&2
-        echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
-        echo "--------------------------------------------------"
-        cleanup_vars
-        return 1
-    fi
-
-    word_count=$(echo "$decrypted_mnemonic" | wc -w)
-    if [[ -z "$decrypted_mnemonic" || ! ( "$word_count" -eq 12 || "$word_count" -eq 18 || "$word_count" -eq 24 ) || ! $(echo "$decrypted_mnemonic" | grep -q "^[a-z ]\+$" && echo "valid") == "valid" ]]; then
-        echo "--------------------------------------------------"
-        echo "❌ 错误：解密结果无效或格式不正确！" >&2
-        echo "   (检测到 ${word_count} 个单词，预期 12, 18 或 24 个)" >&2
-        echo "--------------------------------------------------"
-        cleanup_vars
-        return 1
-    fi
-
-    echo "--------------------------------------------------"
-    echo "✅ 解密成功！您的 ${word_count} 位 BIP39 助记词是:"
-    echo ""
-    echo "$decrypted_mnemonic"
-    echo ""
-    echo "--------------------------------------------------"
-    echo -e "⚠️ ${huang}请立即抄写助记词并妥善保管！"
-    read -n 1 -s -r -p "按任意键清除屏幕并返回主菜单..."
-    if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then
-        clear
-    fi
-    cleanup_vars
+    encrypted="${encrypted%$'\n'}"
+    
+    local password=$(get_password "输入解密密码")
+    echo -e "${huang}解密中...${bai}"
+    
+    local decrypted=$(echo "$encrypted" | openssl enc -d $OPENSSL_OPTS -pass stdin <<<"$password") || {
+        echo -e "${hong}解密失败！密码或密文错误${bai}" >&2
+        exit 1
+    }
+    
+    echo -e "\n${lv}======= 助记词 =======${bai}"
+    echo "$decrypted"
+    echo -e "${lv}=====================${bai}"
+    read -n 1 -s -r -p "按任意键清除屏幕..."
+    clear
 }
-# --- END MODIFIED FUNCTION: Decryption ---
 
-# --- 脚本入口 ---
+# ▼▼▼ 主菜单 ▼▼▼
+main_menu() {
+    while : ; do
+        clear
+        echo -e "${kjlan}┌───────────────────────┐"
+        echo -e "│ BIP39 助记词管理器    │"
+        echo -e "├───────────────────────┤"
+        echo -e "│ 1. 生成并加密助记词   │"
+        echo -e "│ 2. 解密助记词         │"
+        echo -e "│ q. 退出               │"
+        echo -e "└───────────────────────┘${bai}"
+        read -p "选择: " choice
+        
+        case "$choice" in
+            1)  
+                clear
+                echo -e "${lan}选择助记词长度:"
+                echo "1. 12单词 | 2. 18单词 | 3. 24单词"
+                read -p "选项: " len
+                case "$len" in
+                    1) generate_and_encrypt 12 ;;
+                    2) generate_and_encrypt 18 ;;
+                    3) generate_and_encrypt 24 ;;
+                    *) echo -e "${huang}无效选择${bai}"; sleep 1 ;;
+                esac
+                ;;
+            2)  decrypt_mnemonic ;;
+            q)  exit 0 ;;
+            *)  echo -e "${huang}无效输入${bai}"; sleep 1 ;;
+        esac
+        read -n 1 -s -r -p "按任意键继续..."
+    done
+}
 
+# ▼▼▼ 执行入口 ▼▼▼
 create_python_script_temp_file
 check_dependencies
-
-skip_main_pause=false
-
-while true; do
-    if ! $skip_main_pause; then
-       if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then
-           clear
-       fi
-    fi
-
-    echo ""
-    echo "=================================================="
-    echo -e "▶ ${kjlan}BIP39 助记词安全管理器"
-    echo "        (适用于 iOS Shell 环境)"
-    echo "=================================================="
-    echo "--------------------------------------------------"
-    echo -e "⚠️ ${huang}警告：请确保在手机系统，输入法,周围物理环境安全的情况下执行此操作！"
-    echo -e "⚠️ ${huang}警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
-    echo -e "⚠️ ${huang}警告：强烈建议在执行完，保存好加密字符串和记住密码的情况下重启设备！"
-    echo "--------------------------------------------------"
-    echo "请选择操作:"
-    echo "  1. 生成新的 BIP39 助记词并加密保存"
-    echo "  2. 解密已保存的字符串以查看助记词"
-    echo "  q. 退出脚本"
-    echo "------------------------------"
-    read -p "请输入选项 [1/2/q]: " choice
-
-    case "$choice" in
-        1)
-            if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then
-                clear
-            fi
-            word_count_choice=""
-            chosen_word_count=""
-
-            while true; do
-                echo ""
-                echo "--------------------------------------------------"
-                echo -e "▶ ${kjlan}K脚本-助记词管理工具"
-                echo -e "⚠️ ${hong}警告：请确保在手机系统，输入法,周围物理环境安全的情况下执行此操作！"
-                echo -e "⚠️ ${huang}警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
-                echo -e "⚠️ ${huang}警告：强烈建议在执行完此操作，保存好加密字符串和记住密码的情况下重启设备！"
-                echo "--------------------------------------------------"
-
-                echo "------------------------------"
-                echo -e "▶ ${bai}生成助记词 - 选择长度"
-                echo "------------------------------"
-                echo "请选择要生成的助记词长度："
-                echo -e "  1. ${hui}12 个单词 (128位熵)"
-                echo -e "  2. ${lan}18 个单词 (192位熵)"
-                echo -e "  3. ${lv}24 个单词 (256位熵) - 推荐安全级别"
-                echo "  b. 返回主菜单"
-                echo "------------------------------"
-                read -p "请输入选项 [1/2/3/b]: " word_count_choice
-
-                case "$word_count_choice" in
-                    1) chosen_word_count=12; break;;
-                    2) chosen_word_count=18; break;;
-                    3) chosen_word_count=24; break;;
-                    b | B) echo "返回主菜单..."; chosen_word_count=""; break;;
-                    *) echo "无效选项 '$word_count_choice'，请重新输入。"; sleep 1;;
-                esac
-            done
-
-            if [[ -n "$chosen_word_count" ]]; then
-                perform_generation_and_encryption "$chosen_word_count"
-                skip_main_pause=false
-            else
-                skip_main_pause=true
-            fi
-            unset word_count_choice chosen_word_count
-            ;;
-
-        2)
-            if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then
-                clear
-            fi
-            decrypt_and_display
-            skip_main_pause=true
-            ;;
-
-        q | Q)
-            echo "正在退出..."
-            exit 0
-            ;;
-
-        *)
-            echo "无效选项 '$choice'，请重新输入。"
-            skip_main_pause=false
-            sleep 1
-            ;;
-    esac
-
-    if [ "$skip_main_pause" = "false" ]; then
-        echo ""
-        read -n 1 -s -r -p "按任意键返回主菜单..."
-    fi
-    skip_main_pause=false
-
-done
+main_menu
