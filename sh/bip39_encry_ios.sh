@@ -20,40 +20,33 @@ MIN_PASSWORD_LENGTH=16
 # ▼▼▼ 词表预处理函数 ▼▼▼
 sanitize_wordlist() {
     cat | 
-    tr -d '\r' |          # 移除 Windows 换行符
-    sed 's/\s*$//' |      # 清理行尾空格
-    LC_ALL=C tr -cd '[:alnum:][:space:]\n' |  # 保留字母、数字、换行符和空格
+    tr -d '\r' |
+    sed 's/\s*$//' |
+    LC_ALL=C tr -cd '[:alnum:][:space:]\n' |
     awk '
     function trim(str) {
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", str);
-        return str
+        return str;
     }
     {
         original = $0;
         word = tolower(trim(original));
         if (word == "") {
-            print "跳过空行或全空格行: \"" original "\"" > "/dev/stderr";
+            print "[错误] 跳过空行: 行号 " NR " → 原始内容: \"" original "\"" > "/dev/stderr";
             next;
         }
-        if (word !~ /^[a-z]+$/) {  # 匹配纯小写字母
-            print "跳过非法单词: \"" original "\" → \"" word "\"" > "/dev/stderr";
+        if (word !~ /^[a-z]+$/) {
+            print "[错误] 跳过非法单词: 行号 " NR " → 转换后: \"" word "\"" > "/dev/stderr";
             next;
         }
         words[++count] = word;
     }
     END {
         target = 2048;
-        if (count > target) count = target;
-        for (i=1; i<=count; i++) print words[i];
-        for (i=count+1; i<=target; i++) print "zoo";
-        # 调试信息
-        print "实际处理有效单词数: " count > "/dev/stderr";
-        if (count >= target) {
-            print "首单词: " words[1] > "/dev/stderr";
-            print "末单词: " words[target] > "/dev/stderr";
-        } else {
-            print "末单词为填充词: zoo" > "/dev/stderr";
-        }
+        actual = (count > target) ? target : count;
+        for (i=1; i<=actual; i++) print words[i];
+        for (i=actual+1; i<=target; i++) print "zoo";
+        print "[日志] 有效行数/填充: " actual "/" target-actual > "/dev/stderr";
     }'
 }
 
