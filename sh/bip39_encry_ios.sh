@@ -2069,74 +2069,37 @@ zoo
 EOF
 )
 
-# 移除词表末尾可能的空行（适用于硬编码/下载的词表）
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | awk 'NF {print; line=$0} END{printf "%s", line}')
+# ▼▼▼ 词表预处理 ▼▼▼
+BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
+    tr -d '\r' |          # 统一换行符
+    awk 'NF {print; last=$0} END{if(last!="") print last}')  # 去空行保结尾
 
-# 在获取BIP39_WORDLIST后立即添加
-debug_wordlist() {
-    echo "=== 简版调试（兼容BusyBox）==="
-    
-    # 检查首尾词
-    echo "[首词] $(echo "$BIP39_WORDLIST" | head -1 | od -An -tx1)"
-    echo "[尾词] $(echo "$BIP39_WORDLIST" | tail -1 | od -An -tx1)"
-    
-    # 行尾符检查（BusyBox版）
-    echo -n "[行尾符类型] "
-    if echo "$BIP39_WORDLIST" | head -1 | grep -q $'\r'; then
-        echo "CRLF"
-    else
-        echo "LF"
-    fi
-    
-    # 行数检查（精确计算）
-    ACTUAL_LINES=$(echo "$BIP39_WORDLIST" | wc -l)
-    echo "[实际行数] $ACTUAL_LINES (标准值=2048)"
+# ▼▼▼ 兼容性调试函数 ▼▼▼
+debug_light() {
+    echo -e "\n=== 词表校验 ==="
+    echo "行数: $(echo "$BIP39_WORDLIST" | wc -l)/2048"
+    echo "首词: $(echo "$BIP39_WORDLIST" | head -1 | od -An -tx1)"
+    echo "尾词: $(echo "$BIP39_WORDLIST" | tail -1 | od -An -tx1)"
+    echo -n "行尾符: "
+    echo "$BIP39_WORDLIST" | head -1 | grep -q $'\r' && echo "CRLF" || echo "LF"
 }
 
-# 用更兼容的校验函数替代原validate_with_debug
 validate_busybox() {
-    local your_hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-    [ "$your_hash" = "a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" ] || {
-        echo -e "\033[31m校验失败！请检查：\033[0m"
-        echo "1. 行尾空行（用 sed -i '/^$/d' 清理）"
-        echo "2. 词表编码（应使用UTF-8无BOM）"
+    local hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
+    [[ "$hash" == "a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" ]] || {
+        echo -e "${hong}校验失败! 原因可能是:${bai}"
+        echo "1. 词表被修改"
+        echo "2. 存在隐藏字符(BOM/CRLF)"
         return 1
     }
 }
 
-debug_wordlist
-validate_busybox
-
-# ▼▼▼ 校验失败时的差异化输出
-
-
-debug_line_endings() {
-    echo -e "\n🔧 行尾符检查："
-    # 检测CRLF(Windows)行尾
-    if echo "$BIP39_WORDLIST" | grep -q $'\r'; then
-        echo "发现CRLF行尾符！请执行：tr -d '\r' <<< \"\$BIP39_WORDLIST\""
-    else
-        echo "未发现CRLF行尾符"
-    fi
-    
-    # 检测LF(Unix)行尾数
-    echo "LF行尾数：$(echo "$BIP39_WORDLIST" | grep -c $'\n') (应=2047)"
-}
-
-# ============= 调试代码插入点 =============
-# ▼▼▼ 保留的兼容性调试代码 ▼▼▼
-debug_light() {
-    echo -e "\n=== 精简调试 ==="
-    echo "词表行数：$(echo "$BIP39_WORDLIST" | wc -l) (标准=2048)"
-    echo "尾词内容：'$(echo "$BIP39_WORDLIST" | tail -1)'"
-    debug_line_endings
-}
-validate_busybox || {
-    echo -e "\n\033[41m 致命错误：校验不通过 \033[0m" >&2
+# ▼▼▼ 主逻辑前置检查 ▼▼▼
+if ! validate_busybox; then
+    debug_light
+    echo -e "${hong}致命错误：BIP39词表验证失败${bai}" >&2
     exit 1
-}
-# ▲▲▲ 调试代码结束 ▲▲▲
-# =======================================
+fi
 
 
 # ▼▼▼ 原子化清洗流程 ▼▼▼
