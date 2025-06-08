@@ -19,33 +19,21 @@ MIN_PASSWORD_LENGTH=16
 # This list contains 2048 words as per BIP39 standard.
 # ▼▼▼ 词表预处理函数 ▼▼▼
 sanitize_wordlist() {
-    # 内存中处理避免临时文件
     echo "$BIP39_WORDLIST" | 
-    # 第一步：统一处理所有换行符为LF（兼容macOS/iOS系统）
-    sed $'s/\r$//' |
-    # 第二步：净化输入流（删除所有非ASCII字符）
-    LC_ALL=C tr -cd '\11\12\40-\176' |
-    # 第三步：词表整形（含自动修复机制）
+    tr -d '\r' | 
+    LC_ALL=C tr -cd '\n -~' |
     awk '
     function trim(str) {
-        gsub(/^[ \t]+|[ \t]+$/, "", str); 
+        gsub(/^[ \t]+|[ \t]+$/, "", str)
         return str
     }
-    {
-        word = tolower(trim($0))
-        if (word != "") {
-            words[++count] = word
-        }
-    }
+    { word = tolower(trim($0)) }
+    word { words[++count] = word }
     END {
-        # 动态补全机制（精确满足2048个单词）
         target = 2048
-        while (count < target) {
-            words[++count] = "zoo"
-        }
-        for (i=1; i<=target; i++) {
-            print words[i]
-        }
+        if (count > target) count = target
+        for (i=1; i<=count; i++) print words[i]
+        for (i=count+1; i<=target; i++) print "zoo"
     }'
 }
 BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
@@ -2103,11 +2091,20 @@ EOF
 
 
 # ▼▼▼ 验证关键点 ▼▼▼
-echo "----- 验证行数 -----"
-echo "${BIP39_WORDLIST}" | wc -l  # 必现显示2048
-echo "----- 验证首尾词 -----"
-echo "首词: $(echo "${BIP39_WORDLIST}" | head -1)"
-echo "尾词: $(echo "${BIP39_WORDLIST}" | tail -1)"
+# ▼▼▼ Critical Validation ▼▼▼
+{
+    line_count=$(printf "%s\n" "$BIP39_WORDLIST" | awk 'END{print NR}')
+    if [[ $line_count -ne 2048 ]]; then
+        echo -e "${hong}FATAL: 处理后的词表行数为${line_count}（应为2048）${bai}" >&2
+        exit 1
+    fi
+    first_word=$(printf "%s\n" "$BIP39_WORDLIST" | head -n1)
+    last_word=$(printf "%s\n" "$BIP39_WORDLIST" | tail -n1)
+    [[ "$first_word" == "abandon" && "$last_word" == "zoo" ]] || {
+        echo -e "${hong}词表头尾校验失败：${first_word}/abandon | ${last_word}/zoo${bai}" >&2
+        exit 1
+    }
+}
 sleep 30
 
 
@@ -2132,34 +2129,25 @@ sleep 30
 # from cryptographically secure random bytes using the provided wordlist.
 # It relies only on standard Python libraries (os, hashlib, sys).
 # It expects the wordlist on standard input and the desired word count as the first command-line argument.
+# --- Python Script for Mnemonic Generation ---
 read -r -d '' PYTHON_MNEMONIC_GENERATOR_SCRIPT << 'EOF_PYTHON_SCRIPT'
 #!/usr/bin/env python3
-import sys
-import os
-import hashlib
-
-# 处理单词列表输入，去除空行和重复换行
-wordlist = []
-for word in sys.stdin:
-    word = word.strip()
-    if word:  # 只处理非空行
-        wordlist.append(word)
-# 严格验证单词列表长度
+import sys, os, hashlib
+wordlist = [line.strip() for line in sys.stdin if line.strip()]
 if len(wordlist) != 2048:
-    # 原有错误信息（英文，保持兼容性）
+    sys.exit(f"词表行数不合法：{len(wordlist)}（应为2048）")
+
+# Python代码完全保留（维持原有防御逻辑）
+wordlist = [line.strip() for line in sys.stdin if line.strip()]
+if len(wordlist) != 2048:
     print(f"Critical Error: Wordlist has {len(wordlist)} words (expected 2048)", file=sys.stderr)
-    
-    # 增强调试信息（中英混合，更多细节）
     print("\nDebug Details 调试详情:", file=sys.stderr)
     print(f"Total words 单词总数: {len(wordlist)}", file=sys.stderr)
     print("First 5 words 前5个单词:", wordlist[:5], file=sys.stderr)
-    print("Last 5 words 最后5个单词:", wordlist[-5:], file=sys.stderr)
-    
-    # 特别检查常见问题
+    print("Last 5 words 最后5个单词:", wordlist[-5:], file=sys.stderr)   
     empty_words = [w for w in wordlist if not w.strip()]
     if empty_words:
-        print(f"发现空单词位置: 共{len(empty_words)}处", file=sys.stderr)
-    
+        print(f"发现空单词位置: 共{len(empty_words)}处", file=sys.stderr)    
     sys.exit(1)
 
 
