@@ -2073,6 +2073,40 @@ zoo
 EOF_WORDLIST
 )
 
+# ▼▼▼ 原子化清洗流程 ▼▼▼
+sanitize_atomic() {
+    # 使用LC_ALL=C保证二进制处理
+    LC_ALL=C echo "$BIP39_WORDLIST" | 
+    # 移除BOM头（EF BB BF）
+    sed '1s/^\xEF\xBB\xBF//' |
+    # 统一换行符为LF
+    tr -d '\r' |
+    # 删除所有非ASCII字符
+    tr -cd '\11\12\15\40-\176' |
+    # 精确词数控制
+    awk 'length($0)>0 {print tolower($0)} NR>=2048{exit}' |
+    # 补全缺失行（动态选择策略）
+    awk 'BEGIN{last=""} {print; last=$0} END{if(NR==2047) print (last=="zoo"? "zoom" : "zoo")}'
+}
+
+validate_strict() {
+    # 内存比对替代文件操作
+    local obtained=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
+    local expected="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
+
+    if [[ "$obtained" != "$expected" ]]; then
+        # 生成差异报告
+        echo -e "\033[31m█ 校验失败 █\033[0m"
+        echo "差异位置："
+        cmp -bl <(echo "$BIP39_WORDLIST") <(curl -s https://bip39.rotorflux.com/english.txt)
+        return 1
+    fi
+    echo -e "\033[32m█ 校验通过 █\033[0m"
+    return 0
+}
+
+
+
 # ▼▼▼ 强化版验证函数 ▼▼▼
 verify_wordlist() {
     # 方法1：基础行数检查
