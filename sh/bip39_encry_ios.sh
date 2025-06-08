@@ -13,8 +13,16 @@ ENCRYPTION_ALGO="aes-256-cbc"
 OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 1000000 -a -salt" # 改为100万次迭代提高iOS性能
 MIN_PASSWORD_LENGTH=16
 
+# ▼▼▼ 词表预处理函数 ▼▼▼
+sanitize_wordlist() {
+    # 移除BOM头、DOS换行符、尾部空行、前后空白字符
+    echo "$BIP39_WORDLIST" | 
+    sed -e '1s/^\xEF\xBB\xBF//' -e 's/\r$//' | # 移除BOM和CR
+    awk 'NF {line=$0; print} END{if(NF) print line}' # 去空行保尾行
+}
+
 # ▼▼▼ BIP39词表（2048 words）▼▼▼
-BIP39_WORDLIST=$(cat <<'EOF'
+BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
 abandon
 ability
 able
@@ -2066,10 +2074,41 @@ zoo
 EOF
 )
 
-# ▼▼▼ 词表预处理 ▼▼▼
-BIP39_WORDLIST=$(echo "$BIP39_WORDLIST" | 
-    tr -d '\r' |          # 统一换行符
-    awk 'NF {print; last=$0} END{if(last!="") print last}')  # 去空行保结尾
+# ▼▼▼ 校验系统（增强版）▼▼▼
+validate_wordlist() {
+    echo -e "\n=== 词表诊断 ==="
+    echo "首词：$(echo "$BIP39_WORDLIST" | head -1 | od -An -tx1 | tr -d ' ')"
+    echo "尾词：$(echo "$BIP39_WORDLIST" | tail -1 | od -An -tx1 | tr -d ' ')"
+    echo -n "行尾符："
+    if echo "$BIP39_WORDLIST" | head -1 | grep -q $'\r'; then 
+        echo "CRLF"
+    else
+        echo "LF"
+    fi
+    echo "实际行数：$(echo "$BIP39_WORDLIST" | wc -l)"
+    
+    local calculated_hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
+    local expected_hash="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
+    
+    if [ "$calculated_hash" != "$expected_hash" ]; then
+        echo -e "\n${hong}⚠️ 校验失败！差异分析：${bai}"
+        diff <(echo "$BIP39_WORDLIST") <(curl -s https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt) | head -10
+        return 1
+    fi
+    return 0
+}
+# ▼▼▼ 主流程 ▼▼▼
+if ! validate_wordlist; then
+    echo -e "${hong}错误：词表校验未通过，请检查："
+    echo "1. 是否有多余空行"
+    echo "2. 是否包含不可见字符"
+    echo "3. 是否完整包含2048个单词"
+    echo -e "${bai}建议操作："
+    echo "curl -O https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt"
+    echo "mv english.txt bip39_wordlist.txt && chmod 600 bip39_wordlist.txt"
+    exit 1
+fi
+    
 
 # ▼▼▼ 兼容性调试函数 ▼▼▼
 debug_light() {
@@ -2107,6 +2146,96 @@ if len(wordlist) != 2048:
     print(f"错误：需要2048个单词，实际获取{len(wordlist)}个", file=sys.stderr)
     sys.exit(1)
 # ... (后续Python代码保持原样不变)
+try:
+    word_count = int(sys.argv[1])
+except ValueError:
+    print(f"Error: Invalid word count argument '{sys.argv[1]}'. Must be an integer.", file=sys.stderr)
+    sys.exit(1)
+
+# Determine entropy and checksum lengths based on word count
+# BIP39 standard: Entropy length (bits) | Checksum length (bits) | Mnemonic length (words)
+# 128 | 4 | 12
+# 192 | 6 | 18
+# 256 | 8 | 24
+entropy_bytes_length = 0
+checksum_bits_length = 0
+total_bits_length = 0 # Total bits = entropy + checksum
+
+if word_count == 12:
+    entropy_bytes_length = 16 # 128 bits
+    checksum_bits_length = 4
+    total_bits_length = 132 # 128 + 4
+elif word_count == 18:
+    entropy_bytes_length = 24 # 192 bits
+    checksum_bits_length = 6
+    total_bits_length = 198 # 192 + 6
+elif word_count == 24:
+    entropy_bytes_length = 32 # 256 bits
+    checksum_bits_length = 8
+    total_bits_length = 264 # 256 + 8
+else:
+    print(f"Error: Invalid word count '{word_count}'. Must be 12, 18, or 24.", file=sys.stderr)
+    sys.exit(1)
+
+# Expected total bits must be word_count * 11
+if total_bits_length != word_count * 11:
+     print(f"Internal Error: Mismatch between word count ({word_count}) and calculated total bits ({total_bits_length}).", file=sys.stderr)
+     sys.exit(1)
+
+try:
+    # Generate entropy using a secure source
+    entropy_bytes = os.urandom(entropy_bytes_length)
+
+    # Calculate checksum (first checksum_bits_length from SHA256 hash of entropy)
+    checksum_full_bytes = hashlib.sha256(entropy_bytes).digest()
+    # Extract the required number of checksum bits
+    # Need to convert bytes to an integer and shift/mask
+    checksum_int = int.from_bytes(checksum_full_bytes, 'big')
+
+    # The first `checksum_bits_length` bits of the hash are the checksum.
+    # The SHA256 hash is 256 bits. We want the top bits.
+    # Shift right by 256 - checksum_bits_length to move the desired bits to the LSB position.
+    # Mask with (1 << checksum_bits_length) - 1 to keep only those bits.
+    checksum_value = (checksum_int >> (256 - checksum_bits_length)) & ((1 << checksum_bits_length) - 1)
+
+
+    # Combine entropy and checksum bits
+    # Convert entropy bytes to a large integer
+    entropy_int = int.from_bytes(entropy_bytes, 'big')
+
+    # The combined integer has total_bits_length bits.
+    # The bits are arranged as [entropy][checksum] from MSB to LSB.
+    # To combine, shift the entropy bits left by the number of checksum bits, then OR with the checksum value.
+    combined_int = (entropy_int << checksum_bits_length) | checksum_value
+
+    # Extract 11-bit chunks
+    mnemonic_words = []
+
+    # The k-th word index (0-indexed) comes from bits [k*11] to [(k+1)*11 - 1] (MSB is bit 0)
+    # In terms of shifting from LSB (bit 0): shift right by (total_bits_length - (k+1)*11) and mask
+    for i in range(word_count):
+        # Extract the i-th 11-bit chunk from the left (MSB)
+        # The index of the 11-bit chunk from LSB is total_bits_length - (i+1)*11
+        shift = total_bits_length - (i + 1) * 11
+        word_index = (combined_int >> shift) & 0x7FF # 0x7FF is 11 bits set to 1
+
+        if word_index >= len(wordlist):
+             # Should not happen with correct bit manipulation and wordlist size
+             print(f"Internal Error: Calculated word index {word_index} is out of bounds (wordlist size {len(wordlist)}).", file=sys.stderr)
+             sys.exit(1)
+        mnemonic_words.append(wordlist[word_index])
+
+    # Print the mnemonic separated by spaces
+    print(' '.join(mnemonic_words))
+    sys.stdout.flush()
+
+except ImportError as e:
+    print(f"Error: Missing standard Python module: {e}. Ensure your Python installation is complete.", file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f"Error during mnemonic generation: {e}", file=sys.stderr)
+    sys.exit(1)
+
 EOF_PYTHON_SCRIPT
 
 # ▼▼▼ 临时文件处理 ▼▼▼
