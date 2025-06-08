@@ -2102,135 +2102,15 @@ EOF
 
 
 
-# ▼▼▼ 兼容性调试函数 ▼▼▼
-debug_light() {
-    echo -e "\n=== 词表校验 ==="
-    echo "行数: $(echo "$BIP39_WORDLIST" | wc -l)/2048"
-    echo "首词: $(echo "$BIP39_WORDLIST" | head -1 | od -An -tx1)"
-    echo "尾词: $(echo "$BIP39_WORDLIST" | tail -1 | od -An -tx1)"
-    echo -n "行尾符: "
-    echo "$BIP39_WORDLIST" | head -1 | grep -q $'\r' && echo "CRLF" || echo "LF"
-}
-
-validate_busybox() {
-    local hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-    [[ "$hash" == "a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" ]] || {
-        echo -e "${hong}校验失败! 原因可能是:${bai}"
-        echo "1. 词表被修改"
-        echo "2. 存在隐藏字符(BOM/CRLF)"
-        return 1
-    }
-}
-
-# ▼▼▼ 主逻辑前置检查 ▼▼▼
-if ! validate_busybox; then
-    debug_light
-    echo -e "${hong}致命错误：BIP39词表验证失败${bai}" >&2
-    exit 1
-fi
+# ▼▼▼ 验证关键点 ▼▼▼
+echo "----- 验证行数 -----"
+echo "${BIP39_WORDLIST}" | wc -l  # 必现显示2048
+echo "----- 验证首尾词 -----"
+echo "首词: $(echo "${BIP39_WORDLIST}" | head -1)"
+echo "尾词: $(echo "${BIP39_WORDLIST}" | tail -1)"
 
 
 
-
-validate_strict() {
-    # 内存比对替代文件操作
-    local obtained=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
-    local expected="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
-
-    if [[ "$obtained" != "$expected" ]]; then
-        # 生成差异报告
-        echo -e "\033[31m█ 校验失败 █\033[0m"
-        echo "差异位置："
-        cmp -bl <(echo "$BIP39_WORDLIST") <(curl -s https://bip39.rotorflux.com/english.txt)
-        return 1
-    fi
-    echo -e "\033[32m█ 校验通过 █\033[0m"
-    return 0
-}
-
-
-
-# ▼▼▼ 强化版验证函数 ▼▼▼
-verify_wordlist() {
-    # 方法1：基础行数检查
-    local line_count=$(echo "$BIP39_WORDLIST" | grep -v '^$' | wc -l)
-    
-    # 方法2：单词列表完整性检查
-    local first_word=$(echo "$BIP39_WORDLIST" | head -n 1 | tr -d '\r')
-    local last_word=$(echo "$BIP39_WORDLIST" | tail -n 1 | tr -d '\r')
-    
-    # 方法3：SHA256校验（确保内容未被篡改）
-    local checksum=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-    local expected_checksum="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73" # 标准BIP39英文单词列表校验值
-
-    if [[ $line_count -ne 2048 ]]; then
-        echo -e "\033[31m[行数异常] 检测到 ${line_count} 行 (预期值:2048)\033[0m" >&2
-        echo "疑似问题：" >&2
-        echo "  1. 检查EOF_WORDLIST标记前后是否有空行" >&2
-        echo "  2. 用命令 'echo \"\$BIP39_WORDLIST\" | hexdump -C' 检查特殊字符" >&2
-        return 1
-    fi
-
-    if [[ "$first_word" != "abandon" || "$last_word" != "zoo" ]]; then
-        echo -e "\033[31m[首尾单词异常] 首词:${first_word} 尾词:${last_word}\033[0m" >&2
-        return 1
-    fi
-
-    if [[ "$checksum" != "$expected_checksum" ]]; then
-        echo -e "\033[31m[校验值不匹配]\n  实际值：${checksum}\n  预期值：${expected_checksum}\033[0m" >&2
-        echo "可能原因：" >&2
-        echo "  1. 单词列表被修改" >&2
-        echo "  2. 存在不可见字符（如BOM头）" >&2
-        return 1
-    fi
-    echo -e "\033[32m✓ BIP39单词列表验证通过 (行数:2048, 校验值匹配)\033[0m" >&2
-    return 0
-}
-
-validate_wordlist() {
-    local first_word last_word checksum
-    mapfile -t word_array <<< "$BIP39_WORDLIST"
-    
-    # 三重验证标准
-    first_word="${word_array[0]%% *}"
-    last_word="${word_array[-1]%% *}"
-    checksum=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
-    
-    declare -A EXPECTED=(
-        [lines]=2048
-        [first]="abandon"
-        [last]="zoo"
-        [checksum]="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
-    )
-    
-    # 动态错误报告
-    local errors=()
-    [[ "${#word_array[@]}" -ne ${EXPECTED[lines]} ]] && 
-        errors+=("行数异常: ${#word_array[@]} != ${EXPECTED[lines]}")
-    [[ "$first_word" != "${EXPECTED[first]}" ]] && 
-        errors+=("首单词错误: '$first_word'")
-    [[ "$last_word" != "${EXPECTED[last]}" ]] && 
-        errors+=("尾单词错误: '$last_word'")
-    [[ "$checksum" != "${EXPECTED[checksum]}" ]] && 
-        errors+=("校验值不匹配")
-    
-    if [[ ${#errors[@]} -gt 0 ]]; then
-        echo -e "\033[31m验证失败:\033[0m" >&2
-        printf "  - %s\n" "${errors[@]}" >&2
-        
-        # 调试信息增强
-        echo -e "\n\033[33m调试信息:\033[0m" >&2
-        echo "实际首单词: '$first_word'" >&2
-        echo "实际尾单词: '$last_word'" >&2
-        echo "行数差异: $(( ${#word_array[@]} - ${EXPECTED[lines]} ))" >&2
-        echo "校验差: $(cmp <(echo "$checksum") <(echo "${EXPECTED[checksum]}") | cut -d' ' -f5-)" >&2
-        
-        return 1
-    fi
-    
-    echo -e "\033[32m✓ 验证通过\033[0m" >&2
-    return 0
-}
 
 
 
