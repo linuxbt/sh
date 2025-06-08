@@ -2623,7 +2623,7 @@ while true; do
 
 done
 # ▼▼▼ 验证关键点 ▼▼▼
-echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-sleep 30
+# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
+# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
+# sleep 30
