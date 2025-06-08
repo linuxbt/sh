@@ -17,7 +17,14 @@ MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
 # This list contains 2048 words as per BIP39 standard.
-BIP39_WORDLIST=$(cat <<'EOF'
+# ▼▼▼ 词表预处理函数 ▼▼▼
+sanitize_wordlist() {
+    # 移除BOM头、DOS换行符、尾部空行、前后空白字符
+    echo "$BIP39_WORDLIST" | 
+    sed -e '1s/^\xEF\xBB\xBF//' -e 's/\r$//' | # 移除BOM和CR
+    awk 'NF {line=$0; print} END{if(NF) print line}' # 去空行保尾行
+}
+BIP39_WORDLIST=$(sanitize_wordlist <<'EOF'
 abandon
 ability
 able
