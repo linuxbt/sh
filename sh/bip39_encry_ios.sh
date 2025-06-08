@@ -21,8 +21,8 @@ MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
 # This list contains 2048 words as per BIP39 standard.
-BIP39_WORDLIST=$(curl -fsS https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt | tr -d '\015' | head -n 2048)
-BIP39_WORDLIST_aaa=$(cat <<'EOF'
+#BIP39_WORDLIST=$(curl -fsS https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt | tr -d '\015' | head -n 2048)
+BIP39_WORDLIST=$(cat <<'EOF'
 abandon
 ability
 able
@@ -2073,6 +2073,68 @@ zone
 zoo
 EOF
 )
+
+# 在获取BIP39_WORDLIST后立即添加（硬编码/下载后）
+debug_wordlist() {
+    echo -e "\n\033[34m=== 调试模式启动 ===\033[0m"
+    echo "词表前5行："
+    echo "$BIP39_WORDLIST" | head -n 5 | awk '{print "|" $0 "|"; exit} END{print "..."}'
+    
+    echo -e "\n🔢 关键指标："
+    echo "行数    : $(echo "$BIP39_WORDLIST" | wc -l) (应=2048)"
+    echo "首词    : \"$(echo "$BIP39_WORDLIST" | head -1)\" (应=\"abandon\")"
+    echo "尾词    : \"$(echo "$BIP39_WORDLIST" | tail -1)\" (应=\"zoo\")"
+    echo "文件大小: $(echo "$BIP39_WORDLIST" | wc -c)字节 (应≈16296)"
+    
+    echo -e "\n🔍 二进制分析："
+    echo "首行HEX : $(echo "$BIP39_WORDLIST" | head -1 | xxd -p | tr -d '\n')"
+    echo "BOM检测 : $([ $(echo "$BIP39_WORDLIST" | head -c3 | xxd -p) = "efbbbf" ] && echo "存在BOM头" || echo "无BOM头")"
+}
+
+# ▼▼▼ 校验失败时的差异化输出
+validate_with_debug() {
+    local obtained_hash=$(echo "$BIP39_WORDLIST" | sha256sum | awk '{print $1}')
+    local expected_hash="a4f33376d79e6b1bf8a7a8e114f3d3f0571f3ef1acb6e67c97b94f622272b73"
+    if [[ "$obtained_hash" != "$expected_hash" ]]; then
+        echo -e "\n\033[31m=== 校验失败深度诊断 ===\033[0m"
+        
+        # 差异定位（精确到字节）
+        echo -e "\n📊 首行差异："
+        cmp -l <(echo "$BIP39_WORDLIST" | head -1) <(curl -s https://bip39.rotorflux.com/english.txt | head -1)
+        
+        # 词表对比（前20词）
+        echo -e "\n📝 内容对比（前20行）："
+        diff -y --suppress-common-lines \
+            <(echo "$BIP39_WORDLIST" | head -20 | nl) \
+            <(curl -s https://bip39.rotorflux.com/english.txt | head -20 | nl)
+        
+        return 1
+    fi
+    return 0
+}
+
+debug_line_endings() {
+    echo -e "\n🔧 行尾符检查："
+    # 检测CRLF(Windows)行尾
+    if echo "$BIP39_WORDLIST" | grep -q $'\r'; then
+        echo "发现CRLF行尾符！请执行：tr -d '\r' <<< \"\$BIP39_WORDLIST\""
+    else
+        echo "未发现CRLF行尾符"
+    fi
+    
+    # 检测LF(Unix)行尾数
+    echo "LF行尾数：$(echo "$BIP39_WORDLIST" | grep -c $'\n') (应=2047)"
+}
+
+# ============= 调试代码插入点 =============
+debug_wordlist
+debug_line_endings
+validate_with_debug || {
+    echo -e "\n\033[41m 致命错误：校验不通过 \033[0m" >&2
+    exit 1
+}
+# =======================================
+
 
 # ▼▼▼ 原子化清洗流程 ▼▼▼
 sanitize_atomic() {
