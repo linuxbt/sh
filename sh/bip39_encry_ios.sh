@@ -2114,14 +2114,14 @@ echo "尾词: $(echo "${BIP39_WORDLIST}" | tail -1)"
 
 
 
-# 应用修复
-{
-    # 在子Shell中执行所有重定向操作
-    BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
-} || {
-    echo -e "\033[31m错误：资源分配失败\033[0m" >&2
-    exit 1
-}
+# # 应用修复
+# {
+#     # 在子Shell中执行所有重定向操作
+#     BIP39_WORDLIST=$(sanitize_wordlist 2>/dev/null)
+# } || {
+#     echo -e "\033[31m错误：资源分配失败\033[0m" >&2
+#     exit 1
+# }
 
 
 
