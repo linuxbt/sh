@@ -2106,10 +2106,10 @@ EOF
 BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST")
 
 # ▼▼▼ 验证关键点 ▼▼▼
-# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-# sleep 30
+echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
+echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
+sleep 30
 # ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s" "$BIP39_WORDLIST" | awk 'END{print NR}')  # ▼▼▲▲▲ 移除 "%s\n" 修正为 "%s"
@@ -2319,7 +2319,7 @@ generate_mnemonic_internal() {
     fi
 
     # 使用herestring传递词表，避免换行符问题
-    mnemonic=$(python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" <<< "$BIP39_WORDLIST")
+    mnemonic=$(printf "%s\n" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     py_exit_code=$?
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
