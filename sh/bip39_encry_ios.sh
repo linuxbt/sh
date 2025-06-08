@@ -2106,10 +2106,10 @@ EOF
 BIP39_WORDLIST=$(printf "%s\n" "$BIP39_WORDLIST")
 
 # ▼▼▼ 验证关键点 ▼▼▼
-echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-sleep 30
+# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
+# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
+# sleep 30
 # ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s" "$BIP39_WORDLIST" | awk 'END{print NR}')  # ▼▼▲▲▲ 移除 "%s\n" 修正为 "%s"
