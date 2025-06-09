@@ -3101,6 +3101,7 @@ bip39_manage() {
       echo "apk add curl bash openssl python3 coreutils"
       echo "------------------------"
       echo "0. 返回主菜单"
+      echo "q. 退出"      
       echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
 
@@ -3124,6 +3125,9 @@ bip39_manage() {
           0)
               linuxbt
               ;;
+          q)
+              exit
+              ;;	      
           *)
               echo "无效的输入!"
               ;;
