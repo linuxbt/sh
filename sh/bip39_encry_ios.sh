@@ -2522,7 +2522,7 @@ decrypt_and_display() {
         echo "   - OpenSSL 解密错误，可能是密码错误或数据损坏。" >&2
         echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
         echo "--------------------------------------------------"
-        #cleanup_vars
+        cleanup_vars
         return 1
     fi
 
@@ -2537,7 +2537,7 @@ decrypt_and_display() {
         echo "   (解密后检测到 ${word_count} 个单词，预期 12, 18 或 24 个，且应为小写字母和空格组成)" >&2
         echo "   请检查加密字符串和密码是否正确。" >&2
         echo "--------------------------------------------------"
-        #cleanup_vars
+        cleanup_vars
         unset decrypted_mnemonic
         return 1
     fi
