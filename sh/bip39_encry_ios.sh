@@ -2472,48 +2472,44 @@ decrypt_and_display() {
 
     echo "--------------------------------------------------"
     echo -e "▶ ${kjlan}K脚本-助记词管理工具"
-    echo -e "⚠️ ${huang}警告：请确保环境安全！"
-    read -p "按 Enter 继续..."
+    echo -e "⚠️ ${huang}警告：解密前请确保周围无人窥屏！"
+    read -p "按 Enter 键开始解密..."
     
-    # ▼ 直接讀取並合併輸入，去除所有換行符 ▼
-    echo -e "\n请粘贴加密字符串（直接粘贴，无需空行）:"
-    encrypted_string_input=$(cat | tr -d '\n\r')
+    # ▼▼▼ 明确提示输入终止方式 ▼▼▼
+    echo -e "\n${bai}请粘贴加密字符串（完成后请按 ${hong}Ctrl+D${bai} 结束输入）:${lv}"
+    encrypted_string_input=$(cat | tr -d '\r\n')  # 捕获输入并删除所有换行
 
     if [[ -z "$encrypted_string_input" ]]; then
-        echo -e "${hong}错误：未输入加密字符串！${bai}" >&2
+        echo -e "${hong}错误：未检测到有效的加密字符串！${bai}" >&2
         return 1
     fi
 
-    # ▼ 獲取密碼 ▼
-    echo -e "\n输入解密密码:"
+    echo -e "\n${bai}请输入解密密码:"
     password_input=$(get_password "密码")
     [[ -z "$password_input" ]] && return 1
 
-    # ▼ 解密並處理結果 ▼
-    echo -e "\n解密中（約20秒）..."
+    echo -e "\n${bai}解密中（约需20秒）..."
     decrypted_mnemonic=$(echo "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>/dev/null)
     openssl_exit_code=$?
     unset password_input
 
     if [[ $openssl_exit_code -ne 0 || -z "$decrypted_mnemonic" ]]; then
-        echo -e "${hong}❌ 解密失敗！請檢查密碼或加密字符串。${bai}" >&2
+        echo -e "${hong}❌ 解密失败！请检查密码或加密字符串。${bai}" >&2
         return 1
     fi
 
-    # ▼ 驗證助記詞格式 ▼
     word_count=$(echo "$decrypted_mnemonic" | wc -w)
     if [[ ! $word_count =~ ^(12|18|24)$ ]] || ! grep -qE '^([a-z]+ ){11,23}[a-z]+$' <<< "$decrypted_mnemonic"; then
-        echo -e "${hong}❌ 解密失敗：無效的助記詞格式（单词数：$word_count）。${bai}" >&2
+        echo -e "${hong}❌ 解密结果无效（单词数：$word_count）！${bai}" >&2
         return 1
     fi
 
-    # ▼ 顯示結果 ▼
-    echo -e "${lv}✅ 解密成功！您的助記詞是："
-    echo "$decrypted_mnemonic"
-    read -n 1 -s -r -p "按任意键返回..."
+    echo -e "${lv}✅ 解密成功！您的助记词：\n$decrypted_mnemonic${bai}"
+    read -n 1 -s -r -p "按任意键返回主菜单..."
     clear
     cleanup_vars
 }
+
 
 
 # --- END MODIFIED FUNCTION: Decryption ---
