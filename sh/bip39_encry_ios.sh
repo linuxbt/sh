@@ -2170,10 +2170,10 @@ print(f"[密钥调试] 首行指纹:{hashlib.sha256(lines[0].encode()).hexdigest
 print(f"[密钥调试] 尾行指纹:{hashlib.sha256(lines[-1].encode()).hexdigest()}", file=sys.stderr)
 # ▼ 调试信息 ▼
 # print(f"[DEBUG] 原始输入行数: {len(raw_input.split("\n"))}", file=sys.stderr)
-print(f"[DEBUG] 有效词表行数: {len(wordlist)}", file=sys.stderr)
-print(f"[DEBUG] 首词: {repr(wordlist[0])}", file=sys.stderr)
-print(f"[DEBUG] 末词: {repr(wordlist[-1])}", file=sys.stderr)
-print(f"[DEBUG] SHA256: {hashlib.sha256(raw_input.encode()).hexdigest()}", file=sys.stderr)
+# print(f"[DEBUG] 有效词表行数: {len(wordlist)}", file=sys.stderr)
+# print(f"[DEBUG] 首词: {repr(wordlist[0])}", file=sys.stderr)
+# print(f"[DEBUG] 末词: {repr(wordlist[-1])}", file=sys.stderr)
+# print(f"[DEBUG] SHA256: {hashlib.sha256(raw_input.encode()).hexdigest()}", file=sys.stderr)
 if len(wordlist) != 2048:
     sys.exit(f"词表不合法：{len(wordlist)}行，应为2048行")
 try:
