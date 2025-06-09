@@ -2113,7 +2113,7 @@ echo "词表行数终检: $(echo "$BIP39_WORDLIST" | wc -l)" >&2
 echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
 echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
 echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-sleep 30
+sleep 5
 # ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s" "$BIP39_WORDLIST" | awk 'END{print NR}')  # ▼▼▲▲▲ 移除 "%s\n" 修正为 "%s"
