@@ -2169,7 +2169,7 @@ print(f"[密钥调试] 原始字节长度:{len(raw_input)}", file=sys.stderr)
 print(f"[密钥调试] 首行指纹:{hashlib.sha256(lines[0].encode()).hexdigest()}", file=sys.stderr)
 print(f"[密钥调试] 尾行指纹:{hashlib.sha256(lines[-1].encode()).hexdigest()}", file=sys.stderr)
 # ▼ 调试信息 ▼
-print(f"[DEBUG] 原始输入行数: {len(raw_input.split('\n'))}", file=sys.stderr)
+print(f"[DEBUG] 原始输入行数: {len(raw_input.split("\n"))}", file=sys.stderr)
 print(f"[DEBUG] 有效词表行数: {len(wordlist)}", file=sys.stderr)
 print(f"[DEBUG] 首词: {repr(wordlist[0])}", file=sys.stderr)
 print(f"[DEBUG] 末词: {repr(wordlist[-1])}", file=sys.stderr)
