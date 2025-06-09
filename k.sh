@@ -3125,8 +3125,9 @@ bip39_manage() {
           0)
               linuxbt
               ;;
-          q)
-              exit
+          q | Q)
+              echo "正在退出..."
+              exit 0
               ;;	      
           *)
               echo "无效的输入!"
