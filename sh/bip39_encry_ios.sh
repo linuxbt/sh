@@ -2467,64 +2467,54 @@ perform_generation_and_encryption() {
 
 # --- MODIFIED FUNCTION: Decryption ---
 decrypt_and_display() {
-    local encrypted_lines=()
-    local password_input
-    local decrypted_mnemonic
-    local openssl_exit_code
-    local word_count
+    local encrypted_string_input password_input decrypted_mnemonic
+    local openssl_exit_code word_count
 
     echo "--------------------------------------------------"
-    echo -e "⚠️ ${huang}警告：请确保在手机系统，输入法,周围物理环境安全的情况下执行此操作！"
-    echo -e "⚠️ ${kjlan}警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
-    echo -e "⚠️ ${huang}警告：强烈建议在执行完此操作，保存好加密字符串和记住密码的情况下重启设备！"
-    echo "--------------------------------------------------"
-    read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
-
-    echo -e "\n请粘贴之前保存的【加密字符串】："
-    echo "（粘贴完成后直接按 Enter 键结束）"
+    echo -e "▶ ${kjlan}K脚本-助记词管理工具"
+    echo -e "⚠️ ${huang}警告：请确保环境安全！"
+    read -p "按 Enter 继续..."
     
-    # ▼ 使用 mapfile 读取多行输入，兼容空行 ▼
-    mapfile -t encrypted_lines
-    encrypted_string_input=$(printf "%s\n" "${encrypted_lines[@]}" | sed '/^$/d')
+    # ▼ 直接讀取並合併輸入，去除所有換行符 ▼
+    echo -e "\n请粘贴加密字符串（直接粘贴，无需空行）:"
+    encrypted_string_input=$(cat | tr -d '\n\r')
 
     if [[ -z "$encrypted_string_input" ]]; then
-        echo -e "${hong}错误：未输入加密字符串。${bai}" >&2
+        echo -e "${hong}错误：未输入加密字符串！${bai}" >&2
         return 1
     fi
 
-    echo -e "\n请输入解密密码。"
-    password_input=$(get_password "输入解密密码")
-    if [[ -z "$password_input" ]]; then
-        echo -e "${hong}错误: 无法获取有效密码。${bai}" >&2
-        return 1
-    fi
+    # ▼ 獲取密碼 ▼
+    echo -e "\n输入解密密码:"
+    password_input=$(get_password "密码")
+    [[ -z "$password_input" ]] && return 1
 
-    echo -e "\n正在尝试解密（可能需要30秒左右）..."
-    # ▼ 使用 -pass pass: 代替管道传递密码 ▼
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | 
-        openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>/dev/null)
+    # ▼ 解密並處理結果 ▼
+    echo -e "\n解密中（約20秒）..."
+    decrypted_mnemonic=$(echo "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>/dev/null)
     openssl_exit_code=$?
     unset password_input
 
-    # ▼ 强制结果校验 ▼
-    if [[ $openssl_exit_code -ne 0 ]] || [[ -z "$decrypted_mnemonic" ]]; then
-        echo -e "${hong}❌ 解密失败！请检查密码或加密字符串是否正确。${bai}" >&2
+    if [[ $openssl_exit_code -ne 0 || -z "$decrypted_mnemonic" ]]; then
+        echo -e "${hong}❌ 解密失敗！請檢查密碼或加密字符串。${bai}" >&2
         return 1
     fi
 
+    # ▼ 驗證助記詞格式 ▼
     word_count=$(echo "$decrypted_mnemonic" | wc -w)
-    if [[ ! "$word_count" =~ ^(12|18|24)$ ]] || 
-       ! echo "$decrypted_mnemonic" | grep -qE '^([a-z]+\s){11,23}[a-z]+$'; then
-        echo -e "${hong}❌ 解密结果无效！单词数: ${word_count}${bai}" >&2
+    if [[ ! $word_count =~ ^(12|18|24)$ ]] || ! grep -qE '^([a-z]+ ){11,23}[a-z]+$' <<< "$decrypted_mnemonic"; then
+        echo -e "${hong}❌ 解密失敗：無效的助記詞格式（单词数：$word_count）。${bai}" >&2
         return 1
     fi
 
-    echo -e "${lv}✅ 解密成功！您的 ${word_count} 位 BIP39 助记词是：${bai}"
+    # ▼ 顯示結果 ▼
+    echo -e "${lv}✅ 解密成功！您的助記詞是："
     echo "$decrypted_mnemonic"
-    read -n 1 -s -r -p "按任意键返回主菜单..."
+    read -n 1 -s -r -p "按任意键返回..."
     clear
     cleanup_vars
 }
+
 
 # --- END MODIFIED FUNCTION: Decryption ---
 
