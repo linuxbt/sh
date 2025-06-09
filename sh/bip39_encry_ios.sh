@@ -2467,8 +2467,7 @@ perform_generation_and_encryption() {
 
 # --- MODIFIED FUNCTION: Decryption ---
 decrypt_and_display() {
-    local encrypted_string_input=""
-    local line
+    local encrypted_lines=()
     local password_input
     local decrypted_mnemonic
     local openssl_exit_code
@@ -2481,84 +2480,52 @@ decrypt_and_display() {
     echo "--------------------------------------------------"
     read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
 
-    echo "请粘贴之前保存的【加密字符串】："
-    echo "（粘贴完成后，请【单独输入一个空行】并按 Enter 键结束）"
-    # Read multi-line input from user until an empty line is entered
-    while IFS= read -r line; do
-        [[ -z "$line" ]] && break
-        encrypted_string_input+="$line"$'\n'
-    done
-    # Remove the trailing newline if it was added by the last read line before break
-    encrypted_string_input="${encrypted_string_input%$'\n'}"
-
+    echo -e "\n请粘贴之前保存的【加密字符串】："
+    echo "（粘贴完成后直接按 Enter 键结束）"
+    
+    # ▼ 使用 mapfile 读取多行输入，兼容空行 ▼
+    mapfile -t encrypted_lines
+    encrypted_string_input=$(printf "%s\n" "${encrypted_lines[@]}" | sed '/^$/d')
 
     if [[ -z "$encrypted_string_input" ]]; then
-        echo "错误：未输入加密字符串。" >&2
-        cleanup_vars
+        echo -e "${hong}错误：未输入加密字符串。${bai}" >&2
         return 1
     fi
 
-    echo "请输入解密密码。"
+    echo -e "\n请输入解密密码。"
     password_input=$(get_password "输入解密密码")
     if [[ -z "$password_input" ]]; then
-        echo "错误: 无法获取有效密码。" >&2
-        cleanup_vars
+        echo -e "${hong}错误: 无法获取有效密码。${bai}" >&2
         return 1
     fi
 
-    echo "正在尝试解密千万级迭代数据（等20秒左右）..."
-    # --- FIX: Use -pass fd:3 3<<< to pass password via file descriptor 3 ---
-    # This leaves standard input (fd 0) free for the encrypted data piped from printf
-    # We use printf %s to ensure the potentially multi-line string is piped exactly as read
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | /data/data/com.termux/files/usr/bin/openssl enc -d $OPENSSL_OPTS -pass fd:3 3<<<"$password_input" 2>/dev/null)
+    echo -e "\n正在尝试解密（可能需要30秒左右）..."
+    # ▼ 使用 -pass pass: 代替管道传递密码 ▼
+    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | 
+        openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>/dev/null)
     openssl_exit_code=$?
+    unset password_input
 
-    unset password_input # Clean password immediately
-
-    if [[ $openssl_exit_code -ne 0 ]]; then
-        echo "--------------------------------------------------"
-        echo "❌ 错误：解密失败！" >&2
-        echo "   - 请检查加密字符串和密码是否正确。" >&2
-        echo "   - OpenSSL 解密错误，可能是密码错误或数据损坏。" >&2
-        echo "   (OpenSSL 退出码: $openssl_exit_code)" >&2
-        echo "--------------------------------------------------"
-        cleanup_vars
+    # ▼ 强制结果校验 ▼
+    if [[ $openssl_exit_code -ne 0 ]] || [[ -z "$decrypted_mnemonic" ]]; then
+        echo -e "${hong}❌ 解密失败！请检查密码或加密字符串是否正确。${bai}" >&2
         return 1
     fi
 
-    # Validate the decrypted output looks like a mnemonic
-    # Check word count and simple format (space separated)
     word_count=$(echo "$decrypted_mnemonic" | wc -w)
-    # Basic check: is it a string of words separated by single spaces?
-    # This is not a full BIP39 validation, but checks if it's plausible.
-    if [[ -z "$decrypted_mnemonic" || ! ( "$word_count" -eq 12 || "$word_count" -eq 18 || "$word_count" -eq 24 ) || ! $(echo "$decrypted_mnemonic" | grep -q "^[a-z ]\+$" && echo "valid") == "valid" ]]; then
-        echo "--------------------------------------------------"
-        echo "❌ 错误：解密结果无效或格式不正确！" >&2
-        echo "   (解密后检测到 ${word_count} 个单词，预期 12, 18 或 24 个，且应为小写字母和空格组成)" >&2
-        echo "   请检查加密字符串和密码是否正确。" >&2
-        echo "--------------------------------------------------"
-        cleanup_vars
-        unset decrypted_mnemonic
+    if [[ ! "$word_count" =~ ^(12|18|24)$ ]] || 
+       ! echo "$decrypted_mnemonic" | grep -qE '^([a-z]+\s){11,23}[a-z]+$'; then
+        echo -e "${hong}❌ 解密结果无效！单词数: ${word_count}${bai}" >&2
         return 1
     fi
 
-
-    echo "--------------------------------------------------"
-    echo "✅ 解密成功！您的 ${word_count} 位 BIP39 助记词是:"
-    echo ""
-    # Display the decrypted mnemonic
+    echo -e "${lv}✅ 解密成功！您的 ${word_count} 位 BIP39 助记词是：${bai}"
     echo "$decrypted_mnemonic"
-    echo ""
-    echo "--------------------------------------------------"
-    echo "⚠️ 请立即抄写助记词并妥善保管！"
-    read -n 1 -s -r -p "按任意键清除屏幕并返回主菜单..." # -n 1 reads only one character
-    if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then
-        clear # Clear screen after key press
-    fi
+    read -n 1 -s -r -p "按任意键返回主菜单..."
+    clear
     cleanup_vars
-    unset decrypted_mnemonic
-
 }
+
 # --- END MODIFIED FUNCTION: Decryption ---
 
 # --- 脚本入口 ---
