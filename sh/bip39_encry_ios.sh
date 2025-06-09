@@ -2469,76 +2469,83 @@ perform_generation_and_encryption() {
 decrypt_and_display() {
     local encrypted_string_input password_input decrypted_mnemonic
     local openssl_exit_code word_count
-
+    
     echo "--------------------------------------------------"
-    echo -e "⚠️ ${huang}警告：请确保在手机系统，输入法,周围物理环境安全的情况下执行此操作！"
-    echo -e "⚠️ ${kjlan}警告：强烈建议在断开网络连接（例如开启飞行模式）的情况下执行此操作！"
-    echo -e "⚠️ ${huang}警告：强烈建议在执行完此操作，保存好加密字符串和记住密码的情况下重启设备！"
+    echo -e "⚠️ ${huang}警告：请确保在可靠的物理环境下操作！"
+    echo -e "⚠️ ${kjlan}建议开启飞行模式并重启后执行！${bai}"
     echo "--------------------------------------------------"
-    read -p "按 Enter 键继续，或按 Ctrl+C 取消..."
+    read -p "按 Enter 键继续..." </dev/tty
 
-    echo "请粘贴之前保存的【加密字符串】："
-    echo "（粘貼完成後，最後手動按 Enter 輸入一個空行）"  # ← 強制要求空行終結符
+    # 输入加密字符串
+    echo -e "\n${lv}请粘贴加密字符串（以空行结束）：${bai}"
     encrypted_string_input=""
-    # ▼▼ 严格保持原有多行输入结构 ▼▼
     while IFS= read -r line; do
-        [[ -z "$line" ]] && break  # ← 嚴格判定空行退出
+        [[ -z "$line" ]] && break
         encrypted_string_input+="$line"$'\n'
     done
     encrypted_string_input="${encrypted_string_input%$'\n'}"
-    encrypted_string_input=$(tr -d '\r\n' <<< "$encrypted_string_input")
-
-    if [[ -z "$encrypted_string_input" ]]; then
-        echo "錯誤：輸入為空." >&2
-        read -n 1 -s -r -p "按任意鍵返回..."
+    encrypted_string_input=$(tr -d '\r' <<< "$encrypted_string_input") # 仅去除Windows换行符
+    
+    # 加密串长度校验
+    if [[ $(echo -n "$encrypted_string_input" | wc -c) -lt 64 ]]; then
+        echo -e "${hong}错误：输入的加密字符串太短或不完整！${bai}" >&2
+        read -n 1 -s -r -p "按任意键返回..."
         return 1
     fi
 
-    echo "請輸入解密密碼："
-    password_input=$(get_password "密碼")
+    # 密码输入
+    echo -e "\n${lv}请输入解密密码：${bai}"
+    password_input=$(get_password "密码")
     [[ -z "$password_input" ]] && return 1
 
-    # ▼▼ 修复密码传递方式 (高安全性无明文) ▼▼
+    # OpenSSL解密（带环境变量传输密码）
+    echo -e "\n${hui}[初始化解密引擎，可能需要15-30秒...]${bai}"
     export OPENSSL_ENCRYPT_PASSWORD="$password_input"
-    decrypted_mnemonic=$(
-        echo "$encrypted_string_input" | 
-        openssl enc -d $OPENSSL_OPTS -pass env:OPENSSL_ENCRYPT_PASSWORD 2>/dev/null
+    decrypted_mnemonic=$( 
+        {
+            echo "$encrypted_string_input" | 
+            openssl enc -d $OPENSSL_OPTS -pass env:OPENSSL_ENCRYPT_PASSWORD 2>&1
+        } | sed 's/^/  /'
     )
     openssl_exit_code=$?
     unset OPENSSL_ENCRYPT_PASSWORD
     unset password_input
-
+    
+    # 错误处理
     if [[ $openssl_exit_code -ne 0 ]]; then
-        echo -e "${hong}❌ 解密失敗！錯誤碼: $openssl_exit_code${bai}" >&2
+        echo -e "${hong}❌ 失敗原因分析："
+        echo "$decrypted_mnemonic" | grep -i -m1 'error\|bad\|invalid' >&2
+        echo -e "OpenSSL错误码:$openssl_exit_code${bai}" >&2
+        read -n 1 -s -r -p "按任意鍵返回..."
+        return 1
+    fi
+    
+    # 助记词有效性检查
+    word_count=$(wc -w <<< "$decrypted_mnemonic")
+    if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
+        echo -e "${hong}❌ 解密结果单词数异常（${word_count}），請检查加密数据完整性！${bai}" >&2
         read -n 1 -s -r -p "按任意鍵返回..."
         return 1
     fi
 
-    # ▼▼ 强制结果保留机制 ▼▼
-    word_count=$(echo "$decrypted_mnemonic" | wc -w)
-    if [[ ! $word_count =~ ^(12|18|24)$ ]]; then
-        echo -e "${hong}❌ 解密單詞數異常: $word_count${bai}" >&2
-        read -n 1 -s -r -p "按任意鍵返回..."
-        return 1
-    fi
-
+    # 显示结果
     echo "--------------------------------------------------"
-    echo -e "${lv}✅ 解密成功！您的助記詞："
+    echo -e "${lv}✅ 以下是您的助記詞（${word_count}詞）：${bai}"
     echo "$decrypted_mnemonic"
     echo "--------------------------------------------------"
-    # ▼▼ 强制用户等待逻辑 ▼▼
-    local _countdown=10
-    while ((_countdown > 0)); do
-        echo -ne "${hui}自動返回主菜单倒數: ${_countdown}秒 (或按任意鍵立即返回)...${bai}\r"
-        if read -t 1 -n 1; then
-            break
-        fi
-        ((_countdown--))
-    done
-    # ▼ 强制清空敏感信息 ▼
+    
+    # 强制停留
+    echo -e "${hui}此信息將在30秒後自動清除（按任意鍵立即返回）...${bai}"
+    read -t 30 -n 1 -s -r
+    
+    # 安全清理
     unset decrypted_mnemonic encrypted_string_input
+    if command -v clear >/dev/null; then
+        clear
+    fi
     return 0
 }
+
 
 # --- END MODIFIED FUNCTION: Decryption ---
 
