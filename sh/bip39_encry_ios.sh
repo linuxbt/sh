@@ -2317,63 +2317,63 @@ check_dependencies() {
     fi
 }
 
-# generate_mnemonic_internal() {
-#     local word_count="$1"
-#     local mnemonic=""
-#     local py_exit_code
-#     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-#          echo "错误：未找到Python模板文件 $PYTHON_SCRIPT_TEMP_FILE" >&2
-#          return 1
-#     fi
-#     # ▼▼▼ 精准行数校验 ▼▼▼
-#     echo "生成助记词前词表行数验证: $(wc -l <<< "$BIP39_WORDLIST")" >&2  # DEBUG提示输出到stderr
-#     local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
-#     if [[ $line_count -ne 2048 ]]; then
-#         echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
-#         return 1
-#     fi
-#     # 生成传输检测指纹
-#     local bash_hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
-#     mnemonic=$(
-#         {
-#             printf "%s\n" "$BIP39_WORDLIST"
-#             echo "[BASH_DEBUG] 传输哈希: $bash_hash" >&2
-#         } | tee /dev/stderr |
-#         python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> >(grep -v DEBUG >&2)
-#     ) 
-#     py_exit_code=$?
-#     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-#         echo -e "${hong}错误：助记词生成失败！" >&2
-#         echo -e "Python 错误码: $py_exit_code" >&2
-#         return 1
-#     fi
-#     printf "%s" "$mnemonic"
-# }
-
-
 generate_mnemonic_internal() {
     local word_count="$1"
     local mnemonic=""
     local py_exit_code
-
     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
-         echo "Error: Python script temporary file not found." >&2
+         echo "错误：未找到Python模板文件 $PYTHON_SCRIPT_TEMP_FILE" >&2
          return 1
     fi
-
-    # Pass the wordlist to the python script via stdin
-    # The python script expects the word count as the first argument
-    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    # # ▼▼▼ 精准行数校验 ▼▼▼
+    # echo "生成助记词前词表行数验证: $(wc -l <<< "$BIP39_WORDLIST")" >&2  # DEBUG提示输出到stderr
+    # local line_count=$(printf "%s" "$BIP39_WORDLIST" | wc -l)
+    # if [[ $line_count -ne 2048 ]]; then
+    #     echo -e "${hong}致命错误：BIP39单词列表应为2048行，实际检测到：${line_count} 行" >&2
+    #     return 1
+    # fi
+    # 生成传输检测指纹
+    local bash_hash=$(echo "$BIP39_WORDLIST" | sha256sum | cut -d' ' -f1)
+    mnemonic=$(
+        {
+            printf "%s\n" "$BIP39_WORDLIST"
+            echo "[BASH_DEBUG] 传输哈希: $bash_hash" >&2
+        } | tee /dev/stderr |
+        python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count" 2> >(grep -v DEBUG >&2)
+    ) 
     py_exit_code=$?
-
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
-        echo "错误：生成助记词失败！" >&2
-        echo "Python 退出码: $py_exit_code" >&2
+        echo -e "${hong}错误：助记词生成失败！" >&2
+        echo -e "Python 错误码: $py_exit_code" >&2
         return 1
     fi
-    # Return the potentially multi-word string correctly
     printf "%s" "$mnemonic"
 }
+
+
+# generate_mnemonic_internal() {
+#     local word_count="$1"
+#     local mnemonic=""
+#     local py_exit_code
+
+#     if [[ ! -f "$PYTHON_SCRIPT_TEMP_FILE" ]]; then
+#          echo "Error: Python script temporary file not found." >&2
+#          return 1
+#     fi
+
+#     # Pass the wordlist to the python script via stdin
+#     # The python script expects the word count as the first argument
+#     mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+#     py_exit_code=$?
+
+#     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
+#         echo "错误：生成助记词失败！" >&2
+#         echo "Python 退出码: $py_exit_code" >&2
+#         return 1
+#     fi
+#     # Return the potentially multi-word string correctly
+#     printf "%s" "$mnemonic"
+# }
 
 
 get_password() {
