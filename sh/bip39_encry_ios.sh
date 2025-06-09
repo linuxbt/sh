@@ -2551,9 +2551,9 @@ decrypt_and_display() {
     echo ""
     echo "--------------------------------------------------"
     echo "⚠️ 请立即抄写助记词并妥善保管！"
-    read -n 1 -s -r -p "按任意键清除屏幕并返回主菜单..." # -n 1 reads only one character
+    #read -n 1 -s -r -p "按任意键清除屏幕并返回主菜单..." # -n 1 reads only one character
     if command -v clear >/dev/null 2>&1 && [ -t 1 ]; then
-        #clear # Clear screen after key press
+        clear # Clear screen after key press
     fi
     cleanup_vars
     unset decrypted_mnemonic
