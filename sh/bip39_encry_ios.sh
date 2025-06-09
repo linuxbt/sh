@@ -2157,7 +2157,7 @@ for line in lines:
 
 # 填充至2048行 （双保险）
 while len(wordlist) < 2048:
-    wordlist.append("zoo”)
+    wordlist.append("zoo")
 
 # ▼ 验证密钥指纹一致性 ▼
 expected_hash = os.environ.get('BASH_HASH')
