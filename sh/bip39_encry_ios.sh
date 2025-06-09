@@ -2467,85 +2467,91 @@ perform_generation_and_encryption() {
 
 # --- MODIFIED FUNCTION: Decryption ---
 decrypt_and_display() {
-    local encrypted_string_input password_input decrypted_mnemonic
-    local openssl_exit_code word_count
+    local encrypted_string_input password_input1 password_input2
+    local decrypted_mnemonic openssl_exit_code word_count
     
+    # 警告提示
     echo "--------------------------------------------------"
-    echo -e "⚠️ ${huang}警告：请确保在可靠的物理环境下操作！"
-    echo -e "⚠️ ${kjlan}建议开启飞行模式并重启后执行！${bai}"
+    echo -e "⚠️ ${huang}安全警示：确保环境安全并已断开网络！${bai}"
     echo "--------------------------------------------------"
-    read -p "按 Enter 键继续..." </dev/tty
+    read -p "按 Enter 继续... " </dev/tty
 
-    # 输入加密字符串
-    echo -e "\n${lv}请粘贴加密字符串（以空行结束）：${bai}"
+    # ▼▼ 加密字符串输入 ▼▼
+    echo -e "\n${lv}▼ 粘贴加密字符串（以空行结束）▼：${bai}"
     encrypted_string_input=""
     while IFS= read -r line; do
         [[ -z "$line" ]] && break
         encrypted_string_input+="$line"$'\n'
     done
     encrypted_string_input="${encrypted_string_input%$'\n'}"
-    encrypted_string_input=$(tr -d '\r' <<< "$encrypted_string_input") # 仅去除Windows换行符
-    
-    # 加密串长度校验
+    encrypted_string_input=$(tr -d '\r' <<< "$encrypted_string_input")
+
+    # ▼ 加密字符串长度校验
     if [[ $(echo -n "$encrypted_string_input" | wc -c) -lt 64 ]]; then
-        echo -e "${hong}错误：输入的加密字符串太短或不完整！${bai}" >&2
-        read -n 1 -s -r -p "按任意键返回..."
+        echo -e "${hong}✖ 加密数据过短或格式错误！${bai}" >&2
+        read -n 1 -s -r -p "按任意鍵返回..."
         return 1
     fi
 
-    # 密码输入
-    echo -e "\n${lv}请输入解密密码：${bai}"
-    password_input=$(get_password "密码")
-    [[ -z "$password_input" ]] && return 1
+    # ▼▼ 双重密码确认 ▼▼
+    echo -e "\n${lv}▼ 请输入解密密码（两次一致）▼：${bai}"
+    password_input1=$(get_password "第一次密码")
+    echo
+    password_input2=$(get_password "确认密码")
+    if [[ "$password_input1" != "$password_input2" ]]; then
+        echo -e "${hong}✖ 两次密码不一致！${bai}" >&2
+        unset password_input1 password_input2
+        read -n 1 -s -r -p "按任意鍵返回..."
+        return 1
+    fi
 
-    # OpenSSL解密（带环境变量传输密码）
-    echo -e "\n${hui}[初始化解密引擎，可能需要15-30秒...]${bai}"
-    export OPENSSL_ENCRYPT_PASSWORD="$password_input"
-    decrypted_mnemonic=$( 
-        {
-            echo "$encrypted_string_input" | 
-            openssl enc -d $OPENSSL_OPTS -pass env:OPENSSL_ENCRYPT_PASSWORD 2>&1
-        } | sed 's/^/  /'
+    # ▼▼ OpenSSL解密 ▼▼
+    export OPENSSL_ENCRYPT_PASSWORD="$password_input1"
+    unset password_input1 password_input2
+    echo -e "\n${hui}⚙ 解密中（约15-30秒，请耐心等待）...${bai}"
+    decrypted_mnemonic=$(
+        echo "$encrypted_string_input" | 
+        openssl enc -d $OPENSSL_OPTS -pass env:OPENSSL_ENCRYPT_PASSWORD 2>&1
     )
     openssl_exit_code=$?
     unset OPENSSL_ENCRYPT_PASSWORD
-    unset password_input
-    
-    # 错误处理
+
+    # ▼▼ 错误处理 ▼▼
     if [[ $openssl_exit_code -ne 0 ]]; then
-        echo -e "${hong}❌ 失敗原因分析："
-        echo "$decrypted_mnemonic" | grep -i -m1 'error\|bad\|invalid' >&2
-        echo -e "OpenSSL错误码:$openssl_exit_code${bai}" >&2
-        read -n 1 -s -r -p "按任意鍵返回..."
-        return 1
-    fi
-    
-    # 助记词有效性检查
-    word_count=$(wc -w <<< "$decrypted_mnemonic")
-    if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
-        echo -e "${hong}❌ 解密结果单词数异常（${word_count}），請检查加密数据完整性！${bai}" >&2
+        echo -e "${hong}❌ 解密失败！技术细节↓↓${bai}"
+        echo "----------------------------------------"
+        echo "$decrypted_mnemonic" >&2
+        echo -e "----------------------------------------"
+        echo "提示：常见错误原因："
+        echo "1. PowerShell生成的加密串需去除头尾提示文字"
+        echo "2. 密码含特殊符号需用英文引号包裹"
         read -n 1 -s -r -p "按任意鍵返回..."
         return 1
     fi
 
-    # 显示结果
+    # ▼ 助记词有效性验证
+    word_count=$(wc -w <<< "$decrypted_mnemonic")
+    if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
+        echo -e "${hong}❌ 解密结果异常（${word_count}词），請检查：${bai}"
+        echo "1. 加密字符串是否完整粘贴（含开头的'Salted__'）"
+        echo "2. 确认OPENSSL_OPTS参数与加密时一致"
+        read -n 1 -s -r -p "按任意鍵返回..."
+        return 1
+    fi
+
+    # ▼▼ 显示结果 ▼▼
+    echo -e "\n${lv}✅ 成功！您的助记詞 ↓↓（${word_count}词）${bai}"
     echo "--------------------------------------------------"
-    echo -e "${lv}✅ 以下是您的助記詞（${word_count}詞）：${bai}"
     echo "$decrypted_mnemonic"
     echo "--------------------------------------------------"
     
-    # 强制停留
-    echo -e "${hui}此信息將在30秒後自動清除（按任意鍵立即返回）...${bai}"
-    read -t 30 -n 1 -s -r
-    
-    # 安全清理
+    # ▼ 安全信息驻留
+    echo -e "${hui}此窗口将在30秒后自动清除...${bai}"
+    read -t 30 -n 1 -s -r -p "按任意键立即返回 "
+    clear
     unset decrypted_mnemonic encrypted_string_input
-    if command -v clear >/dev/null; then
-        clear
-    fi
     return 0
 }
-
 
 # --- END MODIFIED FUNCTION: Decryption ---
 
