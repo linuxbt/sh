@@ -2363,7 +2363,7 @@ generate_mnemonic_internal() {
 
     # Pass the wordlist to the python script via stdin
     # The python script expects the word count as the first argument
-    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
+    mnemonic=$(printf "%s" "$BIP39_WORDLIST" | python3 "$PYTHON_SCRIPT_TEMP_FILE" "$word_count")
     py_exit_code=$?
 
     if [[ $py_exit_code -ne 0 ]] || [[ -z "$mnemonic" ]]; then
