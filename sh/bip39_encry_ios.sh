@@ -2602,7 +2602,7 @@ while true; do
 
         q | Q)
             echo "正在退出..."
-            exit 0
+            exit
             ;;
 
         *)
