@@ -2587,71 +2587,63 @@ decrypt_and_display() {
     local encrypted_string_input password_input
     local decrypted_mnemonic openssl_exit_code word_count
 
-    # 安全警告提示
     clear
-    echo -e "${huang}--------------------------------------------------"
-    echo "⚠️  安全警示：断开网络并确保输入环境安全！  "
-    echo -e "--------------------------------------------------${bai}"
-    read -p "按 Enter 继续..." </dev/tty
+    echo "--------------------------------------------------"
+    echo -e "⚠️ ${huang}安全警示：确保物理环境安全且未联网!${bai}"
+    echo "--------------------------------------------------"
+    read -p "按 Enter 继续... " </dev/tty
 
-    # ▼Base64加密串输入▼
-    echo -e "\n${lv}▼ 貼上加密字符串（空行结束）▼：${bai}"
+    # ▼ Base64加密数据输入 ▼
+    echo -e "\n${lv}▼ 粘贴加密字符串（空行结束）▼：${bai}"
     encrypted_string_input=""
     while IFS= read -r line; do
         [[ -z "$line" ]] && break
-        encrypted_string_input+="$line\n"
+        encrypted_string_input+="$line"
     done
-    encrypted_string_input=${encrypted_string_input%\\n}
-    encrypted_string_input=$(tr -d '\r' <<< "$encrypted_string_input")
-
-    # ▼严格过滤非法字符▼
-    encrypted_string_input=$(echo "$encrypted_string_input" | tr -d '\n\r' | grep -oE '^[a-zA-Z0-9+/=]+$')
-    if [[ -z "$encrypted_string_input" ]]; then
-        echo -e "${hong}✖ 加密字符串含有非法字符！${bai}" >&2
-        return 1
-    fi
-    # ▼头部格式验证▼
-    if ! openssl base64 -d <<< "$encrypted_string_input" | head -c 8 | grep -q 'Salted__'; then
-        echo -e "${hong}✖ 非OpenSSL标准加密数据！${bai}" >&2
+    
+    # ▼ 数据完整性校验 ▼
+    encrypted_string_input=$(echo "$encrypted_string_input" | sed 's/[^a-zA-Z0-9+/=]//g')
+    if [[ -z "$encrypted_string_input" ]] || ! openssl base64 -d <<< "$encrypted_string_input" &>/dev/null; then
+        echo -e "${hong}✖ 加密数据格式非法!${bai}" >&2
         return 1
     fi
 
-    # ▼直接获取一次密码▼
-    echo -e "\n${lv}▼ 输入正确解密密码 ▼：${bai}"
-    password_input=$(get_password "密码") || return 1  # get_password函数已屏蔽重复输入
+    # ▼ 单次密码输入 ▼
+    echo -e "\n${lv}▼ 输入解密密码 ▼${bai}"
+    password_input=$(get_password "密码") || return 1
 
-    # ▼使用魔术变量传递密码（避免任何转换问题）▼
-    echo -e "\n${hui}⚙ 解密中（最多30秒）...${bai}"
-    decrypted_mnemonic=$( echo "$encrypted_string_input" | openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1 )
+    # ▼ 解密流程 ▼
+    echo -e "\n${hui}⚙ 解密中（可能较慢，请稍候）...${bai}"
+    decrypted_mnemonic=$(echo "$encrypted_string_input" | 
+        openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1)
     openssl_exit_code=$?
-    unset password_input  # 及时清空
-
-    # ▼错误分类处理▼
-    case $openssl_exit_code in
-        0)  ;;  # 成功
-        1)  echo -e "${hong}错误：密码错误/参数不一致${bai}\n原始错误：$decrypted_mnemonic" >&2; return 1 ;;
-        9)  echo -e "${hong}错误：算法参数不匹配 (-aes-256-cbc ?)${bai}"; return 1 ;;
-        *)  echo -e "${hong}未知错误($openssl_exit_code)：请检查OpenSSL环境${bai}"; return 1 ;;
-    esac
-
+    unset password_input
+    
+    # ▼ 错误处理 ▼
+    if [[ $openssl_exit_code -ne 0 ]]; then
+        echo -e "${hong}❌ 解密失败！错误详情：${bai}"
+        echo "$decrypted_mnemonic" >&2
+        return 1
+    fi
+    
     # ▼ 助记词有效性验证 ▼
-    word_count=$(wc -w <<< "$decrypted_mnemonic" | awk '{print $1}')
-    if ! [[ "$word_count" =~ ^(12|18|24)$ ]]; then
-        echo -e "${hong}❌ 解密词数异常：可能有残留加密数据碎片！${bai}" >&2
-        echo "[DEBUG] 解密结果原始数据：" >&2
-        echo "$decrypted_mnemonic" | head -c 60 | hexdump -C >&2
+    word_count=$(echo "$decrypted_mnemonic" | wc -w)
+    if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
+        echo -e "${hong}❌ 解密结果异常（单词数：${word_count}）!${bai}" >&2
         return 1
     fi
 
-    # ▼安全显示结果▼
-    echo -e "\n${lv}✅ 解密成功！助记词为 ↓↓\n"
+    # ▼ 显示结果 ▼
+    echo -e "${lv}✅ 解密成功！助记词如下：${bai}"
     echo "$decrypted_mnemonic"
-    echo -e "\n${hui}窗口将在15秒后自动清除...${bai}"
-    read -t15 -n1 -s -r -p "按任意键立即返回"
+    
+    # ▼ 安全清理 ▼
+    unset decrypted_mnemonic encrypted_string_input
+    read -n 1 -s -r -p "按任意键返回..."
     clear
-    unset decrypted_mnemonic
     return 0
 }
+
 
 
 # --- END MODIFIED FUNCTION: Decryption ---
