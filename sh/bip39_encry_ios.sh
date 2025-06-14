@@ -2110,10 +2110,10 @@ echo "Bash层SHA256: $(echo "$BIP39_WORDLIST" | sha256sum)" >&2
 # ▼ 传输验证代码 ▼
 echo "词表行数终检: $(echo "$BIP39_WORDLIST" | wc -l)" >&2
 # ▼▼▼ 验证关键点 ▼▼▼
-echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
-echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
-echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
-sleep 2
+# echo "最终行数: $(wc -l <<< "$BIP39_WORDLIST")" >&2
+# echo "验证首单词: $(head -n1 <<< "$BIP39_WORDLIST")" >&2
+# echo "验证末单词: $(tail -n1 <<< "$BIP39_WORDLIST")" >&2
+# sleep 2
 # ▼▼▼ Critical Validation ▼▼▼
 {
     line_count=$(printf "%s" "$BIP39_WORDLIST" | awk 'END{print NR}')  # ▼▼▲▲▲ 移除 "%s\n" 修正为 "%s"
@@ -2165,9 +2165,9 @@ actual_hash = hashlib.sha256(raw_input.encode()).hexdigest()
 if expected_hash and actual_hash != expected_hash:
     sys.exit(f"指纹不一致！BASH侧:{expected_hash} Python侧:{actual_hash}")
 # ▼ 打印精确调试信息 ▼
-print(f"[密钥调试] 原始字节长度:{len(raw_input)}", file=sys.stderr)
-print(f"[密钥调试] 首行指纹:{hashlib.sha256(lines[0].encode()).hexdigest()}", file=sys.stderr)
-print(f"[密钥调试] 尾行指纹:{hashlib.sha256(lines[-1].encode()).hexdigest()}", file=sys.stderr)
+# print(f"[密钥调试] 原始字节长度:{len(raw_input)}", file=sys.stderr)
+# print(f"[密钥调试] 首行指纹:{hashlib.sha256(lines[0].encode()).hexdigest()}", file=sys.stderr)
+# print(f"[密钥调试] 尾行指纹:{hashlib.sha256(lines[-1].encode()).hexdigest()}", file=sys.stderr)
 # ▼ 调试信息 ▼
 # print(f"[DEBUG] 原始输入行数: {len(raw_input.split("\n"))}", file=sys.stderr)
 # print(f"[DEBUG] 有效词表行数: {len(wordlist)}", file=sys.stderr)
@@ -2432,7 +2432,7 @@ perform_generation_and_encryption() {
          return 1
     fi
 
-    echo "正在使用 ${ENCRYPTION_ALGO} 千万级迭代（等20秒左右）加密助记词..."
+    echo "正在使用 ${ENCRYPTION_ALGO} 百万级迭代（等20秒左右）加密助记词..."
     # —— 修复点：避免 /dev/fd —— 
     # encrypted_string=$(echo -n "$mnemonic" | openssl enc $OPENSSL_OPTS -pass stdin <<<"$password_input")
     # 修复点：使用 -pass 参数直接传递密码
@@ -2560,122 +2560,7 @@ perform_generation_and_encryption() {
 # }
 
 
-# # --- 修复后的解密函数 ---
-# decrypt_and_display() {
-#     local encrypted_string_input password_input
-#     local decrypted_mnemonic openssl_exit_code word_count
-
-#     # 警告提示
-#     echo "--------------------------------------------------"
-#     echo -e "⚠️ ${huang}安全警示：确保环境安全并已断开网络！${bai}"
-#     echo "--------------------------------------------------"
-#     read -p "按 Enter 继续... " </dev/tty
-
-#     # ▼ 更清晰的加密字符串输入提示 ▼
-#     echo -e "\n${lv}▼ 请一次性粘贴完整的加密字符串 ▼：${bai}"
-#     echo -e "（粘贴后只需按一次回车确认）\n"
-    
-#     # 读取单行输入（避免换行符问题）
-#     read -r encrypted_string_input
-    
-#     # 清除所有空格和换行符
-#     encrypted_string_input=$(echo "$encrypted_string_input" | tr -d '[:space:]')
-    
-#     # 处理粘贴的内容
-#     if [[ -z "$encrypted_string_input" ]]; then
-#         echo -e "${hong}错误：未接收到加密数据！${bai}" >&2
-#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
-#         return 1
-#     fi
-
-#     # DEBUG：显示输入后10个字符
-#     echo -e "${hui}[调试] 输入的字符串长度：${#encrypted_string_input}，结尾：${encrypted_string_input:(-10)}${bai}" >&2
-    
-#     # ▼ 加密字符串格式检查 ▼
-#     if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z+/=]+$ ]]; then
-#         echo -e "${hong}✖ 加密数据格式异常，必须以 'U2FsdGVkX1' 开头！${bai}" >&2
-#         echo -e "检测到的开头字符串: ${encrypted_string_input:0:20}..." >&2
-#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
-#         return 1
-#     fi
-
-#     # ▼▼ OpenSSL解密 ▼▼
-#     password_input=$(get_password "请输入解密密码") || return 1
-#     echo -e "\n${hui}⚙️ 解密中（请耐心等待，可能需要30秒）...${bai}"
-    
-#     # 添加调试输出到stderr
-#     echo -e "[调试] 使用密码长度: ${#password_input}" >&2
-#     echo -e "[调试] 加密字符串开头: ${encrypted_string_input:0:20}..." >&2
-    
-#     # 关键修复：将加密字符串通过管道传递给OpenSSL，并添加等待指示器
-#     {
-#         decrypted_mnemonic=$(echo -n "$encrypted_string_input" | 
-#             timeout 60 openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1)
-#         openssl_exit_code=$?
-#     } &
-    
-#     # 显示等待动画
-#     pid=$!
-#     while kill -0 $pid 2>/dev/null; do
-#         echo -n "."
-#         sleep 2
-#     done
-#     echo
-
-#     # ▼▼ 错误处理 ▼▼
-#     if [[ $openssl_exit_code -ne 0 ]]; then
-#         echo -e "${hong}❌ 解密失败 - 错误码: $openssl_exit_code${bai}"
-#         echo -e "${huang}可能原因:${bai}"
-#         echo "1. 密码不正确"
-#         echo "2. 加密字符串格式错误或被截断"
-#         echo "3. 加密参数不匹配"
-#         echo "4. 字符串处理错误"
-#         echo -e "${hui}----------------------------------------${bai}"
-#         echo -e "OpenSSL 输出:"
-#         echo "$decrypted_mnemonic" | head -n 5
-#         echo -e "${hui}----------------------------------------${bai}"
-#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
-#         return 1
-#     fi
-
-#     # ▼ 助记词有效性验证 ▼
-#     word_count=$(echo "$decrypted_mnemonic" | wc -w)
-#     if [[ ! "$word_count" =~ ^(12|18|24)$ ]] || 
-#        [[ ! "$decrypted_mnemonic" =~ ^([a-z]+ ) ]]; then
-#         echo -e "${hong}❌ 解密结果异常（${word_count}词），可能是以下原因：${bai}"
-#         echo "1. 密码错误"
-#         echo "2. 加密字符串损坏"
-#         echo -e "${hui}前20字符: ${decrypted_mnemonic:0:20}...${bai}"
-#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
-#         return 1
-#     fi
-
-#     # ▼▼ 显示结果 ▼▼
-#     echo -e "\n${lv}✅ BIP39助记词恢复成功！${bai}"
-#     echo "--------------------------------------------------"
-#     echo -e "${bai}$decrypted_mnemonic"
-#     echo "--------------------------------------------------"
-#     echo -e "词条数量: ${huang}${word_count}${bai}"
-    
-#     # ▼ 安全警告 ▼
-#     echo -e "${hui}\n[安全提示] 助记词显示后将自动清除\n${bai}"
-#     SECONDS=0
-#     while [[ $SECONDS -lt 30 ]]; do
-#         seconds_left=$((30 - SECONDS))
-#         echo -ne "${hui}清屏倒计时: ${seconds_left}秒${bai}"\\r
-#         sleep 1
-#     done
-    
-#     # 安全清理
-#     unset decrypted_mnemonic password_input
-#     clear
-#     return 0
-# }
-
-
-
-
-# --- FINALLY FIXED DECRYPTION FUNCTION ---
+# --- 修复后的解密函数 ---
 decrypt_and_display() {
     local encrypted_string_input password_input
     local decrypted_mnemonic openssl_exit_code word_count
@@ -2690,7 +2575,7 @@ decrypt_and_display() {
     echo -e "\n${lv}▼ 请粘贴加密字符串 ▼：${bai}"
     echo -e "- 确保完全复制生成的加密字符串（通常150-300字符）"
     echo -e "- 可以一次性粘贴多行文本"
-    echo -e "- 粘贴后直接按回车确认\n"
+    echo -e "- 粘贴后按2次回车确认\n"
     
     # 读取整块输入（最多5行，防止卡死）
     encrypted_string_input=""
@@ -2716,6 +2601,7 @@ decrypt_and_display() {
     fi
 
     # 密码输入 - 最多3次尝试
+    clear
     attempts=0
     password_input=""
     while (( attempts < 3 )); do
