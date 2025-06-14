@@ -2375,33 +2375,6 @@ generate_mnemonic_internal() {
     printf "%s" "$mnemonic"
 }
 
-
-# get_password() {
-#     local prompt_message=$1
-#     local password=""
-#     local password_confirm=""
-#     while true; do
-#         read -rsp "$prompt_message (输入时不会显示，最少 $MIN_PASSWORD_LENGTH 位): " password
-#         echo
-#         if [[ -z "$password" ]]; then
-#             echo "错误：密码不能为空！请重新输入。"
-#             continue
-#         fi
-#         if [[ ${#password} -lt $MIN_PASSWORD_LENGTH ]]; then
-#             echo "错误：密码太短，至少需要 $MIN_PASSWORD_LENGTH 个字符。请重新输入。"
-#             continue
-#         fi
-#         read -rsp "请再次输入密码以确认: " password_confirm
-#         echo
-#         if [[ "$password" == "$password_confirm" ]]; then
-#             break
-#         else
-#             echo "错误：两次输入的密码不匹配！请重新输入。"
-#         fi
-#     done
-#     printf "%s" "$password"
-# }
-
 get_password() {
     local prompt_message=$1
     local password=""
@@ -2560,15 +2533,15 @@ decrypt_and_display() {
         return 1
     fi
 
-    # ▼ 助记词有效性验证
-    word_count=$(wc -w <<< "$decrypted_mnemonic")
-    if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
-        echo -e "${hong}❌ 解密结果异常（${word_count}词），請检查：${bai}"
-        echo "1. 加密字符串是否完整粘贴（含开头的'Salted__'）"
-        echo "2. 确认OPENSSL_OPTS参数与加密时一致"
-        read -n 1 -s -r -p "按任意鍵返回..."
-        return 1
-    fi
+    # # ▼ 助记词有效性验证
+    # word_count=$(wc -w <<< "$decrypted_mnemonic")
+    # if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
+    #     echo -e "${hong}❌ 解密结果异常（${word_count}词），請检查：${bai}"
+    #     echo "1. 加密字符串是否完整粘贴（含开头的'Salted__'）"
+    #     echo "2. 确认OPENSSL_OPTS参数与加密时一致"
+    #     read -n 1 -s -r -p "按任意鍵返回..."
+    #     return 1
+    # fi
 
     # ▼▼ 显示结果 ▼▼
     echo -e "\n${lv}✅ 成功！您的助记詞 ↓↓（${word_count}词）${bai}"
@@ -2583,86 +2556,6 @@ decrypt_and_display() {
     unset decrypted_mnemonic encrypted_string_input
     return 0
 }
-
-# decrypt_and_display() {
-#     local encrypted_string_input password_input
-#     local decrypted_mnemonic openssl_exit_code
-#     local saved_stty hash_part
-#     # ▼ 安全警告界面保持不变 ▼
-#     clear
-#     echo -e "${huang}--------------------------------------------------"
-#     echo "⚠️  安全警示：断开网络并确保输入环境安全！  "
-#     echo -e "--------------------------------------------------${bai}"
-#     read -p "按 Enter 继续..." </dev/tty
-#     # ▼ 增强的加密字符串输入处理 ▼
-#     echo -e "\n${lv}▼ 加密字符串输入（输入不可见）▼${bai}"
-#     echo -e "${hui}操作指南："
-#     echo "1. 粘贴加密字符串（支持多行）"
-#     echo "2. 按 Enter 换行"
-#     echo "3. 单独的空行确认输入完成"
-#     echo -e "-----------------------------------------${bai}"
-#     # ███████ 核心安全输入逻辑 ███████
-#     saved_stty=$(stty -g)
-#     trap 'stty "$saved_stty"; trap - EXIT' EXIT
-#     encrypted_string_input=""
-    
-#     # 禁用回显并设置安全输入模式
-#     stty -echo -icanon time 5 min 5
-#     while IFS= read -r line; do
-#         # 安全终止检测（空行或超时）
-#         line_clean=$(tr -d '\r\n' <<< "$line")
-#         [[ -z "$line_clean" ]] && [[ -n "$encrypted_string_input" ]] && break
-        
-#         # 添加校验字符计数器
-#         encrypted_string_input+="$line_clean"
-#         echo -n "█"  # 用进度符号替代真实内容
-#     done
-#     stty "$saved_stty"
-    
-#     # ▼ 清除输入痕迹 ▼
-#     echo -e "\n\n${hui}[输入已确认] 正在校验数据格式...${bai}"
-#     # ▼ 替代式验证提示 ▼
-#     hash_part=$(echo -n "$encrypted_string_input" | sha256sum | head -c 6)
-#     echo -e "${huang}⚠ 安全验证: 加密数据指纹后6位: ${hash_part}"
-#     read -p "检查设备安全后按 Enter 继续..." </dev/tty
-#     # ▼ 清除所有验证痕迹 ▼
-#     clear
-
-#     # ▼ 单次密码输入 ▼
-#     echo -e "\n${lv}▼ 输入解密密码 ▼${bai}"
-#     password_input=$(get_password "密码") || return 1
-
-#     # ▼ 解密流程 ▼
-#     echo -e "\n${hui}⚙ 解密中（可能较慢，请稍候）...${bai}"
-#     decrypted_mnemonic=$(echo "$encrypted_string_input" | 
-#         openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1)
-#     openssl_exit_code=$?
-#     unset password_input
-    
-#     # ▼ 错误处理 ▼
-#     if [[ $openssl_exit_code -ne 0 ]]; then
-#         echo -e "${hong}❌ 解密失败！错误详情：${bai}"
-#         echo "$decrypted_mnemonic" >&2
-#         return 1
-#     fi
-    
-#     # ▼ 助记词有效性验证 ▼
-#     word_count=$(echo "$decrypted_mnemonic" | wc -w)
-#     if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
-#         echo -e "${hong}❌ 解密结果异常（单词数：${word_count}）!${bai}" >&2
-#         return 1
-#     fi
-
-#     # ▼ 显示结果 ▼
-#     echo -e "${lv}✅ 解密成功！助记词如下：${bai}"
-#     echo "$decrypted_mnemonic"
-    
-#     # ▼ 安全清理 ▼
-#     unset decrypted_mnemonic encrypted_string_input
-#     read -n 1 -s -r -p "按任意键返回..."
-#     clear
-#     return 0
-# }
 
 # --- END MODIFIED FUNCTION: Decryption ---
 
