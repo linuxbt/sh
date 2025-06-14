@@ -2590,13 +2590,13 @@ decrypt_and_display() {
         return 1
     fi
 
-    # ▼▼▼ 加密字符串格式检查逻辑 ▼▼▼
-    if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z/+]+$ ]]; then
-        echo -e "${hong}✖ 加密数据格式异常，必须以'Salted__'结构开头！${bai}" >&2
-        echo "检测到的开头字符串: ${encrypted_string_input:0:20}..." >&2
-        read -n 1 -s -r -p "按任意键返回..." </dev/tty
-        return 1
-    fi
+    # # ▼▼▼ 加密字符串格式检查逻辑 ▼▼▼
+    # if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z/+]+$ ]]; then
+    #     echo -e "${hong}✖ 加密数据格式异常，必须以'Salted__'结构开头！${bai}" >&2
+    #     echo "检测到的开头字符串: ${encrypted_string_input:0:20}..." >&2
+    #     read -n 1 -s -r -p "按任意键返回..." </dev/tty
+    #     return 1
+    # fi
 
     # ▼ 获取密码 ▼
     password_input=$(get_password "输入解密密码") || return 1
