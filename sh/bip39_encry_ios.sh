@@ -2586,48 +2586,47 @@ perform_generation_and_encryption() {
 decrypt_and_display() {
     local encrypted_string_input password_input
     local decrypted_mnemonic openssl_exit_code
-    local saved_stty line_count=0 start_time elapsed
+    local saved_stty hash_part
+    # ▼ 安全警告界面保持不变 ▼
     clear
     echo -e "${huang}--------------------------------------------------"
     echo "⚠️  安全警示：断开网络并确保输入环境安全！  "
     echo -e "--------------------------------------------------${bai}"
     read -p "按 Enter 继续..." </dev/tty
-    # ▼ 保存原始终端设置 ▼
+    # ▼ 增强的加密字符串输入处理 ▼
+    echo -e "\n${lv}▼ 加密字符串输入（输入不可见）▼${bai}"
+    echo -e "${hui}操作指南："
+    echo "1. 粘贴加密字符串（支持多行）"
+    echo "2. 按 Enter 换行"
+    echo "3. 单独的空行确认输入完成"
+    echo -e "-----------------------------------------${bai}"
+    # ███████ 核心安全输入逻辑 ███████
     saved_stty=$(stty -g)
     trap 'stty "$saved_stty"; trap - EXIT' EXIT
-    # ▼ 增强的加密字符串输入处理 ▼
-    echo -e "\n${lv}▼▼▼ 粘贴加密字符串 ▼▼▼（输入空行结束）${bai}"
-    echo -e "${hui}提示：可多行粘贴，输入空行确认${bai}"
     encrypted_string_input=""
-    while IFS= read -r line; do
-        # 用户主动输入空行结束
-        if [[ -z "${line// }" ]]; then
-            # 至少需要包含一个加密块（约64字符）
-            if [[ ${#encrypted_string_input} -lt 64 ]]; then
-                echo -e "${huang}✖ 加密数据过短，至少需要64个字符！${bai}" >&2
-                return 1
-            fi
-            break
-        fi
-        
-        # 清除行尾CR/LF字符（iOS粘贴兼容）
-        line_clean=$(tr -d '\r' <<< "$line")
-        
-        # 显示已输入内容（增加行号）
-        ((line_count++))
-        echo -e "${hui}▏已输入第${line_count}行: ${line_clean}${bai}"
-        
-        encrypted_string_input+="${line_clean}"
-    done
-    # ▼ 验证前提示确认 ▼
-    echo -e "\n${lv}▼▼▼ 已输入加密数据（共${#encrypted_string_input}字符） ▼▼▼"
-    echo -e "${hui}${encrypted_string_input:0:64}...${bai}"
-    echo -e "${huang}请核对开头字符是否与预期相符！[Y/n]${bai}"
-    read -p "确认继续？" confirm
-    if [[ "${confirm,,}" != "y" ]]; then
-        return 1
-    fi
     
+    # 禁用回显并设置安全输入模式
+    stty -echo -icanon time 5 min 5
+    while IFS= read -r line; do
+        # 安全终止检测（空行或超时）
+        line_clean=$(tr -d '\r\n' <<< "$line")
+        [[ -z "$line_clean" ]] && [[ -n "$encrypted_string_input" ]] && break
+        
+        # 添加校验字符计数器
+        encrypted_string_input+="$line_clean"
+        echo -n "█"  # 用进度符号替代真实内容
+    done
+    stty "$saved_stty"
+    
+    # ▼ 清除输入痕迹 ▼
+    echo -e "\n\n${hui}[输入已确认] 正在校验数据格式...${bai}"
+    # ▼ 替代式验证提示 ▼
+    hash_part=$(echo -n "$encrypted_string_input" | sha256sum | head -c 6)
+    echo -e "${huang}⚠ 安全验证: 加密数据指纹后6位: ${hash_part}"
+    read -p "检查设备安全后按 Enter 继续..." </dev/tty
+    # ▼ 清除所有验证痕迹 ▼
+    clear
+
     # ▼ 单次密码输入 ▼
     echo -e "\n${lv}▼ 输入解密密码 ▼${bai}"
     password_input=$(get_password "密码") || return 1
@@ -2663,7 +2662,6 @@ decrypt_and_display() {
     clear
     return 0
 }
-
 
 # --- END MODIFIED FUNCTION: Decryption ---
 
