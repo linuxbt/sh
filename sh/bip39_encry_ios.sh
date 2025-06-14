@@ -2560,115 +2560,203 @@ perform_generation_and_encryption() {
 # }
 
 
-# --- 修复后的解密函数 ---
+# # --- 修复后的解密函数 ---
+# decrypt_and_display() {
+#     local encrypted_string_input password_input
+#     local decrypted_mnemonic openssl_exit_code word_count
+
+#     # 警告提示
+#     echo "--------------------------------------------------"
+#     echo -e "⚠️ ${huang}安全警示：确保环境安全并已断开网络！${bai}"
+#     echo "--------------------------------------------------"
+#     read -p "按 Enter 继续... " </dev/tty
+
+#     # ▼ 更清晰的加密字符串输入提示 ▼
+#     echo -e "\n${lv}▼ 请一次性粘贴完整的加密字符串 ▼：${bai}"
+#     echo -e "（粘贴后只需按一次回车确认）\n"
+    
+#     # 读取单行输入（避免换行符问题）
+#     read -r encrypted_string_input
+    
+#     # 清除所有空格和换行符
+#     encrypted_string_input=$(echo "$encrypted_string_input" | tr -d '[:space:]')
+    
+#     # 处理粘贴的内容
+#     if [[ -z "$encrypted_string_input" ]]; then
+#         echo -e "${hong}错误：未接收到加密数据！${bai}" >&2
+#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
+#         return 1
+#     fi
+
+#     # DEBUG：显示输入后10个字符
+#     echo -e "${hui}[调试] 输入的字符串长度：${#encrypted_string_input}，结尾：${encrypted_string_input:(-10)}${bai}" >&2
+    
+#     # ▼ 加密字符串格式检查 ▼
+#     if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z+/=]+$ ]]; then
+#         echo -e "${hong}✖ 加密数据格式异常，必须以 'U2FsdGVkX1' 开头！${bai}" >&2
+#         echo -e "检测到的开头字符串: ${encrypted_string_input:0:20}..." >&2
+#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
+#         return 1
+#     fi
+
+#     # ▼▼ OpenSSL解密 ▼▼
+#     password_input=$(get_password "请输入解密密码") || return 1
+#     echo -e "\n${hui}⚙️ 解密中（请耐心等待，可能需要30秒）...${bai}"
+    
+#     # 添加调试输出到stderr
+#     echo -e "[调试] 使用密码长度: ${#password_input}" >&2
+#     echo -e "[调试] 加密字符串开头: ${encrypted_string_input:0:20}..." >&2
+    
+#     # 关键修复：将加密字符串通过管道传递给OpenSSL，并添加等待指示器
+#     {
+#         decrypted_mnemonic=$(echo -n "$encrypted_string_input" | 
+#             timeout 60 openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1)
+#         openssl_exit_code=$?
+#     } &
+    
+#     # 显示等待动画
+#     pid=$!
+#     while kill -0 $pid 2>/dev/null; do
+#         echo -n "."
+#         sleep 2
+#     done
+#     echo
+
+#     # ▼▼ 错误处理 ▼▼
+#     if [[ $openssl_exit_code -ne 0 ]]; then
+#         echo -e "${hong}❌ 解密失败 - 错误码: $openssl_exit_code${bai}"
+#         echo -e "${huang}可能原因:${bai}"
+#         echo "1. 密码不正确"
+#         echo "2. 加密字符串格式错误或被截断"
+#         echo "3. 加密参数不匹配"
+#         echo "4. 字符串处理错误"
+#         echo -e "${hui}----------------------------------------${bai}"
+#         echo -e "OpenSSL 输出:"
+#         echo "$decrypted_mnemonic" | head -n 5
+#         echo -e "${hui}----------------------------------------${bai}"
+#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
+#         return 1
+#     fi
+
+#     # ▼ 助记词有效性验证 ▼
+#     word_count=$(echo "$decrypted_mnemonic" | wc -w)
+#     if [[ ! "$word_count" =~ ^(12|18|24)$ ]] || 
+#        [[ ! "$decrypted_mnemonic" =~ ^([a-z]+ ) ]]; then
+#         echo -e "${hong}❌ 解密结果异常（${word_count}词），可能是以下原因：${bai}"
+#         echo "1. 密码错误"
+#         echo "2. 加密字符串损坏"
+#         echo -e "${hui}前20字符: ${decrypted_mnemonic:0:20}...${bai}"
+#         read -n 1 -s -r -p "按任意键返回..." </dev/tty
+#         return 1
+#     fi
+
+#     # ▼▼ 显示结果 ▼▼
+#     echo -e "\n${lv}✅ BIP39助记词恢复成功！${bai}"
+#     echo "--------------------------------------------------"
+#     echo -e "${bai}$decrypted_mnemonic"
+#     echo "--------------------------------------------------"
+#     echo -e "词条数量: ${huang}${word_count}${bai}"
+    
+#     # ▼ 安全警告 ▼
+#     echo -e "${hui}\n[安全提示] 助记词显示后将自动清除\n${bai}"
+#     SECONDS=0
+#     while [[ $SECONDS -lt 30 ]]; do
+#         seconds_left=$((30 - SECONDS))
+#         echo -ne "${hui}清屏倒计时: ${seconds_left}秒${bai}"\\r
+#         sleep 1
+#     done
+    
+#     # 安全清理
+#     unset decrypted_mnemonic password_input
+#     clear
+#     return 0
+# }
+
+
+
+
+# --- FINALLY FIXED DECRYPTION FUNCTION ---
 decrypt_and_display() {
     local encrypted_string_input password_input
     local decrypted_mnemonic openssl_exit_code word_count
 
-    # 警告提示
+    # 重置安全警告
     echo "--------------------------------------------------"
     echo -e "⚠️ ${huang}安全警示：确保环境安全并已断开网络！${bai}"
     echo "--------------------------------------------------"
     read -p "按 Enter 继续... " </dev/tty
 
-    # ▼ 更清晰的加密字符串输入提示 ▼
-    echo -e "\n${lv}▼ 请一次性粘贴完整的加密字符串 ▼：${bai}"
-    echo -e "（粘贴后只需按一次回车确认）\n"
+    # ▼▼ 更用户友好的加密字符串输入 ▼▼
+    echo -e "\n${lv}▼ 请粘贴加密字符串 ▼：${bai}"
+    echo -e "- 确保完全复制生成的加密字符串（通常150-300字符）"
+    echo -e "- 可以一次性粘贴多行文本"
+    echo -e "- 粘贴后直接按回车确认\n"
     
-    # 读取单行输入（避免换行符问题）
-    read -r encrypted_string_input
+    # 读取整块输入（最多5行，防止卡死）
+    encrypted_string_input=""
+    while IFS= read -r -t 60 -p "> " line; do
+        # 如果用户连续按两次回车则退出
+        [[ -z "$line" ]] && break
+        encrypted_string_input+="$line"
+    done
     
-    # 清除所有空格和换行符
-    encrypted_string_input=$(echo "$encrypted_string_input" | tr -d '[:space:]')
+    # 移除所有空白字符
+    encrypted_string_input=$(echo -n "$encrypted_string_input" | tr -d '[:space:]')
     
-    # 处理粘贴的内容
+    # 检查是否为空
     if [[ -z "$encrypted_string_input" ]]; then
         echo -e "${hong}错误：未接收到加密数据！${bai}" >&2
-        read -n 1 -s -r -p "按任意键返回..." </dev/tty
         return 1
     fi
 
-    # DEBUG：显示输入后10个字符
-    echo -e "${hui}[调试] 输入的字符串长度：${#encrypted_string_input}，结尾：${encrypted_string_input:(-10)}${bai}" >&2
-    
-    # ▼ 加密字符串格式检查 ▼
-    if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z+/=]+$ ]]; then
-        echo -e "${hong}✖ 加密数据格式异常，必须以 'U2FsdGVkX1' 开头！${bai}" >&2
-        echo -e "检测到的开头字符串: ${encrypted_string_input:0:20}..." >&2
-        read -n 1 -s -r -p "按任意键返回..." </dev/tty
+    # 检查最少长度（合法加密串至少80字符）
+    if [[ ${#encrypted_string_input} -lt 80 ]]; then
+        echo -e "${hong}错误：加密字符串过短（${#encrypted_string_input}字符）- 应至少100个字符！${bai}" >&2
         return 1
     fi
 
-    # ▼▼ OpenSSL解密 ▼▼
-    password_input=$(get_password "请输入解密密码") || return 1
-    echo -e "\n${hui}⚙️ 解密中（请耐心等待，可能需要30秒）...${bai}"
-    
-    # 添加调试输出到stderr
-    echo -e "[调试] 使用密码长度: ${#password_input}" >&2
-    echo -e "[调试] 加密字符串开头: ${encrypted_string_input:0:20}..." >&2
-    
-    # 关键修复：将加密字符串通过管道传递给OpenSSL，并添加等待指示器
-    {
-        decrypted_mnemonic=$(echo -n "$encrypted_string_input" | 
-            timeout 60 openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1)
-        openssl_exit_code=$?
-    } &
-    
-    # 显示等待动画
-    pid=$!
-    while kill -0 $pid 2>/dev/null; do
-        echo -n "."
-        sleep 2
+    # 密码输入 - 最多3次尝试
+    attempts=0
+    password_input=""
+    while (( attempts < 3 )); do
+        password=$(get_password "请输入解密密码")
+        ((attempts++))
+        
+        # 尝试解密
+        echo -e "${hui}⚙ 解密中（第${attempts}次尝试）...${bai}"
+        decrypted_mnemonic=$(echo "$encrypted_string_input" | 
+            openssl enc -d $OPENSSL_OPTS -pass pass:"$password" 2>/dev/null)
+        
+        # 检查解密结果
+        word_count=$(echo "$decrypted_mnemonic" | wc -w)
+        if [[ $? -eq 0 ]] && [[ $word_count =~ ^(12|18|24)$ ]]; then
+            password_input=$password
+            break
+        fi
+        
+        echo -e "${hong}解密失败！密码可能错误（剩余$((3-attempts))次尝试）${bai}" >&2
     done
-    echo
-
-    # ▼▼ 错误处理 ▼▼
-    if [[ $openssl_exit_code -ne 0 ]]; then
-        echo -e "${hong}❌ 解密失败 - 错误码: $openssl_exit_code${bai}"
-        echo -e "${huang}可能原因:${bai}"
-        echo "1. 密码不正确"
-        echo "2. 加密字符串格式错误或被截断"
-        echo "3. 加密参数不匹配"
-        echo "4. 字符串处理错误"
-        echo -e "${hui}----------------------------------------${bai}"
-        echo -e "OpenSSL 输出:"
-        echo "$decrypted_mnemonic" | head -n 5
-        echo -e "${hui}----------------------------------------${bai}"
-        read -n 1 -s -r -p "按任意键返回..." </dev/tty
-        return 1
-    fi
-
-    # ▼ 助记词有效性验证 ▼
-    word_count=$(echo "$decrypted_mnemonic" | wc -w)
-    if [[ ! "$word_count" =~ ^(12|18|24)$ ]] || 
-       [[ ! "$decrypted_mnemonic" =~ ^([a-z]+ ) ]]; then
-        echo -e "${hong}❌ 解密结果异常（${word_count}词），可能是以下原因：${bai}"
-        echo "1. 密码错误"
-        echo "2. 加密字符串损坏"
-        echo -e "${hui}前20字符: ${decrypted_mnemonic:0:20}...${bai}"
-        read -n 1 -s -r -p "按任意键返回..." </dev/tty
-        return 1
-    fi
-
-    # ▼▼ 显示结果 ▼▼
-    echo -e "\n${lv}✅ BIP39助记词恢复成功！${bai}"
-    echo "--------------------------------------------------"
-    echo -e "${bai}$decrypted_mnemonic"
-    echo "--------------------------------------------------"
-    echo -e "词条数量: ${huang}${word_count}${bai}"
     
-    # ▼ 安全警告 ▼
-    echo -e "${hui}\n[安全提示] 助记词显示后将自动清除\n${bai}"
-    SECONDS=0
-    while [[ $SECONDS -lt 30 ]]; do
-        seconds_left=$((30 - SECONDS))
-        echo -ne "${hui}清屏倒计时: ${seconds_left}秒${bai}"\\r
-        sleep 1
-    done
+    # 成功解密后的处理
+    if [[ -n "$password_input" ]]; then
+        # 显示结果
+        echo -e "\n${lv}✅ BIP39助记词恢复成功！${bai}"
+        echo "--------------------------------------------------"
+        echo "$decrypted_mnemonic"
+        echo "--------------------------------------------------"
+        echo -e "词条数量: ${huang}$word_count${bai}"
+        
+        # 等待用户确认后返回
+        echo -e "${hui}按任意键返回主菜单...${bai}"
+        read -n 1 -s -r
+        
+    else
+        echo -e "\n${hong}❌ 解密尝试超过3次失败，请联系12双周技术支持...${bai}" >&2
+        read -n 1 -s -r -p "按任意鍵返回..."
+    fi
     
     # 安全清理
     unset decrypted_mnemonic password_input
-    clear
     return 0
 }
 
