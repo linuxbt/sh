@@ -2416,6 +2416,7 @@ decrypt_and_display() {
     fi
 
     echo "请输入解密密码。"
+    clear
     password_input=$(get_password "输入解密密码")
     if [[ -z "$password_input" ]]; then
         echo "错误: 无法获取有效密码。" >&2
