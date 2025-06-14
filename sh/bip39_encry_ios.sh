@@ -2403,36 +2403,29 @@ generate_mnemonic_internal() {
 # }
 
 get_password() {
-    local prompt_name="$1"
+    local prompt_message=$1
     local password=""
-    local password_confirm=""
-    local attempt=0
-    while [[ $attempt -lt 3 ]]; do  # 最多尝试3次
-        attempt=$((attempt+1))
-        # ▼ 仅提示输入密码 ▼
-        read -rsp "${prompt_name}: " password
+    while : ; do
+        read -rsp "${prompt_message}（最少${MIN_PASSWORD_LENGTH}位）: " password
         echo # 换行
         
-        # ▼ 直接验证长度 ▼
-        if [ ${#password} -lt "$MIN_PASSWORD_LENGTH" ]; then
-            echo -e "${hong}密码至少需要 ${MIN_PASSWORD_LENGTH} 位！${bai}" >&2
+        # ▼ 密码非空检查 ▼
+        if [[ -z "$password" ]]; then
+            echo -e "${hong}错误：密码不能为空！${bai}\n" >&2
             continue
         fi
         
-        # ▼ 确认密码流程 ▼
-        read -rsp "确认密码: " password_confirm
-        echo
-        if [[ "$password" == "$password_confirm" ]]; then
-            printf "%s" "$password"
-            return 0
-        else
-            echo -e "${hong}密码不匹配，请重试${bai}" >&2
+        # ▼ 密码长度检查 ▼
+        if [[ ${#password} -lt ${MIN_PASSWORD_LENGTH} ]]; then
+            echo -e "${hong}错误：密码最少需要 ${MIN_PASSWORD_LENGTH} 位！${bai}\n" >&2
+            continue
         fi
+        
+        break
     done
-    # ▼ 超过尝试次数 ▼
-    echo -e "${hong}错误：多次尝试失败。${bai}" >&2
-    return 1
+    printf "%s" "$password"
 }
+
 
 
 cleanup_vars() {
