@@ -2571,47 +2571,61 @@ decrypt_and_display() {
     echo "--------------------------------------------------"
     read -p "按 Enter 继续... " </dev/tty
 
-    # ▼▼ 加密字符串输入 ▼▼
-    echo -e "\n${lv}▼ 粘贴加密字符串（以空行结束）▼：${bai}"
+    # ▼▼ 更人性化的加密字符串输入 ▼▼
+    echo -e "\n${lv}▼ 粘贴加密字符串（支持多行粘贴，以空行结束）▼：${bai}"
+    echo -e "（粘贴后请连续按两次回车确认）\n"
+    
+    # 读取多行输入直到空行
     encrypted_string_input=""
     while IFS= read -r line; do
         [[ -z "$line" ]] && break
-        encrypted_string_input+="$line"
+        encrypted_string_input+="${line}"
     done
     encrypted_string_input=$(tr -d '\r' <<< "$encrypted_string_input")
+
+    # 处理粘贴的内容
+    if [[ -z "$encrypted_string_input" ]]; then
+        echo -e "${hong}错误：未接收到加密数据！${bai}" >&2
+        read -n 1 -s -r -p "按任意键返回..." </dev/tty
+        return 1
+    fi
 
     # ▼▼▼ 加密字符串格式检查逻辑 ▼▼▼
     if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z/+]+$ ]]; then
         echo -e "${hong}✖ 加密数据格式异常，必须以'Salted__'结构开头！${bai}" >&2
+        echo "检测到的开头字符串: ${encrypted_string_input:0:20}..." >&2
+        read -n 1 -s -r -p "按任意键返回..." </dev/tty
         return 1
     fi
-    echo # 换行符（输入结束后添加）
 
-    # ▼ 直接获取一次密码 ▼
+    # ▼ 获取密码 ▼
     password_input=$(get_password "输入解密密码") || return 1
 
     # ▼▼ OpenSSL解密 ▼▼
     echo -e "\n${hui}⚙ 解密中（约15-30秒，请耐心等待）...${bai}"
-    # 修复点：将密码直接通过管道传递给openssl
-    decrypted_mnemonic=$(printf "%s" "$encrypted_string_input" | 
-        openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1)
+    decrypted_mnemonic=$(
+        printf "%s" "$encrypted_string_input" | 
+        openssl enc -d $OPENSSL_OPTS -pass pass:"$password_input" 2>&1
+    )
     openssl_exit_code=$?
 
     # ▼▼ 错误处理 ▼▼
     if [[ $openssl_exit_code -ne 0 ]]; then
-        echo -e "${hong}❌ 解密失败！技术细节↓↓${bai}"
+        echo -e "${hong}❌ 解密失败！可能原因↓↓${bai}"
         echo "----------------------------------------"
-        echo "$decrypted_mnemonic"
-        echo -e "----------------------------------------"
+        echo "$decrypted_mnemonic" | head -n 5 # 显示前五行错误信息
+        echo "----------------------------------------"
+        read -n 1 -s -r -p "按任意键返回..." </dev/tty
         return 1
     fi
 
     # ▼ 助记词有效性验证 ▼
-    word_count=$(wc -w <<< "$decrypted_mnemonic")
+    word_count=$(echo "$decrypted_mnemonic" | wc -w)
     if [[ ! "$word_count" =~ ^(12|18|24)$ ]]; then
-        echo -e "${hong}❌ 解密结果异常（${word_count}词），可能原因：${bai}"
-        echo "1. 输入了错误的密码"
-        echo "2. 加密字符串可能损坏"
+        echo -e "${hong}❌ 解密结果异常（${word_count}词），可能是以下原因：${bai}"
+        echo "1. 错误的密码"
+        echo "2. 加密字符串损坏"
+        read -n 1 -s -r -p "按任意键返回..." </dev/tty
         return 1
     fi
 
@@ -2622,11 +2636,15 @@ decrypt_and_display() {
     echo "--------------------------------------------------"
     
     # ▼ 安全信息驻留 ▼
-    echo -e "${hui}此窗口将在30秒后自动清除...${bai}\n\n\n\n\n"
-    read -t 30 -n 1 -s -r -p "按任意键返回 "
+    echo -e "${hui}此窗口将在30秒后自动清除...${bai}\n"
+    read -t 30 -n 1 -s -r -p "按任意键立即返回 "
     clear
+    
+    # 安全清理
+    unset decrypted_mnemonic encrypted_string_input password_input
     return 0
 }
+
 
 
 
