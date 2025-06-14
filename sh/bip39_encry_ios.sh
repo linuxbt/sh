@@ -2585,37 +2585,49 @@ perform_generation_and_encryption() {
 
 decrypt_and_display() {
     local encrypted_string_input password_input
-    local decrypted_mnemonic openssl_exit_code word_count
-    local saved_stty
-
+    local decrypted_mnemonic openssl_exit_code
+    local saved_stty line_count=0 start_time elapsed
     clear
     echo -e "${huang}--------------------------------------------------"
     echo "⚠️  安全警示：断开网络并确保输入环境安全！  "
     echo -e "--------------------------------------------------${bai}"
     read -p "按 Enter 继续..." </dev/tty
-
-    # ▼ 保存终端状态配置 ▼
+    # ▼ 保存原始终端设置 ▼
     saved_stty=$(stty -g)
-    trap 'stty "$saved_stty"; exit 1' INT TERM EXIT
-
-    # ▼ 静默获取加密字符串 ▼
-    echo -e "\n${lv}▼ 粘贴加密字符串（输入完成后按两次回车） ▼：${bai}"
+    trap 'stty "$saved_stty"; trap - EXIT' EXIT
+    # ▼ 增强的加密字符串输入处理 ▼
+    echo -e "\n${lv}▼▼▼ 粘贴加密字符串 ▼▼▼（输入空行结束）${bai}"
+    echo -e "${hui}提示：可多行粘贴，输入空行确认${bai}"
     encrypted_string_input=""
-    stty -echo  # 关闭回显
     while IFS= read -r line; do
-        [[ -z "$line" ]] && break
-        encrypted_string_input+="$line"
+        # 用户主动输入空行结束
+        if [[ -z "${line// }" ]]; then
+            # 至少需要包含一个加密块（约64字符）
+            if [[ ${#encrypted_string_input} -lt 64 ]]; then
+                echo -e "${huang}✖ 加密数据过短，至少需要64个字符！${bai}" >&2
+                return 1
+            fi
+            break
+        fi
+        
+        # 清除行尾CR/LF字符（iOS粘贴兼容）
+        line_clean=$(tr -d '\r' <<< "$line")
+        
+        # 显示已输入内容（增加行号）
+        ((line_count++))
+        echo -e "${hui}▏已输入第${line_count}行: ${line_clean}${bai}"
+        
+        encrypted_string_input+="${line_clean}"
     done
-    stty echo  # 必须及时恢复
-    trap - INT TERM EXIT  # 恢复默认trap行为
-    echo -e "${bai}\n"  # 修复格式
-
-    # ▼ 数据格式验证 ▼
-    if ! openssl base64 -d <<< "$encrypted_string_input" &>/dev/null; then
-        echo -e "${hong}✖ 非有效的Base64编码数据！${bai}" >&2
+    # ▼ 验证前提示确认 ▼
+    echo -e "\n${lv}▼▼▼ 已输入加密数据（共${#encrypted_string_input}字符） ▼▼▼"
+    echo -e "${hui}${encrypted_string_input:0:64}...${bai}"
+    echo -e "${huang}请核对开头字符是否与预期相符！[Y/n]${bai}"
+    read -p "确认继续？" confirm
+    if [[ "${confirm,,}" != "y" ]]; then
         return 1
     fi
-
+    
     # ▼ 单次密码输入 ▼
     echo -e "\n${lv}▼ 输入解密密码 ▼${bai}"
     password_input=$(get_password "密码") || return 1
