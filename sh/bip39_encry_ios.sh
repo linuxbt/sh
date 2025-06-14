@@ -2586,25 +2586,33 @@ perform_generation_and_encryption() {
 decrypt_and_display() {
     local encrypted_string_input password_input
     local decrypted_mnemonic openssl_exit_code word_count
+    local saved_stty
 
     clear
-    echo "--------------------------------------------------"
-    echo -e "⚠️ ${huang}安全警示：确保物理环境安全且未联网!${bai}"
-    echo "--------------------------------------------------"
-    read -p "按 Enter 继续... " </dev/tty
+    echo -e "${huang}--------------------------------------------------"
+    echo "⚠️  安全警示：断开网络并确保输入环境安全！  "
+    echo -e "--------------------------------------------------${bai}"
+    read -p "按 Enter 继续..." </dev/tty
 
-    # ▼ Base64加密数据输入 ▼
-    echo -e "\n${lv}▼ 粘贴加密字符串（空行结束）▼：${bai}"
+    # ▼ 保存终端状态配置 ▼
+    saved_stty=$(stty -g)
+    trap 'stty "$saved_stty"; exit 1' INT TERM EXIT
+
+    # ▼ 静默获取加密字符串 ▼
+    echo -e "\n${lv}▼ 粘贴加密字符串（输入完成后按两次回车） ▼：${bai}"
     encrypted_string_input=""
+    stty -echo  # 关闭回显
     while IFS= read -r line; do
         [[ -z "$line" ]] && break
         encrypted_string_input+="$line"
     done
-    
-    # ▼ 数据完整性校验 ▼
-    encrypted_string_input=$(echo "$encrypted_string_input" | sed 's/[^a-zA-Z0-9+/=]//g')
-    if [[ -z "$encrypted_string_input" ]] || ! openssl base64 -d <<< "$encrypted_string_input" &>/dev/null; then
-        echo -e "${hong}✖ 加密数据格式非法!${bai}" >&2
+    stty echo  # 必须及时恢复
+    trap - INT TERM EXIT  # 恢复默认trap行为
+    echo -e "${bai}\n"  # 修复格式
+
+    # ▼ 数据格式验证 ▼
+    if ! openssl base64 -d <<< "$encrypted_string_input" &>/dev/null; then
+        echo -e "${hong}✖ 非有效的Base64编码数据！${bai}" >&2
         return 1
     fi
 
@@ -2643,7 +2651,6 @@ decrypt_and_display() {
     clear
     return 0
 }
-
 
 
 # --- END MODIFIED FUNCTION: Decryption ---
