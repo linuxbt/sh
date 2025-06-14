@@ -12,7 +12,7 @@ lan='\033[0;34m'
 
 # ▼▼▼ 配置项 ▼▼▼
 ENCRYPTION_ALGO="aes-256-cbc"
-OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 1000000 -a -salt" # 改为100万次迭代提高iOS性能
+OPENSSL_OPTS="-${ENCRYPTION_ALGO} -iter 1000000 -a -salt -pbkdf2 -md sha256"
 MIN_PASSWORD_LENGTH=16
 
 # --- Embedded BIP39 English Wordlist ---
@@ -2485,6 +2485,13 @@ decrypt_and_display() {
     done
     encrypted_string_input="${encrypted_string_input%$'\n'}"
     encrypted_string_input=$(tr -d '\r' <<< "$encrypted_string_input")
+
+    # ▼▼▼ 加密字符串格式检查逻辑 ▼▼▼
+    if [[ ! "$encrypted_string_input" =~ ^U2FsdGVkX1[0-9A-Za-z/+]+$ ]]; then
+        echo -e "${hong}✖ 加密数据格式异常，必须以'Salted__'结构开头！${bai}" >&2
+        read -n 1 -s -r -p "按任意鍵返回..."
+        return 1
+    fi
 
     # ▼ 加密字符串长度校验
     if [[ $(echo -n "$encrypted_string_input" | wc -c) -lt 64 ]]; then
