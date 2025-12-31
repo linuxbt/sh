@@ -2166,6 +2166,19 @@ gen_entropy() {
     openssl rand $(( $1 / 8 ))
 }
 
+hex_to_bin() {
+    echo "$1" | tr -d '\n' | fold -w2 | awk '
+    {
+        for (i=1; i<=NF; i++) {
+            byte = strtonum("0x"$i)
+            for (b=7; b>=0; b--) {
+                printf "%d", and(rshift(byte, b), 1)
+            }
+        }
+    }'
+}
+
+
 ########################
 # 生成 BIP39 助记词
 ########################
@@ -2181,13 +2194,18 @@ generate_mnemonic() {
     local cs_bits=$((bits / 32))
 
     local entropy_bin
-    entropy_bin=$(echo "$entropy_hex" | xxd -r -p | xxd -b | awk '{for(i=2;i<=NF;i++)printf "%s",$i}')
+    entropy_bin=$(hex_to_bin "$entropy_hex")
 
     local hash_bin
-    hash_bin=$(echo "$hash_hex" | xxd -r -p | xxd -b | awk '{for(i=2;i<=NF;i++)printf "%s",$i}')
+    hash_bin=$(hex_to_bin "$hash_hex")
 
     local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
 
+    # 必须检查 full_bin
+    [[ "$full_bin" =~ ^[01]+$ ]] || {
+        echo "错误：生成的二进制数据非法"
+        return 1
+    }
     local out="" idx
     for ((i=0; i<${#full_bin}; i+=11)); do
         idx=$((2#${full_bin:i:11}))
