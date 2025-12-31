@@ -12,10 +12,9 @@ huang="\033[0;33m"
 nc="\033[0m"
 
 ########################
-# 依赖检查（支持 macOS，不影响 Linux / iSH）
+# 依赖检查（macOS / Linux / iSH）
 ########################
 
-# sha256sum 兼容处理（仅 macOS 需要）
 SHA256_CMD="sha256sum"
 if ! command -v sha256sum >/dev/null 2>&1; then
     if command -v gsha256sum >/dev/null 2>&1; then
@@ -30,53 +29,24 @@ need_cmd() {
 check_deps() {
     local missing=()
 
-    # 基础命令检查
     for c in openssl xxd awk base64; do
-        if ! need_cmd "$c"; then
-            missing+=("$c")
-        fi
+        need_cmd "$c" || missing+=("$c")
     done
 
-    # sha256sum / gsha256sum 二选一
     if ! command -v sha256sum >/dev/null 2>&1 && ! command -v gsha256sum >/dev/null 2>&1; then
-        missing+=("sha256sum (或 gsha256sum)")
+        missing+=("sha256sum / gsha256sum")
     fi
 
     if [ "${#missing[@]}" -ne 0 ]; then
-        echo "缺少依赖，请手动安装后再运行脚本。"
-        echo
-        echo "缺失的命令："
-        for m in "${missing[@]}"; do
-            echo "  - $m"
-        done
-        echo
-        echo "================ 安装命令参考 ================"
-        echo
-        echo "Debian / Ubuntu："
-        echo "  sudo apt update && sudo apt install -y openssl vim-common coreutils gawk"
-        echo
-        echo "RHEL / Rocky / Alma："
-        echo "  sudo dnf install -y openssl vim-common coreutils gawk"
-        echo
-        echo "Arch Linux："
-        echo "  sudo pacman -Sy openssl vim coreutils gawk"
-        echo
-        echo "macOS（需 Homebrew）："
-        echo "  brew install openssl coreutils gawk"
-        echo "  （macOS 使用 gsha256sum，由 coreutils 提供）"
-        echo
-        echo "iOS（iSH / Alpine Linux）："
-        echo "  apk update && apk add bash curl openssl coreutils gawk vim"
-        echo "  （vim 用于提供 xxd）"
-        echo
-        echo "=============================================="
+        echo "缺少依赖："
+        printf '  - %s\n' "${missing[@]}"
         exit 1
     fi
 }
 
-
 ########################
-# BIP39 英文词表（2048 个，内嵌）
+# BIP39 英文词表（示例）
+# ⚠️ 实际使用请替换为完整 2048 个
 ########################
 BIP39_WORDS=(
 abandon
@@ -2132,7 +2102,6 @@ zoo
 # 第 2 部分：核心功能函数
 ############################
 
-# HEX → BIN（跨平台，不依赖 xxd -b）
 hex_to_bin() {
     echo "$1" | tr -d '\n' | fold -w2 | awk '
     {
@@ -2145,13 +2114,11 @@ hex_to_bin() {
     }'
 }
 
-# 生成熵
 gen_entropy() {
     local bits="$1"
     openssl rand $((bits / 8))
 }
 
-# 生成 BIP39 助记词
 generate_mnemonic() {
     local bits="$1"
 
@@ -2171,15 +2138,8 @@ generate_mnemonic() {
 
     local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
 
-    [[ "$full_bin" =~ ^[01]+$ ]] || {
-        echo "错误：生成的二进制数据非法"
-        return 1
-    }
-
-    (( ${#full_bin} % 11 == 0 )) || {
-        echo "错误：二进制长度异常"
-        return 1
-    }
+    [[ "$full_bin" =~ ^[01]+$ ]] || return 1
+    (( ${#full_bin} % 11 == 0 )) || return 1
 
     local out="" idx
     for ((i=0; i<${#full_bin}; i+=11)); do
@@ -2190,177 +2150,94 @@ generate_mnemonic() {
     echo "${out% }"
 }
 
-# 输出 QR
-print_qr() {
-    local data="$1"
-
-    # 使用 qrencode.com 的等价 ASCII 算法（纯文本）
-    echo
-    echo "=========== QR ==========="
-    echo "$data" | awk '
-    BEGIN {
-        # 简化版 ASCII QR（足够用于人工扫描）
-        # 注意：这是「显示用」，不是纠错级别验证器
-        while ((getline line) > 0) {
-            len = length(line)
-            for (i = 1; i <= len; i++) {
-                c = substr(line, i, 1)
-                printf (c ~ /[A-Za-z0-9]/ ? "██" : "  ")
-            }
-            printf "\n"
-        }
-    }'
-    echo "=========================="
-    echo
-}
-
-
-# AES-256-CBC + PBKDF2 加密
 encrypt_text() {
-    local plaintext="$1"
-    local password="$2"
-
-    echo -n "$plaintext" | openssl enc -aes-256-cbc \
-        -pbkdf2 \
-        -iter 200000 \
-        -salt \
-        -base64 \
-        -pass pass:"$password"
+    echo -n "$1" | openssl enc -aes-256-cbc \
+        -pbkdf2 -iter 200000 -salt \
+        -base64 -A \
+        -pass pass:"$2"
 }
 
-# 解密
 decrypt_text() {
-    local ciphertext="$1"
-    local password="$2"
-
-    echo "$ciphertext" | openssl enc -d -aes-256-cbc \
-        -pbkdf2 \
-        -iter 200000 \
+    echo "$1" | openssl enc -d -aes-256-cbc \
+        -pbkdf2 -iter 200000 \
         -base64 \
-        -pass pass:"$password" 2>/dev/null
+        -pass pass:"$2" 2>/dev/null
 }
 ############################
 # 第 3 部分：菜单与流程
 ############################
+set +e
 
 menu_generate_new() {
-    while true; do
-        echo "------------------------------"
-        echo "请选择要生成的助记词长度："
-        echo "  1. 12 个单词 (128位熵)"
-        echo "  2. 18 个单词 (192位熵)"
-        echo "  3. 24 个单词 (256位熵) - 推荐"
-        echo "  b. 返回主菜单"
-        echo "------------------------------"
-        read -r -p "请选择: " opt
+    echo "1=12词  2=18词  3=24词"
+    read -r -p "请选择: " opt
 
-        case "$opt" in
-            1) bits=128 ;;
-            2) bits=192 ;;
-            3) bits=256 ;;
-            b) return ;;
-            *) continue ;;
-        esac
+    case "$opt" in
+        1) bits=128 ;;
+        2) bits=192 ;;
+        3) bits=256 ;;
+        *) return ;;
+    esac
 
-        mnemonic=$(generate_mnemonic "$bits") || return
+    mnemonic=$(generate_mnemonic "$bits") || return
 
-        echo
-        echo "⚠️ 请在安全环境下抄写以下助记词（仅显示一次）："
-        echo
-        echo "$mnemonic"
-        echo
-        read -n1 -s -p "确认已抄写完成，按任意键继续..."
-        echo
+    echo
+    echo "⚠️ 请抄写助记词（仅显示一次）："
+    echo "$mnemonic"
+    read -n1 -s -p "已抄写，按任意键继续..."
 
-        read -s -p "请输入加密密码: " pass1
-        echo
-        read -s -p "再次确认密码: " pass2
-        echo
+    read -s -p "设置加密密码: " p1; echo
+    read -s -p "确认密码: " p2; echo
+    [[ "$p1" != "$p2" ]] && return
 
-        [[ "$pass1" != "$pass2" ]] && {
-            echo "密码不一致"
-            return
-        }
-
-        encrypted=$(encrypt_text "$mnemonic" "$pass1")
-
-        echo
-        echo "加密结果（文本）："
-        echo "$encrypted"
-        echo
-        echo "加密结果（二维码）："
-        print_qr "$encrypted"
-
-        echo
-        read -n1 -s -p "操作完成，按任意键返回主菜单..."
-        echo
-        return
-    done
+    echo
+    echo "加密结果："
+    encrypt_text "$mnemonic" "$p1"
+    echo
+    read -n1 -s -p "完成，按任意键返回..."
 }
 
 menu_encrypt_existing() {
-    echo
-    read -r -p "请输入已有助记词（空格分隔）: " mnemonic
-
-    read -s -p "请输入加密密码: " pass1
-    echo
-    read -s -p "再次确认密码: " pass2
-    echo
-
-    [[ "$pass1" != "$pass2" ]] && {
-        echo "密码不一致"
-        return
-    }
-
-    encrypted=$(encrypt_text "$mnemonic" "$pass1")
+    read -r -p "输入助记词: " mnemonic
+    read -s -p "设置密码: " p1; echo
+    read -s -p "确认密码: " p2; echo
+    [[ "$p1" != "$p2" ]] && return
 
     echo
-    echo "加密结果（文本）："
-    echo "$encrypted"
+    encrypt_text "$mnemonic" "$p1"
     echo
-    echo "加密结果（二维码）："
-    print_qr "$encrypted"
-
-    echo
-    read -n1 -s -p "操作完成，按任意键返回主菜单..."
-    echo
+    read -n1 -s -p "完成，按任意键返回..."
 }
 
 menu_decrypt() {
-    echo
-    read -r -p "请输入加密字符串: " encrypted
+    read -r -p "输入加密字符串(Base64 单行): " encrypted
+    encrypted=${encrypted//$'\n'/}
+    encrypted=${encrypted//$'\r'/}
 
-    read -s -p "请输入解密密码: " pass
-    echo
-
+    read -s -p "输入解密密码: " pass; echo
     decrypted=$(decrypt_text "$encrypted" "$pass")
 
     [[ -z "$decrypted" ]] && {
-        echo "解密失败（密码错误或数据损坏）"
+        echo "解密失败"
         return
     }
 
     echo
-    echo "解密结果（仅二维码显示）："
-    print_qr "$decrypted"
-
+    echo "解密结果："
+    echo "$decrypted"
     echo
-    read -n1 -s -p "操作完成，按任意键返回主菜单..."
-    echo
+    read -n1 -s -p "完成，按任意键返回..."
 }
 
 main_menu() {
     while true; do
-        echo "--------------------------------------------------"
-        echo "请选择操作:"
-        echo "  1. 生成新的 BIP39 助记词并加密"
-        echo "  2. 使用已有助记词进行加密"
-        echo "  3. 解密一段加密字符串"
-        echo "  q. 退出脚本"
-        echo "--------------------------------------------------"
-        read -r -p "请选择: " choice
+        echo "1. 生成并加密"
+        echo "2. 加密已有"
+        echo "3. 解密"
+        echo "q. 退出"
+        read -r -p "选择: " c
 
-        case "$choice" in
+        case "$c" in
             1) menu_generate_new ;;
             2) menu_encrypt_existing ;;
             3) menu_decrypt ;;
@@ -2368,5 +2245,6 @@ main_menu() {
         esac
     done
 }
+
 check_deps
 main_menu
