@@ -2223,7 +2223,15 @@ menu_generate_new() {
 menu_encrypt_existing() {
     title "加密已有助记词 / 文本"
 
-    read -r -p "请输入明文内容: " mnemonic
+    echo
+    echo "请输入要加密的内容（单行，可直接粘贴）："
+    IFS= read -r mnemonic || {
+        echo -e "${hong}输入被中断${nc}"
+        pause
+        return
+    }
+
+    echo
     read -s -p "设置加密密码: " p1; echo
     read -s -p "确认加密密码: " p2; echo
 
