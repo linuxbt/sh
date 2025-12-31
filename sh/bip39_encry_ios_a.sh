@@ -2128,44 +2128,11 @@ zero
 zone
 zoo
 )
-########################
-# iSH 环境检测
-########################
-IS_ISH=0
-if grep -qi "ish" /proc/version 2>/dev/null; then
-    IS_ISH=1
-fi
+############################
+# 第 2 部分：核心功能函数
+############################
 
-########################
-# QR 自适应输出（iSH 自动禁用）
-########################
-print_qr() {
-    local data="$1"
-
-    if [ "$IS_ISH" -eq 1 ]; then
-        echo -e "${huang}当前为 iSH 环境，二维码功能不可用，仅输出文本。${nc}"
-        return
-    fi
-
-    local cols scale
-    cols=$(tput cols 2>/dev/null || echo 80)
-
-    if [ "$cols" -ge 120 ]; then
-        scale=2
-    else
-        scale=1
-    fi
-
-    echo "$data" | qrencode -o - -t UTF8 -s "$scale"
-}
-
-########################
-# 生成随机熵
-########################
-gen_entropy() {
-    openssl rand $(( $1 / 8 ))
-}
-
+# HEX → BIN（跨平台，不依赖 xxd -b）
 hex_to_bin() {
     echo "$1" | tr -d '\n' | fold -w2 | awk '
     {
@@ -2178,10 +2145,13 @@ hex_to_bin() {
     }'
 }
 
+# 生成熵
+gen_entropy() {
+    local bits="$1"
+    openssl rand $((bits / 8))
+}
 
-########################
 # 生成 BIP39 助记词
-########################
 generate_mnemonic() {
     local bits="$1"
 
@@ -2220,117 +2190,156 @@ generate_mnemonic() {
     echo "${out% }"
 }
 
+# 输出 QR（自适应大小，iSH 无 qrencode 时用文本）
+print_qr() {
+    local data="$1"
 
-########################
-# 加密并输出（文本 + 可选 QR，不落盘）
-########################
-encrypt_and_output() {
-    local plaintext="$1"
-
-    local pass pass2
-    read -s -p "请输入加密密码: " pass; echo
-    read -s -p "再次确认密码: " pass2; echo
-
-    if [ "$pass" != "$pass2" ]; then
-        echo -e "${hong}密码不一致${nc}"
-        return
-    fi
-
-    local enc
-    enc=$(echo -n "$plaintext" | \
-        openssl enc -aes-256-gcm -pbkdf2 -iter 1000000 \
-        -salt -pass pass:"$pass" | base64)
-
-    echo -e "${lv}加密结果（文本）：${nc}"
-    echo "$enc"
-    echo
-
-    if [ "$IS_ISH" -eq 0 ]; then
-        echo -e "${lv}加密结果（二维码）：${nc}"
-        print_qr "$enc"
+    if command -v qrencode >/dev/null 2>&1; then
+        local len=${#data}
+        local size=6
+        (( len > 200 )) && size=5
+        (( len > 400 )) && size=4
+        qrencode -o - -t UTF8 -s "$size" "$data"
+    else
+        echo "[无法生成二维码，请复制以下内容]"
+        echo "$data"
     fi
 }
 
-########################
-# 菜单 1：生成新助记词并加密
-########################
+# AES-256-CBC + PBKDF2 加密
+encrypt_text() {
+    local plaintext="$1"
+    local password="$2"
+
+    echo -n "$plaintext" | openssl enc -aes-256-cbc \
+        -pbkdf2 \
+        -iter 200000 \
+        -salt \
+        -base64 \
+        -pass pass:"$password"
+}
+
+# 解密
+decrypt_text() {
+    local ciphertext="$1"
+    local password="$2"
+
+    echo "$ciphertext" | openssl enc -d -aes-256-cbc \
+        -pbkdf2 \
+        -iter 200000 \
+        -base64 \
+        -pass pass:"$password" 2>/dev/null
+}
+############################
+# 第 3 部分：菜单与流程
+############################
+
 menu_generate_new() {
     while true; do
         echo "------------------------------"
         echo "请选择要生成的助记词长度："
-        echo -e "  1. ${hui}12 个单词 (128位熵)"
-        echo -e "  2. ${lan}18 个单词 (192位熵)"
-        echo -e "  3. ${lv}24 个单词 (256位熵) - 推荐"
+        echo "  1. 12 个单词 (128位熵)"
+        echo "  2. 18 个单词 (192位熵)"
+        echo "  3. 24 个单词 (256位熵) - 推荐"
         echo "  b. 返回主菜单"
         echo "------------------------------"
-        read -r c
+        read -r -p "请选择: " opt
 
-        case "$c" in
-            1) m=$(generate_mnemonic 128); break ;;
-            2) m=$(generate_mnemonic 192); break ;;
-            3) m=$(generate_mnemonic 256); break ;;
+        case "$opt" in
+            1) bits=128 ;;
+            2) bits=192 ;;
+            3) bits=256 ;;
             b) return ;;
-            *) echo "无效选择" ;;
+            *) continue ;;
         esac
-    done
 
-    echo -e "${huang}生成的助记词：${nc}"
-    echo "$m"
+        mnemonic=$(generate_mnemonic "$bits") || return
+
+        echo
+        echo "⚠️ 请在安全环境下抄写以下助记词（仅显示一次）："
+        echo
+        echo "$mnemonic"
+        echo
+        read -n1 -s -p "确认已抄写完成，按任意键继续..."
+        echo
+
+        read -s -p "请输入加密密码: " pass1
+        echo
+        read -s -p "再次确认密码: " pass2
+        echo
+
+        [[ "$pass1" != "$pass2" ]] && {
+            echo "密码不一致"
+            return
+        }
+
+        encrypted=$(encrypt_text "$mnemonic" "$pass1")
+
+        echo
+        echo "加密结果（文本）："
+        echo "$encrypted"
+        echo
+        echo "加密结果（二维码）："
+        print_qr "$encrypted"
+
+        echo
+        read -n1 -s -p "操作完成，按任意键返回主菜单..."
+        echo
+        return
+    done
+}
+
+menu_encrypt_existing() {
+    echo
+    read -r -p "请输入已有助记词（空格分隔）: " mnemonic
+
+    read -s -p "请输入加密密码: " pass1
+    echo
+    read -s -p "再次确认密码: " pass2
     echo
 
-    encrypt_and_output "$m"
-}
-
-########################
-# 菜单 2：加密已有助记词
-########################
-menu_encrypt_existing() {
-    echo "请输入已有助记词（手动输入或粘贴）："
-    read -r mnemonic
-
-    local wc
-    wc=$(echo "$mnemonic" | wc -w)
-
-    case "$wc" in
-        12|18|24) ;;
-        *)
-            echo -e "${hong}助记词数量必须是 12 / 18 / 24${nc}"
-            return
-            ;;
-    esac
-
-    encrypt_and_output "$mnemonic"
-}
-########################
-# 菜单 3：解密（iSH 下不输出 QR）
-########################
-menu_decrypt() {
-    echo "请粘贴加密后的 Base64 字符串："
-    read -r enc_b64
-
-    local pass
-    read -s -p "请输入解密密码: " pass; echo
-
-    local plaintext
-    if ! plaintext=$(echo "$enc_b64" | base64 -d | \
-        openssl enc -d -aes-256-gcm -pbkdf2 -iter 1000000 \
-        -pass pass:"$pass"); then
-        echo -e "${hong}解密失败${nc}"
+    [[ "$pass1" != "$pass2" ]] && {
+        echo "密码不一致"
         return
-    fi
+    }
 
-    if [ "$IS_ISH" -eq 1 ]; then
-        echo -e "${lv}解密成功（文本）：${nc}"
-        echo "$plaintext"
-    else
-        echo -e "${lv}解密成功（二维码）：${nc}"
-        print_qr "$plaintext"
-    fi
+    encrypted=$(encrypt_text "$mnemonic" "$pass1")
+
+    echo
+    echo "加密结果（文本）："
+    echo "$encrypted"
+    echo
+    echo "加密结果（二维码）："
+    print_qr "$encrypted"
+
+    echo
+    read -n1 -s -p "操作完成，按任意键返回主菜单..."
+    echo
 }
 
-########################
-# 主菜单
-########################
+menu_decrypt() {
+    echo
+    read -r -p "请输入加密字符串: " encrypted
+
+    read -s -p "请输入解密密码: " pass
+    echo
+
+    decrypted=$(decrypt_text "$encrypted" "$pass")
+
+    [[ -z "$decrypted" ]] && {
+        echo "解密失败（密码错误或数据损坏）"
+        return
+    }
+
+    echo
+    echo "解密结果（仅二维码显示）："
+    print_qr "$decrypted"
+
+    echo
+    read -n1 -s -p "操作完成，按任意键返回主菜单..."
+    echo
+}
+
 main_menu() {
     while true; do
         echo "--------------------------------------------------"
@@ -2340,15 +2349,13 @@ main_menu() {
         echo "  3. 解密一段加密字符串"
         echo "  q. 退出脚本"
         echo "--------------------------------------------------"
-        read -r opt
+        read -r -p "请选择: " choice
 
-        case "$opt" in
+        case "$choice" in
             1) menu_generate_new ;;
             2) menu_encrypt_existing ;;
             3) menu_decrypt ;;
             q) exit 0 ;;
-            *) echo "无效选择" ;;
         esac
     done
 }
-main_menu
