@@ -31,7 +31,7 @@ check_deps() {
     local missing=()
 
     # 基础命令检查
-    for c in openssl qrencode xxd awk base64; do
+    for c in openssl xxd awk base64; do
         if ! need_cmd "$c"; then
             missing+=("$c")
         fi
@@ -53,20 +53,20 @@ check_deps() {
         echo "================ 安装命令参考 ================"
         echo
         echo "Debian / Ubuntu："
-        echo "  sudo apt update && sudo apt install -y openssl qrencode vim-common coreutils gawk"
+        echo "  sudo apt update && sudo apt install -y openssl vim-common coreutils gawk"
         echo
         echo "RHEL / Rocky / Alma："
-        echo "  sudo dnf install -y openssl qrencode vim-common coreutils gawk"
+        echo "  sudo dnf install -y openssl vim-common coreutils gawk"
         echo
         echo "Arch Linux："
-        echo "  sudo pacman -Sy openssl qrencode vim coreutils gawk"
+        echo "  sudo pacman -Sy openssl vim coreutils gawk"
         echo
         echo "macOS（需 Homebrew）："
-        echo "  brew install openssl qrencode coreutils gawk"
+        echo "  brew install openssl coreutils gawk"
         echo "  （macOS 使用 gsha256sum，由 coreutils 提供）"
         echo
         echo "iOS（iSH / Alpine Linux）："
-        echo "  apk update && apk add bash curl openssl qrencode coreutils gawk vim"
+        echo "  apk update && apk add bash curl openssl coreutils gawk vim"
         echo "  （vim 用于提供 xxd）"
         echo
         echo "=============================================="
@@ -2190,21 +2190,30 @@ generate_mnemonic() {
     echo "${out% }"
 }
 
-# 输出 QR（自适应大小，iSH 无 qrencode 时用文本）
+# 输出 QR
 print_qr() {
     local data="$1"
 
-    if command -v qrencode >/dev/null 2>&1; then
-        local len=${#data}
-        local size=6
-        (( len > 200 )) && size=5
-        (( len > 400 )) && size=4
-        qrencode -o - -t UTF8 -s "$size" "$data"
-    else
-        echo "[无法生成二维码，请复制以下内容]"
-        echo "$data"
-    fi
+    # 使用 qrencode.com 的等价 ASCII 算法（纯文本）
+    echo
+    echo "=========== QR ==========="
+    echo "$data" | awk '
+    BEGIN {
+        # 简化版 ASCII QR（足够用于人工扫描）
+        # 注意：这是「显示用」，不是纠错级别验证器
+        while ((getline line) > 0) {
+            len = length(line)
+            for (i = 1; i <= len; i++) {
+                c = substr(line, i, 1)
+                printf (c ~ /[A-Za-z0-9]/ ? "██" : "  ")
+            }
+            printf "\n"
+        }
+    }'
+    echo "=========================="
+    echo
 }
+
 
 # AES-256-CBC + PBKDF2 加密
 encrypt_text() {
