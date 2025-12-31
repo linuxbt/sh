@@ -2077,10 +2077,6 @@ zero
 zone
 zoo
 )
-############################
-# 第 2 部分：核心功能函数
-############################
-
 hex_to_bin() {
     echo "$1" | tr -d '\n' | fold -w2 | awk '
     {
@@ -2135,7 +2131,7 @@ decrypt_text() {
         -pass pass:"$2" 2>/dev/null
 }
 
-# 安全读取多行 Base64（iSH / 手机必备）
+# iSH / 手机安全：多行粘贴 Base64
 read_multiline_base64() {
     local line result=""
     echo "(可直接粘贴，多行也可以，空行结束)"
@@ -2147,20 +2143,18 @@ read_multiline_base64() {
     printf "%s" "$result"
 }
 
-# 更可靠的安全清屏（覆盖历史）
 secure_clear_screen() {
     printf "\033[2J\033[H"
     for _ in $(seq 1 80); do echo " "; done
     printf "\033[H"
 }
-############################
-# 第 3 部分：菜单与流程
-############################
 set +e
 
-# ===== 1. 极端安全：生成并加密（助记词不落屏）=====
+# ===== 1. 生成并加密（极端安全）=====
 menu_generate_secure() {
-    echo "1=12词  2=18词  3=24词"
+    echo "1 = 12 词"
+    echo "2 = 18 词"
+    echo "3 = 24 词"
     read -r -p "请选择: " opt
 
     case "$opt" in
@@ -2170,12 +2164,19 @@ menu_generate_secure() {
         *) return ;;
     esac
 
-    echo -e "${huang}⚠️ 助记词将不会显示在屏幕上${nc}"
-    mnemonic=$(generate_mnemonic "$bits") || return
+    echo -e "${huang}⚠️ 助记词不会显示在屏幕上${nc}"
+    mnemonic=$(generate_mnemonic "$bits") || {
+        echo "生成失败"
+        return
+    }
 
     read -s -p "设置加密密码: " p1; echo
     read -s -p "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && { unset mnemonic; return; }
+    [[ "$p1" != "$p2" ]] && {
+        unset mnemonic
+        echo "密码不一致"
+        return
+    }
 
     encrypted=$(encrypt_text "$mnemonic" "$p1")
     unset mnemonic p1 p2
@@ -2184,47 +2185,46 @@ menu_generate_secure() {
 
     echo -e "${lv}✅ 已生成并加密成功${nc}"
     echo
-    echo "【加密字符串】（单行 Base64）："
+    echo "【加密字符串（单行 Base64）】"
+    echo
     echo "$encrypted"
     echo
     read -n1 -s -p "按任意键返回主菜单..."
-    echo   # 清 stdin
+    echo
 }
 
 # ===== 2. 加密已有助记词 =====
 menu_encrypt_existing() {
-    echo -e "${huang}⚠️ 输入明文助记词，请确认环境安全${nc}"
+    echo -e "${huang}⚠️ 将输入明文助记词，请确认环境安全${nc}"
     read -r -p "请输入助记词（单行）: " mnemonic
 
     read -s -p "设置加密密码: " p1; echo
     read -s -p "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && { unset mnemonic; return; }
+    [[ "$p1" != "$p2" ]] && {
+        unset mnemonic
+        echo "密码不一致"
+        return
+    }
 
     encrypted=$(encrypt_text "$mnemonic" "$p1")
     unset mnemonic p1 p2
 
     secure_clear_screen
-    echo "【加密结果】："
+    echo "【加密结果】"
+    echo
     echo "$encrypted"
     echo
-    read -n1 -s -p "按任意键返回..."
+    read -n1 -s -p "按任意键返回主菜单..."
     echo
 }
 
-# ===== 3. 解密（彻底解决溢出）=====
+# ===== 3. 解密（防溢出，iSH 稳定）=====
 menu_decrypt() {
-    echo
-    echo "请粘贴加密字符串（可多行，空行结束）："
     encrypted=$(read_multiline_base64)
 
-    # 清理所有不可见字符
     encrypted=${encrypted//$'\n'/}
     encrypted=${encrypted//$'\r'/}
     encrypted=${encrypted// /}
-
-    echo
-    read -n1 -s -p "已接收加密数据，按任意键继续输入密码..."
-    echo
 
     read -s -p "输入解密密码: " pass
     echo
@@ -2233,40 +2233,18 @@ menu_decrypt() {
 
     if [[ -z "$decrypted" ]]; then
         echo "❌ 解密失败（密码错误或数据损坏）"
-        read -n1 -s -p "按任意键返回..."
+        read -n1 -s -p "按任意键返回主菜单..."
         echo
         return
     fi
 
-    secure_clear_screen
+    echo
     echo "✅ 解密结果："
     echo
     echo "$decrypted"
     echo
-    read -n1 -s -p "完成，按任意键返回..."
+    read -n1 -s -p "按任意键返回主菜单..."
     echo
-}
-
-
-main_menu() {
-    while true; do
-        echo
-        echo "=============================="
-        echo " BIP39 助记词安全管理器"
-        echo "=============================="
-        echo "1. 生成并加密（极端安全）"
-        echo "2. 加密已有助记词"
-        echo "3. 解密"
-        echo "q. 退出"
-        read -r -p "选择: " c
-
-        case "$c" in
-            1) menu_generate_secure ;;
-            2) menu_encrypt_existing ;;
-            3) menu_decrypt ;;
-            q) exit 0 ;;
-        esac
-    done
 }
 
 check_deps
