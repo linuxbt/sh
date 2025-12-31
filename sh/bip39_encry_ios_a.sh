@@ -2127,7 +2127,7 @@ encrypt_text() {
 decrypt_text() {
     printf "%s" "$1" | openssl enc -d -aes-256-cbc \
         -pbkdf2 -iter 200000 \
-        -base64 \
+        -base64 -A \
         -pass pass:"$2" 2>/dev/null
 }
 
