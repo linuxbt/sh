@@ -3098,7 +3098,7 @@ bip39_manage() {
       echo "1. 安卓 | Termux 版本"
       echo "2. 苹果 | iSH 版本 -- 请先安装curl和bash"
       echo "苹果 iSH 环境必备依赖 -- 安装命令如下: "
-      echo "apk add curl bash openssl python3 coreutils"
+      # echo "apk add curl bash openssl python3 coreutils"
 	  echo "apk add curl bash openssl coreutils gawk vim"
       echo "------------------------"
       echo "0. 返回主菜单"
