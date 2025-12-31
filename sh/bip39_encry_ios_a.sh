@@ -2189,7 +2189,7 @@ generate_mnemonic() {
     entropy_hex=$(gen_entropy "$bits" | xxd -p | tr -d '\n')
 
     local hash_hex
-    hash_hex=$(echo "$entropy_hex" | xxd -r -p | $SHA256_CMD | awk '{print $1}')
+    hash_hex=$(echo "$entropy_hex" | xxd -r -p | $SHA256_CMD | awk '{print $NF}')
 
     local cs_bits=$((bits / 32))
 
@@ -2201,11 +2201,16 @@ generate_mnemonic() {
 
     local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
 
-    # 必须检查 full_bin
     [[ "$full_bin" =~ ^[01]+$ ]] || {
         echo "错误：生成的二进制数据非法"
         return 1
     }
+
+    (( ${#full_bin} % 11 == 0 )) || {
+        echo "错误：二进制长度异常"
+        return 1
+    }
+
     local out="" idx
     for ((i=0; i<${#full_bin}; i+=11)); do
         idx=$((2#${full_bin:i:11}))
@@ -2214,6 +2219,7 @@ generate_mnemonic() {
 
     echo "${out% }"
 }
+
 
 ########################
 # 加密并输出（文本 + 可选 QR，不落盘）
