@@ -2077,6 +2077,10 @@ zero
 zone
 zoo
 )
+############################
+# 第 2 部分：核心功能函数
+############################
+
 hex_to_bin() {
     echo "$1" | tr -d '\n' | fold -w2 | awk '
     {
@@ -2095,8 +2099,8 @@ gen_entropy() {
 
 generate_mnemonic() {
     local bits="$1"
-
     local entropy_hex hash_hex entropy_bin hash_bin cs_bits full_bin
+
     entropy_hex=$(gen_entropy "$bits" | xxd -p | tr -d '\n')
     hash_hex=$(echo "$entropy_hex" | xxd -r -p | $SHA256_CMD | awk '{print $NF}')
     cs_bits=$((bits / 32))
@@ -2118,39 +2122,43 @@ generate_mnemonic() {
 }
 
 encrypt_text() {
-    echo -n "$1" | openssl enc -aes-256-cbc \
+    printf "%s" "$1" | openssl enc -aes-256-cbc \
         -pbkdf2 -iter 200000 -salt \
         -base64 -A \
         -pass pass:"$2"
 }
 
 decrypt_text() {
-    echo "$1" | openssl enc -d -aes-256-cbc \
+    printf "%s" "$1" | openssl enc -d -aes-256-cbc \
         -pbkdf2 -iter 200000 \
         -base64 \
         -pass pass:"$2" 2>/dev/null
 }
 
+# 安全读取多行 Base64（iSH / 手机必备）
 read_multiline_base64() {
     local line result=""
-    echo "(可直接粘贴，空行结束输入)"
+    echo "(可直接粘贴，多行也可以，空行结束)"
     while true; do
         IFS= read -r line || break
         [[ -z "$line" ]] && break
         result+="$line"
     done
-    echo "$result"
+    printf "%s" "$result"
 }
 
-
+# 更可靠的安全清屏（覆盖历史）
 secure_clear_screen() {
-    clear
     printf "\033[2J\033[H"
-    for _ in {1..40}; do echo " "; done
+    for _ in $(seq 1 80); do echo " "; done
+    printf "\033[H"
 }
+############################
+# 第 3 部分：菜单与流程
+############################
 set +e
 
-# ===== 1. 极端安全：生成并加密（不显示助记词）=====
+# ===== 1. 极端安全：生成并加密（助记词不落屏）=====
 menu_generate_secure() {
     echo "1=12词  2=18词  3=24词"
     read -r -p "请选择: " opt
@@ -2163,12 +2171,7 @@ menu_generate_secure() {
     esac
 
     echo -e "${huang}⚠️ 助记词将不会显示在屏幕上${nc}"
-    echo -e "${hui}正在生成并立即加密...${nc}"
-
-    mnemonic=$(generate_mnemonic "$bits") || {
-        echo -e "${hong}生成失败${nc}"
-        return
-    }
+    mnemonic=$(generate_mnemonic "$bits") || return
 
     read -s -p "设置加密密码: " p1; echo
     read -s -p "确认密码: " p2; echo
@@ -2179,18 +2182,18 @@ menu_generate_secure() {
 
     secure_clear_screen
 
-    echo -e "${lv}✅ 助记词已生成并加密成功${nc}"
+    echo -e "${lv}✅ 已生成并加密成功${nc}"
     echo
-    echo "请妥善保存以下【加密字符串】："
-    echo
+    echo "【加密字符串】（单行 Base64）："
     echo "$encrypted"
     echo
     read -n1 -s -p "按任意键返回主菜单..."
+    read -r _   # 清 stdin
 }
 
-# ===== 2. 加密已有助记词（用户自担明文风险）=====
+# ===== 2. 加密已有助记词 =====
 menu_encrypt_existing() {
-    echo -e "${huang}⚠️ 即将输入明文助记词，请确保环境安全${nc}"
+    echo -e "${huang}⚠️ 输入明文助记词，请确认环境安全${nc}"
     read -r -p "请输入助记词（单行）: " mnemonic
 
     read -s -p "设置加密密码: " p1; echo
@@ -2201,40 +2204,39 @@ menu_encrypt_existing() {
     unset mnemonic p1 p2
 
     secure_clear_screen
-    echo "加密结果："
+    echo "【加密结果】："
     echo "$encrypted"
     echo
     read -n1 -s -p "按任意键返回..."
+    read -r _
 }
 
-# ===== 3. 解密（安全标准动作）=====
+# ===== 3. 解密（彻底解决溢出）=====
 menu_decrypt() {
-    echo -e "${huang}⚠️ 解密后助记词仅显示一次${nc}"
-    echo "请输入加密字符串："
     encrypted=$(read_multiline_base64)
 
+    encrypted=${encrypted//$'\n'/}
     encrypted=${encrypted//$'\r'/}
+    encrypted=${encrypted// /}
 
-    read -s -p "请输入解密密码: " pass; echo
+    read -s -p "输入解密密码: " pass; echo
+
     decrypted=$(decrypt_text "$encrypted" "$pass")
-    unset pass
 
-    [[ -z "$decrypted" ]] && {
-        echo -e "${hong}解密失败（可能是密码错误或粘贴不完整）${nc}"
+    if [[ -z "$decrypted" ]]; then
+        echo "❌ 解密失败（密码错误或数据损坏）"
+        read -n1 -s -p "按任意键返回..."
+        read -r _
         return
-    }
+    fi
 
     echo
-    echo -e "${lv}解密结果（仅此一次）：${nc}"
-    echo
+    echo "✅ 解密结果："
     echo "$decrypted"
     echo
-    read -n1 -s -p "已确认，按任意键立即清屏..."
-
-    unset decrypted encrypted
-    secure_clear_screen
+    read -n1 -s -p "完成，按任意键返回..."
+    read -r _
 }
-
 
 main_menu() {
     while true; do
@@ -2256,6 +2258,3 @@ main_menu() {
         esac
     done
 }
-
-check_deps
-main_menu
