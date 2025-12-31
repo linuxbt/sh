@@ -2194,45 +2194,35 @@ menu_generate_secure() {
 
 # ===== 2. 加密已有助记词 =====
 menu_encrypt_existing() {
-    echo -e "${huang}⚠️ 将输入明文助记词，请确认环境安全${nc}"
+    echo -e "${huang}⚠️ 即将输入明文助记词，请确保环境安全${nc}"
     read -r -p "请输入助记词（单行）: " mnemonic
 
     read -s -p "设置加密密码: " p1; echo
     read -s -p "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && {
-        unset mnemonic
-        echo "密码不一致"
-        return
-    }
+    [[ "$p1" != "$p2" ]] && { unset mnemonic; return; }
 
     encrypted=$(encrypt_text "$mnemonic" "$p1")
     unset mnemonic p1 p2
 
     secure_clear_screen
-    echo "【加密结果】"
+    echo "加密结果（单行 Base64）："
     echo
     echo "$encrypted"
     echo
-    read -n1 -s -p "按任意键返回主菜单..."
-    echo
+    read -n1 -s -p "按任意键返回..."
+    read -r _
 }
+
 
 # ===== 3. 解密（防溢出，iSH 稳定）=====
 menu_decrypt() {
     echo
-    echo "解密模式："
-    echo "1. 粘贴 Base64 加密字符串"
-    echo "b. 返回主菜单"
-    read -r -p "请选择: " opt
-
-    case "$opt" in
-        1) ;;
-        b|B) return ;;
-        *) echo "无效选择"; sleep 1; return ;;
-    esac
-
+    echo "解密模式说明："
+    echo "- 请输入【单行】Base64 加密字符串"
+    echo "- 不支持多行 / Ctrl-D / 空行结束"
     echo
-    encrypted=$(read_multiline_base64)
+
+    read -r -p "请粘贴 Base64 加密字符串: " encrypted
 
     # 防御性清洗
     encrypted=${encrypted//$'\n'/}
@@ -2240,7 +2230,7 @@ menu_decrypt() {
     encrypted=${encrypted// /}
 
     if [[ -z "$encrypted" ]]; then
-        echo "❌ 未读取到任何数据"
+        echo "❌ 输入为空"
         read -n1 -s -p "按任意键返回..."
         read -r _
         return
@@ -2265,6 +2255,7 @@ menu_decrypt() {
     read -n1 -s -p "完成，按任意键返回..."
     read -r _
 }
+
 
 
 main_menu() {
