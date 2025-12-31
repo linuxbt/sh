@@ -2247,5 +2247,28 @@ menu_decrypt() {
     echo
 }
 
+main_menu() {
+    while true; do
+        clear
+        echo "=============================="
+        echo " BIP39 助记词安全管理器"
+        echo "=============================="
+        echo "1. 生成并加密（极端安全）"
+        echo "2. 加密已有助记词"
+        echo "3. 解密"
+        echo "q. 退出"
+        echo
+        read -r -p "请选择: " c
+
+        case "$c" in
+            1) menu_generate_secure ;;
+            2) menu_encrypt_existing ;;
+            3) menu_decrypt ;;
+            q) exit 0 ;;
+            *) echo "无效选择"; sleep 1 ;;
+        esac
+    done
+}
+
 check_deps
 main_menu
