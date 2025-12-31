@@ -11,6 +11,22 @@ hong="\033[0;31m"
 huang="\033[0;33m"
 nc="\033[0m"
 
+line() {
+    echo -e "${hui}--------------------------------------------------${nc}"
+}
+
+title() {
+    line
+    echo -e "${lan}$1${nc}"
+    line
+}
+
+pause() {
+    echo
+    read -n1 -s -p "按任意键继续..."
+    echo
+}
+
 ########################
 # 依赖检查（macOS / Linux / iSH）
 ########################
@@ -38,7 +54,7 @@ check_deps() {
     fi
 
     if [ "${#missing[@]}" -ne 0 ]; then
-        echo "缺少依赖："
+        echo -e "${hong}缺少依赖：${nc}"
         printf '  - %s\n' "${missing[@]}"
         exit 1
     fi
@@ -2098,10 +2114,6 @@ zero
 zone
 zoo
 )
-############################
-# 第 2 部分：核心功能函数
-############################
-
 hex_to_bin() {
     echo "$1" | tr -d '\n' | fold -w2 | awk '
     {
@@ -2115,8 +2127,7 @@ hex_to_bin() {
 }
 
 gen_entropy() {
-    local bits="$1"
-    openssl rand $((bits / 8))
+    openssl rand $(( $1 / 8 ))
 }
 
 generate_mnemonic() {
@@ -2129,11 +2140,9 @@ generate_mnemonic() {
     hash_hex=$(echo "$entropy_hex" | xxd -r -p | $SHA256_CMD | awk '{print $NF}')
 
     local cs_bits=$((bits / 32))
+    local entropy_bin hash_bin
 
-    local entropy_bin
     entropy_bin=$(hex_to_bin "$entropy_hex")
-
-    local hash_bin
     hash_bin=$(hex_to_bin "$hash_hex")
 
     local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
@@ -2163,13 +2172,15 @@ decrypt_text() {
         -base64 \
         -pass pass:"$2" 2>/dev/null
 }
-############################
-# 第 3 部分：菜单与流程
-############################
 set +e
 
 menu_generate_new() {
-    echo "1=12词  2=18词  3=24词"
+    title "生成新的 BIP39 助记词"
+
+    echo "  1. 12 个单词（128 位熵）"
+    echo "  2. 18 个单词（192 位熵）"
+    echo "  3. 24 个单词（256 位熵，推荐）"
+    echo
     read -r -p "请选择: " opt
 
     case "$opt" in
@@ -2179,63 +2190,88 @@ menu_generate_new() {
         *) return ;;
     esac
 
-    mnemonic=$(generate_mnemonic "$bits") || return
-
-    echo
-    echo "⚠️ 请抄写助记词（仅显示一次）："
-    echo "$mnemonic"
-    read -n1 -s -p "已抄写，按任意键继续..."
-
-    read -s -p "设置加密密码: " p1; echo
-    read -s -p "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && return
-
-    echo
-    echo "加密结果："
-    encrypt_text "$mnemonic" "$p1"
-    echo
-    read -n1 -s -p "完成，按任意键返回..."
-}
-
-menu_encrypt_existing() {
-    read -r -p "输入助记词: " mnemonic
-    read -s -p "设置密码: " p1; echo
-    read -s -p "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && return
-
-    echo
-    encrypt_text "$mnemonic" "$p1"
-    echo
-    read -n1 -s -p "完成，按任意键返回..."
-}
-
-menu_decrypt() {
-    read -r -p "输入加密字符串(Base64 单行): " encrypted
-    encrypted=${encrypted//$'\n'/}
-    encrypted=${encrypted//$'\r'/}
-
-    read -s -p "输入解密密码: " pass; echo
-    decrypted=$(decrypt_text "$encrypted" "$pass")
-
-    [[ -z "$decrypted" ]] && {
-        echo "解密失败"
+    mnemonic=$(generate_mnemonic "$bits") || {
+        echo -e "${hong}生成失败${nc}"
+        pause
         return
     }
 
+    line
+    echo -e "${huang}⚠️ 助记词仅显示一次，请离线抄写${nc}"
     echo
-    echo "解密结果："
+    echo -e "${lv}$mnemonic${nc}"
+    line
+    pause
+
+    echo -e "${hui}提示：密码无法找回，请牢记${nc}"
+    read -s -p "设置加密密码: " p1; echo
+    read -s -p "确认加密密码: " p2; echo
+
+    [[ "$p1" != "$p2" ]] && {
+        echo -e "${hong}密码不一致${nc}"
+        pause
+        return
+    }
+
+    encrypted=$(encrypt_text "$mnemonic" "$p1")
+
+    title "加密完成"
+    echo "$encrypted"
+    pause
+}
+
+menu_encrypt_existing() {
+    title "加密已有助记词 / 文本"
+
+    read -r -p "请输入明文内容: " mnemonic
+    read -s -p "设置加密密码: " p1; echo
+    read -s -p "确认加密密码: " p2; echo
+
+    [[ "$p1" != "$p2" ]] && {
+        echo -e "${hong}密码不一致${nc}"
+        pause
+        return
+    }
+
+    encrypted=$(encrypt_text "$mnemonic" "$p1")
+
+    title "加密完成"
+    echo "$encrypted"
+    pause
+}
+
+menu_decrypt() {
+    title "解密数据"
+
+    read -r -p "请输入 Base64 加密字符串（单行）: " encrypted
+    encrypted=${encrypted//$'\n'/}
+    encrypted=${encrypted//$'\r'/}
+
+    read -s -p "请输入解密密码: " pass; echo
+
+    decrypted=$(decrypt_text "$encrypted" "$pass")
+
+    [[ -z "$decrypted" ]] && {
+        echo -e "${hong}解密失败：密码错误或数据损坏${nc}"
+        pause
+        return
+    }
+
+    title "解密结果（请妥善保管）"
     echo "$decrypted"
-    echo
-    read -n1 -s -p "完成，按任意键返回..."
+    pause
 }
 
 main_menu() {
     while true; do
-        echo "1. 生成并加密"
-        echo "2. 加密已有"
-        echo "3. 解密"
-        echo "q. 退出"
-        read -r -p "选择: " c
+        title "BIP39 助记词加密工具（iSH 兼容）"
+
+        echo "  1. 生成新的助记词并加密"
+        echo "  2. 加密已有助记词 / 文本"
+        echo "  3. 解密数据"
+        echo "  q. 退出"
+        echo
+        read -r -p "请选择: " c
 
         case "$c" in
             1) menu_generate_new ;;
