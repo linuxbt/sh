@@ -2134,14 +2134,13 @@ decrypt_text() {
 # iSH / 手机安全：多行粘贴 Base64
 read_multiline_base64() {
     local line result=""
-    echo "(可直接粘贴，多行也可以，空行结束)"
-    while true; do
-        IFS= read -r line || break
-        [[ -z "$line" ]] && break
+    echo "(粘贴完成后按 Ctrl-D 结束输入)"
+    while IFS= read -r line; do
         result+="$line"
     done
     printf "%s" "$result"
 }
+
 
 secure_clear_screen() {
     printf "\033[2J\033[H"
@@ -2227,20 +2226,12 @@ menu_decrypt() {
     read -r -p "请选择: " opt
 
     case "$opt" in
-        1)
-            ;;
-        b|B)
-            return
-            ;;
-        *)
-            echo "无效选择"
-            sleep 1
-            return
-            ;;
+        1) ;;
+        b|B) return ;;
+        *) echo "无效选择"; sleep 1; return ;;
     esac
 
     echo
-    echo "请粘贴 Base64 加密字符串（可多行，空行结束）："
     encrypted=$(read_multiline_base64)
 
     # 防御性清洗
@@ -2249,7 +2240,7 @@ menu_decrypt() {
     encrypted=${encrypted// /}
 
     if [[ -z "$encrypted" ]]; then
-        echo "❌ 未输入任何数据"
+        echo "❌ 未读取到任何数据"
         read -n1 -s -p "按任意键返回..."
         read -r _
         return
@@ -2274,6 +2265,7 @@ menu_decrypt() {
     read -n1 -s -p "完成，按任意键返回..."
     read -r _
 }
+
 
 main_menu() {
     while true; do
