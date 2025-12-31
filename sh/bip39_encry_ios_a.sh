@@ -2220,11 +2220,40 @@ menu_encrypt_existing() {
 
 # ===== 3. 解密（防溢出，iSH 稳定）=====
 menu_decrypt() {
+    echo
+    echo "解密模式："
+    echo "1. 粘贴 Base64 加密字符串"
+    echo "b. 返回主菜单"
+    read -r -p "请选择: " opt
+
+    case "$opt" in
+        1)
+            ;;
+        b|B)
+            return
+            ;;
+        *)
+            echo "无效选择"
+            sleep 1
+            return
+            ;;
+    esac
+
+    echo
+    echo "请粘贴 Base64 加密字符串（可多行，空行结束）："
     encrypted=$(read_multiline_base64)
 
+    # 防御性清洗
     encrypted=${encrypted//$'\n'/}
     encrypted=${encrypted//$'\r'/}
     encrypted=${encrypted// /}
+
+    if [[ -z "$encrypted" ]]; then
+        echo "❌ 未输入任何数据"
+        read -n1 -s -p "按任意键返回..."
+        read -r _
+        return
+    fi
 
     read -s -p "输入解密密码: " pass
     echo
@@ -2233,18 +2262,17 @@ menu_decrypt() {
 
     if [[ -z "$decrypted" ]]; then
         echo "❌ 解密失败（密码错误或数据损坏）"
-        read -n1 -s -p "按任意键返回主菜单..."
-        echo
+        read -n1 -s -p "按任意键返回..."
+        read -r _
         return
     fi
 
     echo
     echo "✅ 解密结果："
-    echo
     echo "$decrypted"
     echo
-    read -n1 -s -p "按任意键返回主菜单..."
-    echo
+    read -n1 -s -p "完成，按任意键返回..."
+    read -r _
 }
 
 main_menu() {
@@ -2269,6 +2297,7 @@ main_menu() {
         esac
     done
 }
+
 
 check_deps
 main_menu
