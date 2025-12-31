@@ -2219,7 +2219,7 @@ menu_generate_secure() {
 menu_encrypt_existing() {
     print_title
 
-    warn_box "即将输入【明文助记词】\n回车后将立即清屏以防偷窥或截屏\n请确保环境安全"
+    warn_box "请手输【助记词】\n回车后将立即清屏以防偷窥或截屏\n请确保环境安全"
 
     read -r -p "请输入助记词（单行）: " mnemonic
 
