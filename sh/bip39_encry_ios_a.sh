@@ -2181,10 +2181,10 @@ generate_mnemonic() {
     local cs_bits=$((bits / 32))
 
     local entropy_bin
-    entropy_bin=$(echo "$entropy_hex" | xxd -r -p | xxd -b | tr -d ' \n')
+    entropy_bin=$(echo "$entropy_hex" | xxd -r -p | xxd -b | awk '{for(i=2;i<=NF;i++)printf "%s",$i}')
 
     local hash_bin
-    hash_bin=$(echo "$hash_hex" | xxd -r -p | xxd -b | tr -d ' \n')
+    hash_bin=$(echo "$hash_hex" | xxd -r -p | xxd -b | awk '{for(i=2;i<=NF;i++)printf "%s",$i}')
 
     local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
 
