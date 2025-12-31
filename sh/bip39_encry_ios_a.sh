@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-########################
-# 颜色
-########################
+# ===== 颜色 =====
 hui="\033[0;37m"
 lan="\033[0;34m"
 lv="\033[0;32m"
@@ -11,59 +9,24 @@ hong="\033[0;31m"
 huang="\033[0;33m"
 nc="\033[0m"
 
-line() {
-    echo -e "${hui}--------------------------------------------------${nc}"
-}
-
-title() {
-    line
-    echo -e "${lan}$1${nc}"
-    line
-}
-
-pause() {
-    echo
-    read -n1 -s -p "按任意键继续..."
-    echo
-}
-
-########################
-# 依赖检查（macOS / Linux / iSH）
-########################
-
+# ===== SHA256 兼容 =====
 SHA256_CMD="sha256sum"
-if ! command -v sha256sum >/dev/null 2>&1; then
-    if command -v gsha256sum >/dev/null 2>&1; then
-        SHA256_CMD="gsha256sum"
-    fi
-fi
-
-need_cmd() {
-    command -v "$1" >/dev/null 2>&1
+command -v sha256sum >/dev/null 2>&1 || {
+    command -v gsha256sum >/dev/null 2>&1 && SHA256_CMD="gsha256sum"
 }
 
+# ===== 依赖检查 =====
 check_deps() {
-    local missing=()
-
     for c in openssl xxd awk base64; do
-        need_cmd "$c" || missing+=("$c")
+        command -v "$c" >/dev/null 2>&1 || {
+            echo -e "${hong}缺少依赖：$c${nc}"
+            exit 1
+        }
     done
-
-    if ! command -v sha256sum >/dev/null 2>&1 && ! command -v gsha256sum >/dev/null 2>&1; then
-        missing+=("sha256sum / gsha256sum")
-    fi
-
-    if [ "${#missing[@]}" -ne 0 ]; then
-        echo -e "${hong}缺少依赖：${nc}"
-        printf '  - %s\n' "${missing[@]}"
-        exit 1
-    fi
 }
 
-########################
-# BIP39 英文词表（示例）
+# ===== BIP39 英文词表（示例）=====
 # ⚠️ 实际使用请替换为完整 2048 个
-########################
 BIP39_WORDS=(
 abandon
 ability
@@ -2133,19 +2096,14 @@ gen_entropy() {
 generate_mnemonic() {
     local bits="$1"
 
-    local entropy_hex
+    local entropy_hex hash_hex entropy_bin hash_bin cs_bits full_bin
     entropy_hex=$(gen_entropy "$bits" | xxd -p | tr -d '\n')
-
-    local hash_hex
     hash_hex=$(echo "$entropy_hex" | xxd -r -p | $SHA256_CMD | awk '{print $NF}')
-
-    local cs_bits=$((bits / 32))
-    local entropy_bin hash_bin
+    cs_bits=$((bits / 32))
 
     entropy_bin=$(hex_to_bin "$entropy_hex")
     hash_bin=$(hex_to_bin "$hash_hex")
-
-    local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
+    full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
 
     [[ "$full_bin" =~ ^[01]+$ ]] || return 1
     (( ${#full_bin} % 11 == 0 )) || return 1
@@ -2172,15 +2130,17 @@ decrypt_text() {
         -base64 \
         -pass pass:"$2" 2>/dev/null
 }
+
+secure_clear_screen() {
+    clear
+    printf "\033[2J\033[H"
+    for _ in {1..40}; do echo " "; done
+}
 set +e
 
-menu_generate_new() {
-    title "生成新的 BIP39 助记词"
-
-    echo "  1. 12 个单词（128 位熵）"
-    echo "  2. 18 个单词（192 位熵）"
-    echo "  3. 24 个单词（256 位熵，推荐）"
-    echo
+# ===== 1. 极端安全：生成并加密（不显示助记词）=====
+menu_generate_secure() {
+    echo "1=12词  2=18词  3=24词"
     read -r -p "请选择: " opt
 
     case "$opt" in
@@ -2190,99 +2150,92 @@ menu_generate_new() {
         *) return ;;
     esac
 
+    echo -e "${huang}⚠️ 助记词将不会显示在屏幕上${nc}"
+    echo -e "${hui}正在生成并立即加密...${nc}"
+
     mnemonic=$(generate_mnemonic "$bits") || {
         echo -e "${hong}生成失败${nc}"
-        pause
         return
     }
 
-    line
-    echo -e "${huang}⚠️ 助记词仅显示一次，请离线抄写${nc}"
-    echo
-    echo -e "${lv}$mnemonic${nc}"
-    line
-    pause
-
-    echo -e "${hui}提示：密码无法找回，请牢记${nc}"
     read -s -p "设置加密密码: " p1; echo
-    read -s -p "确认加密密码: " p2; echo
-
-    [[ "$p1" != "$p2" ]] && {
-        echo -e "${hong}密码不一致${nc}"
-        pause
-        return
-    }
+    read -s -p "确认密码: " p2; echo
+    [[ "$p1" != "$p2" ]] && { unset mnemonic; return; }
 
     encrypted=$(encrypt_text "$mnemonic" "$p1")
+    unset mnemonic p1 p2
 
-    title "加密完成"
+    secure_clear_screen
+
+    echo -e "${lv}✅ 助记词已生成并加密成功${nc}"
+    echo
+    echo "请妥善保存以下【加密字符串】："
+    echo
     echo "$encrypted"
-    pause
+    echo
+    read -n1 -s -p "按任意键返回主菜单..."
 }
 
+# ===== 2. 加密已有助记词（用户自担明文风险）=====
 menu_encrypt_existing() {
-    title "加密已有助记词 / 文本"
+    echo -e "${huang}⚠️ 即将输入明文助记词，请确保环境安全${nc}"
+    read -r -p "请输入助记词（单行）: " mnemonic
 
-    echo
-    echo "请输入要加密的内容（单行，可直接粘贴）："
-    IFS= read -r mnemonic || {
-        echo -e "${hong}输入被中断${nc}"
-        pause
-        return
-    }
-
-    echo
     read -s -p "设置加密密码: " p1; echo
-    read -s -p "确认加密密码: " p2; echo
-
-    [[ "$p1" != "$p2" ]] && {
-        echo -e "${hong}密码不一致${nc}"
-        pause
-        return
-    }
+    read -s -p "确认密码: " p2; echo
+    [[ "$p1" != "$p2" ]] && { unset mnemonic; return; }
 
     encrypted=$(encrypt_text "$mnemonic" "$p1")
+    unset mnemonic p1 p2
 
-    title "加密完成"
+    secure_clear_screen
+    echo "加密结果："
     echo "$encrypted"
-    pause
+    echo
+    read -n1 -s -p "按任意键返回..."
 }
 
+# ===== 3. 解密（安全标准动作）=====
 menu_decrypt() {
-    title "解密数据"
-
-    read -r -p "请输入 Base64 加密字符串（单行）: " encrypted
+    echo -e "${huang}⚠️ 解密后助记词仅显示一次${nc}"
+    read -r -p "请输入加密字符串(Base64): " encrypted
     encrypted=${encrypted//$'\n'/}
     encrypted=${encrypted//$'\r'/}
 
     read -s -p "请输入解密密码: " pass; echo
-
     decrypted=$(decrypt_text "$encrypted" "$pass")
+    unset pass
 
     [[ -z "$decrypted" ]] && {
-        echo -e "${hong}解密失败：密码错误或数据损坏${nc}"
-        pause
+        echo -e "${hong}解密失败${nc}"
         return
     }
 
-    title "解密结果（请妥善保管）"
+    echo
+    echo -e "${lv}解密结果（仅此一次）：${nc}"
+    echo
     echo "$decrypted"
-    pause
+    echo
+    read -n1 -s -p "已确认，按任意键立即清屏..."
+
+    unset decrypted
+    secure_clear_screen
 }
 
 main_menu() {
     while true; do
-        title "BIP39 助记词加密工具（iSH 兼容）"
-
-        echo "  1. 生成新的助记词并加密"
-        echo "  2. 加密已有助记词 / 文本"
-        echo "  3. 解密数据"
-        echo "  q. 退出"
         echo
-        read -r -p "请选择: " c
+        echo "=============================="
+        echo " BIP39 助记词安全管理器"
+        echo "=============================="
+        echo "1. 生成并加密（极端安全）"
+        echo "2. 加密已有助记词"
+        echo "3. 解密"
+        echo "q. 退出"
+        read -r -p "选择: " c
 
         case "$c" in
-            1) menu_generate_new ;;
+            1) menu_generate_secure ;;
             2) menu_encrypt_existing ;;
             3) menu_decrypt ;;
             q) exit 0 ;;
