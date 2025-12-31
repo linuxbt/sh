@@ -3099,6 +3099,7 @@ bip39_manage() {
       echo "2. 苹果 | iSH 版本 -- 请先安装curl和bash"
       echo "苹果 iSH 环境必备依赖 -- 安装命令如下: "
       echo "apk add curl bash openssl python3 coreutils"
+	  echo "apk add curl bash openssl qrencode coreutils gawk vim"
       echo "------------------------"
       echo "0. 返回主菜单"
       echo "q. 退出"      
