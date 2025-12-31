@@ -2188,7 +2188,7 @@ menu_generate_secure() {
     echo "$encrypted"
     echo
     read -n1 -s -p "按任意键返回主菜单..."
-    read -r _   # 清 stdin
+    echo   # 清 stdin
 }
 
 # ===== 2. 加密已有助记词 =====
@@ -2208,35 +2208,45 @@ menu_encrypt_existing() {
     echo "$encrypted"
     echo
     read -n1 -s -p "按任意键返回..."
-    read -r _
+    echo
 }
 
 # ===== 3. 解密（彻底解决溢出）=====
 menu_decrypt() {
+    echo
+    echo "请粘贴加密字符串（可多行，空行结束）："
     encrypted=$(read_multiline_base64)
 
+    # 清理所有不可见字符
     encrypted=${encrypted//$'\n'/}
     encrypted=${encrypted//$'\r'/}
     encrypted=${encrypted// /}
 
-    read -s -p "输入解密密码: " pass; echo
+    echo
+    read -n1 -s -p "已接收加密数据，按任意键继续输入密码..."
+    echo
+
+    read -s -p "输入解密密码: " pass
+    echo
 
     decrypted=$(decrypt_text "$encrypted" "$pass")
 
     if [[ -z "$decrypted" ]]; then
         echo "❌ 解密失败（密码错误或数据损坏）"
         read -n1 -s -p "按任意键返回..."
-        read -r _
+        echo
         return
     fi
 
-    echo
+    secure_clear_screen
     echo "✅ 解密结果："
+    echo
     echo "$decrypted"
     echo
     read -n1 -s -p "完成，按任意键返回..."
-    read -r _
+    echo
 }
+
 
 main_menu() {
     while true; do
@@ -2258,5 +2268,6 @@ main_menu() {
         esac
     done
 }
+
 check_deps
 main_menu
