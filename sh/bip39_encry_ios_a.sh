@@ -2077,6 +2077,45 @@ zero
 zone
 zoo
 )
+############################
+# 第 2 部分：核心功能函数
+############################
+
+secure_clear_screen() {
+    clear
+    printf "\033[2J\033[H"
+}
+
+pause_return() {
+    echo
+    read -r -p "👉 按回车键返回主菜单..." _
+}
+
+print_title() {
+    clear
+    echo -e "${lan}"
+    echo "=========================================="
+    echo "      BIP39 助记词安全管理器"
+    echo "=========================================="
+    echo -e "${nc}"
+}
+
+warn_box() {
+    echo -e "${huang}⚠️  安全警告${nc}"
+    echo -e "${hui}$1${nc}"
+    echo
+}
+
+success_box() {
+    echo -e "${lv}✅ $1${nc}"
+    echo
+}
+
+error_box() {
+    echo -e "${hong}❌ $1${nc}"
+    echo
+}
+
 hex_to_bin() {
     echo "$1" | tr -d '\n' | fold -w2 | awk '
     {
@@ -2131,30 +2170,22 @@ decrypt_text() {
         -pass pass:"$2" 2>/dev/null
 }
 
-# iSH / 手机安全：多行粘贴 Base64
-read_multiline_base64() {
-    local line result=""
-    echo "(粘贴完成后按 Ctrl-D 结束输入)"
-    while IFS= read -r line; do
-        result+="$line"
-    done
-    printf "%s" "$result"
-}
 
-
-secure_clear_screen() {
-    printf "\033[2J\033[H"
-    for _ in $(seq 1 80); do echo " "; done
-    printf "\033[H"
-}
+############################
+# 第 3 部分：菜单与流程
+############################
 set +e
 
-# ===== 1. 生成并加密（极端安全）=====
 menu_generate_secure() {
-    echo "1 = 12 词"
-    echo "2 = 18 词"
-    echo "3 = 24 词"
-    read -r -p "请选择: " opt
+    print_title
+    warn_box "本模式下助记词【不会显示】在屏幕上\n请确保你理解风险并妥善保存加密结果"
+
+    echo "请选择助记词长度："
+    echo "  1. 12 个单词（128 位）"
+    echo "  2. 18 个单词（192 位）"
+    echo "  3. 24 个单词（256 位，推荐）"
+    echo
+    read -r -p "选择: " opt
 
     case "$opt" in
         1) bits=128 ;;
@@ -2163,107 +2194,89 @@ menu_generate_secure() {
         *) return ;;
     esac
 
-    echo -e "${huang}⚠️ 助记词不会显示在屏幕上${nc}"
+    read -s -p "设置加密密码: " p1; echo
+    read -s -p "确认密码: " p2; echo
+    [[ "$p1" != "$p2" ]] && { error_box "两次密码不一致"; pause_return; return; }
+
     mnemonic=$(generate_mnemonic "$bits") || {
-        echo "生成失败"
+        error_box "助记词生成失败"
+        pause_return
         return
     }
+
+    encrypted=$(encrypt_text "$mnemonic" "$p1")
+    unset mnemonic p1 p2
+
+    print_title
+    success_box "助记词已生成并加密完成"
+
+    warn_box "请妥善保存以下【加密字符串】\n任何拥有它 + 密码的人都可以恢复助记词"
+
+    echo "$encrypted"
+    pause_return
+}
+
+menu_encrypt_existing() {
+    print_title
+
+    warn_box "即将输入【明文助记词】\n回车后将立即清屏以防偷窥或截屏\n请确保环境安全"
+
+    read -r -p "请输入助记词（单行）: " mnemonic
+
+    # ⛔ 关键点：用户一回车，立刻清屏
+    secure_clear_screen
+    print_title
 
     read -s -p "设置加密密码: " p1; echo
     read -s -p "确认密码: " p2; echo
     [[ "$p1" != "$p2" ]] && {
         unset mnemonic
-        echo "密码不一致"
+        error_box "两次密码不一致"
+        pause_return
         return
     }
 
     encrypted=$(encrypt_text "$mnemonic" "$p1")
     unset mnemonic p1 p2
 
-    secure_clear_screen
+    print_title
+    success_box "助记词已加密完成"
 
-    echo -e "${lv}✅ 已生成并加密成功${nc}"
-    echo
-    echo "【加密字符串（单行 Base64）】"
-    echo
+    warn_box "请妥善保存以下【加密字符串】\n任何拥有它 + 密码的人都可以恢复助记词"
+
     echo "$encrypted"
-    echo
-    read -n1 -s -p "按任意键返回主菜单..."
-    echo
-}
-
-# ===== 2. 加密已有助记词 =====
-menu_encrypt_existing() {
-    echo -e "${huang}⚠️ 即将输入明文助记词，请确保环境安全${nc}"
-    read -r -p "请输入助记词（单行）: " mnemonic
-
-    read -s -p "设置加密密码: " p1; echo
-    read -s -p "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && { unset mnemonic; return; }
-
-    encrypted=$(encrypt_text "$mnemonic" "$p1")
-    unset mnemonic p1 p2
-
-    secure_clear_screen
-    echo "加密结果（单行 Base64）："
-    echo
-    echo "$encrypted"
-    echo
-    read -n1 -s -p "按任意键返回..."
-    read -r _
+    pause_return
 }
 
 
-# ===== 3. 解密（防溢出，iSH 稳定）=====
 menu_decrypt() {
-    echo
-    echo "解密模式说明："
-    echo "- 请输入【单行】Base64 加密字符串"
-    echo "- 不支持多行 / Ctrl-D / 空行结束"
-    echo
+    print_title
+    warn_box "解密后助记词将以【明文】显示\n请确认环境安全"
 
-    read -r -p "请粘贴 Base64 加密字符串: " encrypted
-
-    # 防御性清洗
+    read -r -p "请输入 Base64 加密字符串（单行）: " encrypted
     encrypted=${encrypted//$'\n'/}
     encrypted=${encrypted//$'\r'/}
     encrypted=${encrypted// /}
 
-    if [[ -z "$encrypted" ]]; then
-        echo "❌ 输入为空"
-        read -n1 -s -p "按任意键返回..."
-        read -r _
-        return
-    fi
-
-    read -s -p "输入解密密码: " pass
     echo
+    read -s -p "输入解密密码: " pass; echo
 
     decrypted=$(decrypt_text "$encrypted" "$pass")
-
-    if [[ -z "$decrypted" ]]; then
-        echo "❌ 解密失败（密码错误或数据损坏）"
-        read -n1 -s -p "按任意键返回..."
-        read -r _
+    [[ -z "$decrypted" ]] && {
+        error_box "解密失败（密码错误或数据损坏）"
+        pause_return
         return
-    fi
+    }
 
-    echo
-    echo "✅ 解密结果："
+    print_title
+    success_box "解密成功（请立即抄写）"
     echo "$decrypted"
-    echo
-    read -n1 -s -p "完成，按任意键返回..."
-    read -r _
+    pause_return
 }
-
-
 
 main_menu() {
     while true; do
-        clear
-        echo "=============================="
-        echo " BIP39 助记词安全管理器"
-        echo "=============================="
+        print_title
         echo "1. 生成并加密（极端安全）"
         echo "2. 加密已有助记词"
         echo "3. 解密"
@@ -2275,12 +2288,10 @@ main_menu() {
             1) menu_generate_secure ;;
             2) menu_encrypt_existing ;;
             3) menu_decrypt ;;
-            q) exit 0 ;;
-            *) echo "无效选择"; sleep 1 ;;
+            q) clear; exit 0 ;;
         esac
     done
 }
-
 
 check_deps
 main_menu
