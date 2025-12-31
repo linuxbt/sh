@@ -2131,6 +2131,18 @@ decrypt_text() {
         -pass pass:"$2" 2>/dev/null
 }
 
+read_multiline_base64() {
+    local line result=""
+    echo "(可直接粘贴，空行结束输入)"
+    while true; do
+        IFS= read -r line || break
+        [[ -z "$line" ]] && break
+        result+="$line"
+    done
+    echo "$result"
+}
+
+
 secure_clear_screen() {
     clear
     printf "\033[2J\033[H"
@@ -2198,8 +2210,9 @@ menu_encrypt_existing() {
 # ===== 3. 解密（安全标准动作）=====
 menu_decrypt() {
     echo -e "${huang}⚠️ 解密后助记词仅显示一次${nc}"
-    read -r -p "请输入加密字符串(Base64): " encrypted
-    encrypted=${encrypted//$'\n'/}
+    echo "请输入加密字符串："
+    encrypted=$(read_multiline_base64)
+
     encrypted=${encrypted//$'\r'/}
 
     read -s -p "请输入解密密码: " pass; echo
@@ -2207,7 +2220,7 @@ menu_decrypt() {
     unset pass
 
     [[ -z "$decrypted" ]] && {
-        echo -e "${hong}解密失败${nc}"
+        echo -e "${hong}解密失败（可能是密码错误或粘贴不完整）${nc}"
         return
     }
 
@@ -2218,9 +2231,10 @@ menu_decrypt() {
     echo
     read -n1 -s -p "已确认，按任意键立即清屏..."
 
-    unset decrypted
+    unset decrypted encrypted
     secure_clear_screen
 }
+
 
 main_menu() {
     while true; do
