@@ -2359,4 +2359,5 @@ main_menu() {
         esac
     done
 }
+check_deps
 main_menu
