@@ -2129,12 +2129,25 @@ zone
 zoo
 )
 ########################
-# QR 自适应输出函数
+# iSH 环境检测
+########################
+IS_ISH=0
+if grep -qi "ish" /proc/version 2>/dev/null; then
+    IS_ISH=1
+fi
+
+########################
+# QR 自适应输出（iSH 自动禁用）
 ########################
 print_qr() {
     local data="$1"
-    local cols scale
 
+    if [ "$IS_ISH" -eq 1 ]; then
+        echo -e "${huang}当前为 iSH 环境，二维码功能不可用，仅输出文本。${nc}"
+        return
+    fi
+
+    local cols scale
     cols=$(tput cols 2>/dev/null || echo 80)
 
     if [ "$cols" -ge 120 ]; then
@@ -2175,9 +2188,7 @@ generate_mnemonic() {
 
     local full_bin="${entropy_bin}${hash_bin:0:$cs_bits}"
 
-    local out=""
-    local idx
-
+    local out="" idx
     for ((i=0; i<${#full_bin}; i+=11)); do
         idx=$((2#${full_bin:i:11}))
         out+="${BIP39_WORDS[$idx]} "
@@ -2187,7 +2198,7 @@ generate_mnemonic() {
 }
 
 ########################
-# 加密并输出（文本 + QR，不落盘）
+# 加密并输出（文本 + 可选 QR，不落盘）
 ########################
 encrypt_and_output() {
     local plaintext="$1"
@@ -2196,10 +2207,10 @@ encrypt_and_output() {
     read -s -p "请输入加密密码: " pass; echo
     read -s -p "再次确认密码: " pass2; echo
 
-    [[ "$pass" == "$pass2" ]] || {
+    if [ "$pass" != "$pass2" ]; then
         echo -e "${hong}密码不一致${nc}"
         return
-    }
+    fi
 
     local enc
     enc=$(echo -n "$plaintext" | \
@@ -2210,8 +2221,10 @@ encrypt_and_output() {
     echo "$enc"
     echo
 
-    echo -e "${lv}加密结果（二维码）：${nc}"
-    print_qr "$enc"
+    if [ "$IS_ISH" -eq 0 ]; then
+        echo -e "${lv}加密结果（二维码）：${nc}"
+        print_qr "$enc"
+    fi
 }
 
 ########################
@@ -2248,7 +2261,7 @@ menu_generate_new() {
 # 菜单 2：加密已有助记词
 ########################
 menu_encrypt_existing() {
-    echo "请输入已有助记词（仅手动输入或粘贴）："
+    echo "请输入已有助记词（手动输入或粘贴）："
     read -r mnemonic
 
     local wc
@@ -2265,7 +2278,7 @@ menu_encrypt_existing() {
     encrypt_and_output "$mnemonic"
 }
 ########################
-# 菜单 3：解密（仅输出 QR）
+# 菜单 3：解密（iSH 下不输出 QR）
 ########################
 menu_decrypt() {
     echo "请粘贴加密后的 Base64 字符串："
@@ -2282,8 +2295,13 @@ menu_decrypt() {
         return
     fi
 
-    echo -e "${lv}解密成功（仅二维码）：${nc}"
-    print_qr "$plaintext"
+    if [ "$IS_ISH" -eq 1 ]; then
+        echo -e "${lv}解密成功（文本）：${nc}"
+        echo "$plaintext"
+    else
+        echo -e "${lv}解密成功（二维码）：${nc}"
+        print_qr "$plaintext"
+    fi
 }
 
 ########################
@@ -2295,7 +2313,7 @@ main_menu() {
         echo "请选择操作:"
         echo "  1. 生成新的 BIP39 助记词并加密"
         echo "  2. 使用已有助记词进行加密"
-        echo "  3. 解密助记词或解密利用本脚本加密过的字符串"
+        echo "  3. 解密一段加密字符串"
         echo "  q. 退出脚本"
         echo "--------------------------------------------------"
         read -r opt
