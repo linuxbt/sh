@@ -1,140 +1,129 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# ===== 颜色 =====
-RED="\033[0;31m"
-YELLOW="\033[0;33m"
-GREEN="\033[0;32m"
-GRAY="\033[0;37m"
+export LC_ALL=C
+
+########################
+# 颜色
+########################
+RED="\033[31m"
+YELLOW="\033[33m"
+GREEN="\033[32m"
+CYAN="\033[36m"
+GRAY="\033[90m"
 NC="\033[0m"
 
-secure_clear_screen() {
+########################
+# 安全 UI
+########################
+secure_clear() {
     printf "\033[2J\033[H"
-    for _ in $(seq 1 60); do echo " "; done
+    for _ in {1..30}; do echo " "; done
     printf "\033[H"
 }
 
-pause_confirm() {
+pause_any_key() {
     echo
-    read -r -n1 -s -p "▶ 按回车确认并清屏..."
-    echo
-    secure_clear_screen
+    read -rsn1 -p "▶ 按任意键返回主菜单并清屏..."
+    secure_clear
+}
+
+warn_box() {
+cat <<EOF
+${YELLOW}
+⚠️  警告
+────────────────────────────────
+• 明文只会短暂存在于内存
+• 回车后立即清屏
+• 建议离线环境使用
+• 禁止截屏 / 录屏
+────────────────────────────────
+${NC}
+EOF
 }
 
 ########################
-# 环境判断 & 自动安装依赖（仅 Linux）
+# 依赖检测 & 安装
 ########################
-
-is_linux() {
-    [[ "$(uname -s)" == "Linux" ]]
-}
-
-is_ish() {
-    grep -qi ish /proc/sys/kernel/osrelease 2>/dev/null
-}
-
-need_cmd() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-auto_install_linux_deps() {
-    local pkgs=(argon2 openssl xxd qrencode)
-
-    echo "🔍 检测到 Linux 环境，检查依赖..."
-
-    if need_cmd apt; then
-        sudo apt update
-        sudo apt install -y "${pkgs[@]}"
-    elif need_cmd dnf; then
-        sudo dnf install -y "${pkgs[@]}"
-    elif need_cmd pacman; then
-        sudo pacman -Sy --noconfirm "${pkgs[@]}"
-    else
-        echo "❌ 未识别的包管理器，请手动安装以下依赖："
-        printf "  - %s\n" "${pkgs[@]}"
-        exit 1
-    fi
-}
+need() { command -v "$1" >/dev/null 2>&1; }
 
 check_deps() {
-    local missing=()
+    local req=(argon2 openssl xxd qrencode)
+    local miss=()
 
-    for c in argon2 openssl xxd qrencode; do
-        need_cmd "$c" || missing+=("$c")
+    for c in "${req[@]}"; do
+        need "$c" || miss+=("$c")
     done
 
-    if (( ${#missing[@]} == 0 )); then
-        return
-    fi
+    (( ${#miss[@]} == 0 )) && return
 
-    echo "⚠️ 缺少依赖："
-    printf "  - %s\n" "${missing[@]}"
-    echo
+    echo -e "${YELLOW}缺少依赖：${miss[*]}${NC}"
+    echo "自动安装仅支持 Linux"
+    read -rp "是否自动安装？需要 sudo [Y/n]: " a
+    [[ "${a,,}" == "n" ]] && exit 1
 
-    if is_linux && ! is_ish; then
-        echo "➡️ 是否尝试自动安装？（需要 sudo 权限）"
-        read -r -p "[Y/n]: " ans
-        [[ "${ans,,}" == "n" ]] && exit 1
-        auto_install_linux_deps
+    if command -v apt >/dev/null; then
+        sudo apt update
+        sudo apt install -y "${miss[@]}"
+    elif command -v pacman >/dev/null; then
+        sudo pacman -Sy --noconfirm "${miss[@]}"
+    elif command -v dnf >/dev/null; then
+        sudo dnf install -y "${miss[@]}"
     else
-        echo "❌ 当前环境不支持自动安装，请手动安装依赖"
+        echo "❌ 不支持的包管理器"
         exit 1
     fi
 }
 
-derive_key() {
-    local pass="$1"
-    local salt="$2"
-
-    printf "%s" "$pass" | \
-    argon2 "$salt" \
-        -id \
-        -t 3 \
-        -m 18 \
-        -p 1 \
-        -l 32 \
-        -r
+########################
+# 安全多行输入（无 Ctrl+D）
+########################
+read_multiline() {
+    local line out=""
+    echo -e "${GRAY}（逐行输入 / 粘贴，空行结束）${NC}"
+    while true; do
+        IFS= read -r line
+        [[ -z "$line" ]] && break
+        out+="$line"$'\n'
+    done
+    printf "%s" "$out"
 }
 
-encrypt_gcm() {
-    local plaintext="$1"
-    local pass="$2"
+########################
+# Argon2id + AES-256-GCM
+########################
+derive_key() {
+    local pass="$1" salt="$2"
+    printf "%s" "$pass" | \
+        argon2 "$salt" -id -t 3 -m 18 -p 1 -l 32 -r | head -c 32
+}
 
-    local salt iv key ct
+encrypt_data() {
+    local plain="$1" pass="$2"
+    local salt iv key cipher
+
     salt=$(openssl rand -hex 16)
     iv=$(openssl rand -hex 12)
-
     key=$(derive_key "$pass" "$salt" | xxd -p -c 256)
 
-    ct=$(printf "%s" "$plaintext" | \
-        openssl enc -aes-256-gcm \
-            -K "$key" \
-            -iv "$iv" \
-            -aad "$salt" \
-            -base64)
+    cipher=$(printf "%s" "$plain" | \
+        openssl enc -aes-256-gcm -K "$key" -iv "$iv" -aad "$salt" -base64)
 
-    printf "%s:%s:%s\n" "$salt" "$iv" "$ct"
+    printf "%s:%s:%s\n" "$salt" "$iv" "$cipher"
 }
 
-decrypt_gcm() {
-    IFS=: read -r salt iv data <<< "$1"
+decrypt_data() {
+    IFS=: read -r salt iv cipher <<< "$1"
     local pass="$2"
+    local key
 
     key=$(derive_key "$pass" "$salt" | xxd -p -c 256)
-
-    printf "%s" "$data" | \
-        openssl enc -d -aes-256-gcm \
-            -K "$key" \
-            -iv "$iv" \
-            -aad "$salt" \
-            -base64
+    printf "%s" "$cipher" | \
+        openssl enc -d -aes-256-gcm -K "$key" -iv "$iv" -aad "$salt" -base64
 }
-
-print_qr() {
-    printf "%s" "$1" | qrencode -t UTF8
-}
-
-# ===== 示例助记词（每行一个，格式占位）=====
-generate_mnemonic_demo() {
+########################
+# 示例助记词（省略版）
+########################
+generate_mnemonic() {
 cat <<EOF
 abandon
 ability
@@ -2187,90 +2176,108 @@ zoo
 EOF
 }
 
-# ===== 1. 生成并加密（极端安全）=====
-menu_generate_secure() {
-    echo -e "${YELLOW}⚠️ 助记词不会显示在屏幕上${NC}"
-    mnemonic=$(generate_mnemonic_demo)
+########################
+# 菜单 1：生成并加密（极端安全）
+########################
+menu_encrypt_generate() {
+    secure_clear
+    warn_box
+    echo "${CYAN}生成后不显示明文，仅输出密文${NC}"
+    echo
 
-    read -s -p "设置加密密码: " p1; echo
-    read -s -p "确认密码: " p2; echo
+    read -rsp "设置加密密码: " p1; echo
+    read -rsp "确认密码: " p2; echo
     [[ "$p1" != "$p2" ]] && return
 
-    encrypted=$(encrypt_gcm "$mnemonic" "$p1")
+    mnemonic=$(generate_mnemonic)
+    encrypted=$(encrypt_data "$mnemonic" "$p1")
     unset mnemonic p1 p2
 
-    secure_clear_screen
-    echo -e "${GREEN}✅ 已生成并加密${NC}"
+    secure_clear
+    echo "${GREEN}✔ 加密完成${NC}"
     echo
-    echo "【文本格式】"
+    echo "【加密字符串】"
     echo "$encrypted"
     echo
     echo "【二维码】"
-    print_qr "$encrypted"
+    qrencode -t UTF8 <<<"$encrypted"
 
-    pause_confirm
+    pause_any_key
 }
 
-# ===== 2. 加密已有助记词（输入即隐藏）=====
+########################
+# 菜单 2：加密已有助记词
+########################
 menu_encrypt_existing() {
-    echo -e "${YELLOW}⚠️ 输入助记词（每行一个），Ctrl+D 结束${NC}"
-    mnemonic=$(cat)
-    secure_clear_screen
+    secure_clear
+    warn_box
 
-    read -s -p "设置加密密码: " p1; echo
-    read -s -p "确认密码: " p2; echo
+    mnemonic=$(read_multiline)
+    secure_clear
+
+    read -rsp "设置加密密码: " p1; echo
+    read -rsp "确认密码: " p2; echo
     [[ "$p1" != "$p2" ]] && return
 
-    encrypted=$(encrypt_gcm "$mnemonic" "$p1")
+    encrypted=$(encrypt_data "$mnemonic" "$p1")
     unset mnemonic p1 p2
 
-    secure_clear_screen
-    echo "【文本格式】"
+    secure_clear
+    echo "${GREEN}✔ 加密完成${NC}"
+    echo
+    echo "【加密字符串】"
     echo "$encrypted"
     echo
     echo "【二维码】"
-    print_qr "$encrypted"
+    qrencode -t UTF8 <<<"$encrypted"
 
-    pause_confirm
+    pause_any_key
 }
-
-# ===== 3. 解密（可选输出格式）=====
+########################
+# 菜单 3：解密
+########################
 menu_decrypt() {
-    echo -e "${GRAY}粘贴加密字符串（单行）${NC}"
+    secure_clear
+    warn_box
+    echo "粘贴 Base64 加密字符串："
     read -r blob
 
-    read -s -p "输入解密密码: " pass; echo
+    read -rsp "输入解密密码: " pass; echo
 
-    if ! out=$(decrypt_gcm "$blob" "$pass" 2>/dev/null); then
-        echo -e "${RED}❌ 解密失败（密码错误或被篡改）${NC}"
-        pause_confirm
+    if ! plain=$(decrypt_data "$blob" "$pass" 2>/dev/null); then
+        echo "${RED}❌ 解密失败（密码错误或数据损坏）${NC}"
+        pause_any_key
         return
     fi
 
-    secure_clear_screen
-    echo "解密成功，选择输出方式："
-    echo "1. 明文助记词"
+    secure_clear
+    echo "选择输出方式："
+    echo "1. 明文"
     echo "2. 二维码"
-    read -r -p "请选择: " opt
+    read -rp "请选择: " o
 
-    secure_clear_screen
-    case "$opt" in
+    secure_clear
+    case "$o" in
         1)
             echo "【助记词明文】"
-            echo "$out"
+            echo "$plain"
             ;;
         2)
             echo "【助记词二维码】"
-            print_qr "$out"
+            qrencode -t UTF8 <<<"$plain"
             ;;
     esac
 
-    pause_confirm
+    unset plain pass
+    pause_any_key
 }
 
+########################
+# 主菜单（与旧版一致）
+########################
 main_menu() {
     while true; do
-        secure_clear_screen
+        secure_clear
         echo "=============================="
         echo "  BIP39 助记词安全管理器"
         echo "  Argon2id + AES-256-GCM"
@@ -2281,10 +2288,9 @@ main_menu() {
         echo "3. 解密"
         echo "q. 退出"
         echo
-        read -r -p "请选择: " c
-
+        read -rp "请选择: " c
         case "$c" in
-            1) menu_generate_secure ;;
+            1) menu_encrypt_generate ;;
             2) menu_encrypt_existing ;;
             3) menu_decrypt ;;
             q) exit 0 ;;
@@ -2294,4 +2300,3 @@ main_menu() {
 
 check_deps
 main_menu
-
