@@ -2179,22 +2179,62 @@ EOF
 ########################
 # 菜单 1：生成并加密（极端安全）
 ########################
+########################
+# 菜单 1：生成并加密（极端安全）
+########################
 menu_encrypt_generate() {
     secure_clear
     warn_box
-    echo "${CYAN}生成后不显示明文，仅输出密文${NC}"
+
+    echo "${CYAN}生成新的助记词并立即加密${NC}"
+    echo
+    echo "请选择助记词长度："
+    echo "1. 12 词（128 bits）"
+    echo "2. 18 词（192 bits）"
+    echo "3. 24 词（256 bits）"
+    echo "b. 返回主菜单"
+    echo
+
+    read -rp "请选择: " opt
+    case "$opt" in
+        1) words=12 ;;
+        2) words=18 ;;
+        3) words=24 ;;
+        b|B) return ;;
+        *) return ;;
+    esac
+
+    # ⚠️ 极端安全提示
+    echo
+    echo -e "${YELLOW}⚠️ 助记词将不会显示在屏幕上${NC}"
+    echo -e "${GRAY}生成后立即加密，仅输出密文${NC}"
     echo
 
     read -rsp "设置加密密码: " p1; echo
     read -rsp "确认密码: " p2; echo
-    [[ "$p1" != "$p2" ]] && return
+    [[ "$p1" != "$p2" ]] && {
+        echo -e "${RED}密码不一致，已取消${NC}"
+        sleep 1
+        secure_clear
+        return
+    }
 
-    mnemonic=$(generate_mnemonic)
+    # === 生成助记词（按选择长度）===
+    mnemonic=$(generate_mnemonic "$words") || {
+        echo -e "${RED}助记词生成失败${NC}"
+        sleep 1
+        secure_clear
+        return
+    }
+
+    # === 立即加密 ===
     encrypted=$(encrypt_data "$mnemonic" "$p1")
-    unset mnemonic p1 p2
 
+    # === 主动销毁明文 ===
+    unset mnemonic p1 p2
     secure_clear
-    echo "${GREEN}✔ 加密完成${NC}"
+
+    echo -e "${GREEN}✅ 助记词已生成并加密成功${NC}"
     echo
     echo "【加密字符串】"
     echo "$encrypted"
@@ -2204,6 +2244,7 @@ menu_encrypt_generate() {
 
     pause_any_key
 }
+
 
 ########################
 # 菜单 2：加密已有助记词
