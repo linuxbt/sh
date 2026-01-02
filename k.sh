@@ -2888,8 +2888,9 @@ linux_remote() {
       echo "K脚本将为你提供常用的linux远程桌面"
       echo -e "${huang}告别繁琐: 一键安装。"
       echo "------------------------"
-      echo "1. debian | ubuntu 远程桌面"
-      echo "2. redhat系列（centos,rocky,alma）远程桌面"
+      echo "1. debian | ubuntu xfce-xrdp远程桌面"
+      echo "2. redhat系列（centos,rocky,alma）xfce-xrdp远程桌面"
+      echo "3. debian系列 xfce-x2go远程桌面 需x2go专用客户端低延迟更流畅"	  
       echo "------------------------"
       echo "0. 返回主菜单"
       echo -e "------------------------${bai}"
@@ -2899,18 +2900,23 @@ linux_remote() {
 
           1)
               clear
-              send_stats "debian | ubuntu 远程桌面"
+              send_stats "debian | ubuntu xfce-xrdp远程桌面"
               bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/debian_remote.sh)
 
               ;;
 
           2)
               clear
-              send_stats "redhat系列 | rockcy,alma,centos 远程桌面"
+              send_stats "redhat系列 | rockcy,alma,centos xfce-xrdp远程桌面"
               bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/redhat_remote.sh)
 
               ;;
 
+          3)
+              clear
+              send_stats "debian系列 | xfce-x2go 远程桌面(需要x2go client)"
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/main/sh/redhat_remote_x2go.sh)
+              ;;
           0)
               linuxbt
               ;;
