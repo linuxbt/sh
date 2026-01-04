@@ -56,17 +56,17 @@ check_deps() {
 }
 
 ############################
-# 密钥派生（64 字节）
+# 密钥派生（64 字节 → AES + HMAC）
 ############################
 derive_key() {
     local pass="$1" salt="$2"
     printf "%s" "$pass" | \
-      argon2 "$salt" -id -t 3 -m 18 -p 1 -l 64 -r | \
-      xxd -p -c 256
+      argon2 "$salt" -id -t 3 -m 18 -p 1 -l 64 -r -q | \
+      xxd -p | tr -d '\n'
 }
 
 ############################
-# 加密（AES-256-CBC + HMAC）
+# 加密（AES-256-CBC + HMAC-SHA256）
 ############################
 encrypt_secure() {
     local plaintext="$1" pass="$2"
@@ -85,14 +85,14 @@ encrypt_secure() {
         -iv "$iv" \
         -base64 -A)
 
-    mac=$(printf "%s%s%s" "$salt" "$iv" "$cipher" | \
+    mac=$(printf "%s|%s|%s" "$salt" "$iv" "$cipher" | \
       openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | awk '{print $2}')
 
     printf "%s:%s:%s:%s\n" "$salt" "$iv" "$mac" "$cipher"
 }
 
 ############################
-# 解密（校验 HMAC）
+# 解密（先校验 HMAC）
 ############################
 decrypt_secure() {
     local blob="$1" pass="$2"
@@ -104,7 +104,7 @@ decrypt_secure() {
     aes_key="${key:0:64}"
     mac_key="${key:64:64}"
 
-    calc_mac=$(printf "%s%s%s" "$salt" "$iv" "$cipher" | \
+    calc_mac=$(printf "%s|%s|%s" "$salt" "$iv" "$cipher" | \
       openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | awk '{print $2}')
 
     [[ "$mac" != "$calc_mac" ]] && return 1
@@ -115,6 +115,7 @@ decrypt_secure() {
         -iv "$iv" \
         -base64
 }
+
 
 ############################
 # QR 输出
