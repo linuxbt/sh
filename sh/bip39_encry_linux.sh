@@ -85,8 +85,9 @@ encrypt_secure() {
         -iv "$iv" \
         -base64 -A)
 
-    mac=$(printf "%s|%s|%s" "$salt" "$iv" "$cipher" | \
-      openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | awk '{print $2}')
+	mac=$(printf "%s%s%s" "$salt" "$iv" "$cipher" | \
+	  openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | \
+	  sed 's/^.*= //')
 
     printf "%s:%s:%s:%s\n" "$salt" "$iv" "$mac" "$cipher"
 }
@@ -104,8 +105,10 @@ decrypt_secure() {
     aes_key="${key:0:64}"
     mac_key="${key:64:64}"
 
-    calc_mac=$(printf "%s|%s|%s" "$salt" "$iv" "$cipher" | \
-      openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | awk '{print $2}')
+	calc_mac=$(printf "%s%s%s" "$salt" "$iv" "$cipher" | \
+	  openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | \
+	  sed 's/^.*= //')
+
 
     [[ "$mac" != "$calc_mac" ]] && return 1
 
