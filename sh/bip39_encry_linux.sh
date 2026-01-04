@@ -83,7 +83,7 @@ encrypt_secure() {
       openssl enc -aes-256-cbc \
         -K "$aes_key" \
         -iv "$iv" \
-        -base64)
+        -base64 -A)
 
     mac=$(printf "%s%s%s" "$salt" "$iv" "$cipher" | \
       openssl dgst -sha256 -mac HMAC -macopt hexkey:"$mac_key" | awk '{print $2}')
