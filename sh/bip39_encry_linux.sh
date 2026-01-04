@@ -67,27 +67,43 @@ derive_key() {
 
 encrypt_gcm() {
     local plaintext="$1" pass="$2"
-    local salt iv key cipher
+    local salt iv key cipher tag
 
     salt=$(openssl rand -hex 16)
     iv=$(openssl rand -hex 12)
     key=$(derive_key "$pass" "$salt")
 
+    # 加密，tag 写到文件描述符 3
     cipher=$(printf "%s" "$plaintext" | \
-      openssl enc -aes-256-gcm -K "$key" -iv "$iv" -aad "$salt" -base64)
+      openssl enc -aes-256-gcm \
+        -K "$key" \
+        -iv "$iv" \
+        -aad "$salt" \
+        -base64 \
+        -nosalt \
+        3> >(read -r tag; printf "%s" "$tag"))
 
-    printf "%s:%s:%s\n" "$salt" "$iv" "$cipher"
+    printf "%s:%s:%s:%s\n" "$salt" "$iv" "$tag" "$cipher"
 }
+
 
 decrypt_gcm() {
     local blob="$1" pass="$2"
-    IFS=: read -r salt iv cipher <<< "$blob"
+    IFS=: read -r salt iv tag cipher <<< "$blob"
+
     local key
     key=$(derive_key "$pass" "$salt")
 
     printf "%s" "$cipher" | \
-      openssl enc -d -aes-256-gcm -K "$key" -iv "$iv" -aad "$salt" -base64
+      openssl enc -d -aes-256-gcm \
+        -K "$key" \
+        -iv "$iv" \
+        -aad "$salt" \
+        -tag "$tag" \
+        -base64 \
+        -nosalt
 }
+
 
 print_qr() {
     printf "%s" "$1" | qrencode -t UTF8
