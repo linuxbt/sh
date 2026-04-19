@@ -116,7 +116,7 @@ decrypt_secure() {
       openssl enc -d -aes-256-cbc \
         -K "$aes_key" \
         -iv "$iv" \
-        -base64
+        -base64 -A
 }
 
 
@@ -187,8 +187,9 @@ menu_generate() {
 ############################
 menu_encrypt_existing() {
     secure_clear
-    echo -e "${YELLOW}⚠️ 输入助记词（每行一个，Ctrl+D 结束）${NC}"
-    mnemonic=$(cat)
+    echo -e "${YELLOW}⚠️ 粘贴或输入助记词（单行，用空格分隔，按回车结束）${NC}"
+    read -r mnemonic
+    [[ -z "$mnemonic" ]] && return
     secure_clear
 
     read -s -p "设置加密密码: " p1; echo
@@ -215,6 +216,10 @@ menu_decrypt() {
     secure_clear
     echo "粘贴加密字符串（单行）:"
     read -r blob
+    
+    # 移除可能因为粘贴带来的多余空格、换行或回车符
+    blob="$(echo "$blob" | tr -d '[:space:]')"
+    [[ -z "$blob" ]] && return
 
     read -s -p "输入解密密码: " pass; echo
 
