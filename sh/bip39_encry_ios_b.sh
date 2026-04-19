@@ -5,9 +5,9 @@
 if [ -z "$BASH_VERSION" ]; then
     echo "▶ 检测到当前为默认 ash 环境，正在启动环境初始化..."
     if ! command -v bash >/dev/null 2>&1 || ! command -v argon2 >/dev/null 2>&1; then
-        echo "▶ 首次运行：正在通过 apk 下载安装必备组件 (bash, argon2, openssl, xxd, qrencode)..."
+        echo "▶ 首次运行：正在通过 apk 下载安装必备组件 (bash, argon2, openssl, xxd)..."
         apk update >/dev/null 2>&1
-        apk add bash argon2 openssl xxd qrencode --no-cache
+        apk add bash argon2 openssl xxd --no-cache
         if [ $? -ne 0 ]; then
              echo "❌ 依赖安装失败！请检查 iSH 是否连接网络，或者源是否配置正确。"
              exit 1
@@ -118,12 +118,7 @@ decrypt_secure() {
 }
 
 
-############################
-# QR 输出
-############################
-print_qr() {
-    printf "%s" "$1" | qrencode -t UTF8
-}
+
 
 ############################
 # 助记词（占位示例）
@@ -238,9 +233,6 @@ menu_generate() {
     echo
     echo -e "${BOLD}${enc}${NC}"
     echo
-    echo -e "${CYAN}----------------------------------------------------${NC}"
-    echo -e "${YELLOW}【 密文二维码 】${GRAY}（可用常用扫码工具保存文本）${NC}"
-    print_qr "$enc"
     echo -e "${CYAN}====================================================${NC}"
 
     pause_return
@@ -256,8 +248,12 @@ menu_encrypt_existing() {
     echo -e "${GRAY}(输入或粘贴完毕后，直接按下回车键 Enter 即可提交)${NC}"
     echo -e "${CYAN}-----------------------------------${NC}"
     echo -en "${BOLD}▶ 粘贴或输入助记词 : ${NC}"
-    read -r mnemonic
-    [[ -z "$mnemonic" ]] && return
+    
+    local mnemonic=""
+    while [[ -z "$mnemonic" ]]; do
+        read -r mnemonic
+        mnemonic="$(echo "$mnemonic" | tr -d '\r\n')"
+    done
 
     echo -e "\n${YELLOW}>> 请设置高强度密码以保护您的助记词 <<${NC}"
     echo -e "${GRAY}(输入密码时为了安全不会显示任何字符)${NC}"
@@ -289,9 +285,6 @@ menu_encrypt_existing() {
     echo
     echo -e "${BOLD}${enc}${NC}"
     echo
-    echo -e "${CYAN}----------------------------------------------------${NC}"
-    echo -e "${YELLOW}【 密文二维码 】${GRAY}（扫码结果即为密文文本）${NC}"
-    print_qr "$enc"
     echo -e "${CYAN}====================================================${NC}"
 
     pause_return
@@ -306,11 +299,13 @@ menu_decrypt() {
     echo -e "${YELLOW}请在下方粘贴您此前生成的加密文本字符串：${NC}"
     echo -e "${CYAN}-----------------------------------${NC}"
     echo -en "${BOLD}▶ 粘贴加密文本 : ${NC}"
-    read -r blob
     
-    # 移除可能因为粘贴带来的多余空格、换行或回车符
-    blob="$(echo "$blob" | tr -d '[:space:]')"
-    [[ -z "$blob" ]] && return
+    local blob=""
+    while [[ -z "$blob" ]]; do
+        read -r blob
+        # 移除可能因为粘贴带来的多余空格、换行或回车符
+        blob="$(echo "$blob" | tr -d '[:space:]')"
+    done
 
     echo -e "\n${YELLOW}请输入加密时设置的密码：${NC}"
     echo -en "${BOLD}▶ 解密密码 : ${NC}"
@@ -325,34 +320,12 @@ menu_decrypt() {
     fi
 
     secure_clear
-    echo -e "${GREEN}✅ 解密成功！数据通过严格完整性校验。${NC}"
-    echo -e "${RED}⚠️ 警告：请确认您的背后无摄像头，且无他人在旁窥视！${NC}"
-    echo -e "${CYAN}-----------------------------------${NC}"
-    echo -e "${YELLOW}请选择查看明文助记词的方式：${NC}"
-    echo -e "  ${GREEN}1.${NC} 在本终端窗口直接打印明文"
-    echo -e "  ${GREEN}2.${NC} 在终端生成二维码 ${GRAY}(推荐用离线设备扫码提取)${NC}"
-    echo -e "${CYAN}-----------------------------------${NC}"
-    echo -en "${BOLD}▶ 请选择 [1/2] : ${NC}"
-    read -r o
-    secure_clear
-
+    echo -e "${CYAN}=================================${NC}"
     echo -e "${CYAN}====== [ 🔒 极密数据展示 ] ======${NC}"
-    case "$o" in
-        1) 
-           echo -e "${YELLOW}您的助记词明文如下：${NC}"
-           echo -e "${RED}⚠️ 【 严重警告 】 请用纸笔完整手抄，绝不要使用鼠标选中并 Ctrl+C 复制！${NC}"
-           echo -e "${RED}⚠️ 否则该文本可能会被潜伏的剪贴板嗅探类软件永久窃取！！${NC}\n"
-           echo -e "${BOLD}${out}${NC}\n"
-           ;;
-        2) 
-           echo -e "${YELLOW}请用不联网的备用设备扫码提取${NC}"
-           echo -e "${GRAY}(由于信息极度安全敏感，严禁使用微信等可能在后台上传图像的软件扫码)：${NC}\n"
-           print_qr "$out"
-           ;;
-        *)
-           echo -e "${RED}⚠️ 未选择任何展示方式，为保证安全已自动忽略并清屏。${NC}"
-           ;;
-    esac
+    echo -e "${YELLOW}您的助记词明文如下：${NC}"
+    echo -e "${RED}⚠️ 【 严重警告 】 请尽量手抄，由于这是手机端，若必须复制明文，${NC}"
+    echo -e "${RED}⚠️ 请确保您的后台没有恶意软件或同步功能会嗅探剪贴板！！${NC}\n"
+    echo -e "${BOLD}${out}${NC}\n"
     echo -e "${CYAN}=================================${NC}"
 
     pause_return
@@ -374,7 +347,7 @@ main_menu() {
         echo -e "${CYAN}----------------------------------------------------${NC}"
         echo -e "  ${GREEN}1.${NC} 🆕 生成并高强度加密全新助记词 ${GRAY}(推荐)${NC}"
         echo -e "  ${GREEN}2.${NC} 🔐 对已有保管的助记词加密保护"
-        echo -e "  ${GREEN}3.${NC} 🔓 解密密文并查看明文/二维码"
+        echo -e "  ${GREEN}3.${NC} 🔓 解密密文并查看明文展示"
         echo -e "  ${GRAY}q.${NC} 🚪 安全退出并彻底抹除内存痕迹"
         echo -e "${CYAN}====================================================${NC}"
         echo
