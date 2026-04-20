@@ -1653,10 +1653,10 @@ dd_xitong() {
 	    echo -e "${hui}感谢MollyLau大佬和bin456789大佬的脚本支持！${bai}"
 	    echo -e "${bai}------------------------${bai}"
 	    echo -e "${lv}1. Debian 12                  2. Debian 11${bai}"
-	    echo -e "${lv}3. Debian 10                  4. Debian 9${bai}"
+	    echo -e "${lv}3. Debian 10                  4. Debian 13${bai}"
 	    echo -e "${bai}------------------------${bai}"
 	    echo -e "${lan}11. Ubuntu 24.04              12. Ubuntu 22.04${bai}"
-	    echo -e "${lan}13. Ubuntu 20.04              14. Ubuntu 18.04${bai}"
+	    echo -e "${lan}13. Ubuntu 20.04              14. Ubuntu 25.10${bai}"
 	    echo -e "${bai}------------------------${bai}"
 	    echo -e "${hong}21. Rocky Linux 9             22. Rocky Linux 8${bai}"
 	    echo -e "${hong}23. Alma Linux 9              24. Alma Linux 8${bai}"
@@ -1670,7 +1670,7 @@ dd_xitong() {
 	    echo -e "${bai}------------------------${bai}"
 	    echo -e "${kjlan}41. Windows 11                42. Windows 10${bai}"
 	    echo -e "${kjlan}43. Windows 7                 44. Windows Server 2022${bai}"
-	    echo -e "${kjlan}45. Windows Server 2019       46. Windows Server 2016${bai}"
+	    echo -e "${kjlan}45. Windows Server 2019       46. Windows Server 2025${bai}"
 	    echo -e "${bai}------------------------${bai}"
 	    echo -e "${bai}0. 返回上一级选单${bai}"
 	    echo -e "${bai}------------------------${bai}"
@@ -1698,9 +1698,9 @@ dd_xitong() {
                 exit
                 ;;
               4)
-                send_stats "重装debian 9"
+                send_stats "重装debian 13"
                 dd_xitong_1
-                bash InstallNET.sh -debian 9
+                bash InstallNET.sh -debian 13
                 reboot
                 exit
                 ;;
@@ -1726,9 +1726,9 @@ dd_xitong() {
                 exit
                 ;;
               14)
-                send_stats "重装ubuntu 18.04"
+                send_stats "重装ubuntu 25.10"
                 dd_xitong_1
-                bash InstallNET.sh -ubuntu 18.04
+                bash InstallNET.sh -ubuntu 25.10
                 reboot
                 exit
                 ;;
@@ -1890,9 +1890,9 @@ dd_xitong() {
                 exit
                 ;;
               46)
-                send_stats "重装windows server 16"
+                send_stats "重装windows server 25"
                 dd_xitong_2
-                bash InstallNET.sh -windows 2016 -lang "cn"
+                bash InstallNET.sh -windows 2025 -lang "cn"
                 reboot
                 exit
                 ;;
