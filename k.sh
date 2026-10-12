@@ -3118,17 +3118,23 @@ bip39_manage() {
           1)
               clear
               send_stats "安卓手机 | 助记词安全管理工具 "
-              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry_termux.sh)
+              bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry_termux_new.sh)
 
               ;;
 
           2)
               clear
               send_stats "苹果手机 | 助记词安全管理工具 "
-	      curl -O https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry_ios_b.sh && bash bip39_encry_ios_b.sh
+	      curl -O https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry_ios_b_new.sh && bash bip39_encry_ios_b_new.sh
 
               ;;
 
+          3)
+              clear
+              send_stats "linux系统 | 助记词安全管理工具 "
+	          bash <(curl -sSL https://raw.githubusercontent.com/linuxbt/sh/refs/heads/main/sh/bip39_encry_linux_new.sh)
+
+              ;;
 
           0)
               linuxbt
