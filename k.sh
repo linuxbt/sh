@@ -3107,8 +3107,10 @@ bip39_manage() {
       # echo "apk add curl bash openssl python3 coreutils"
 	  # echo "apk add curl bash openssl coreutils gawk vim"
 	  echo "apk add curl bash argon2 openssl xxd"
+	  echo "3. linux | debian|ubuntu 版本"
       echo "------------------------"
       echo "0. 返回主菜单"
+	  echo "------------------------"
       echo "q. 退出"      
       echo -e "------------------------${bai}"
       read -p "请输入你的选择: " sub_choice
