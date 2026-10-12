@@ -223,8 +223,8 @@ menu_generate() {
 
     echo -e "${CYAN}-----------------------------------${NC}"
     echo -e "${YELLOW}请选择助记词熵来源：${NC}"
-    echo -e "  ${GREEN}1.${NC} 使用系统随机熵 ${GRAY}(推荐)${NC}"
-    echo -e "  ${GREEN}2.${NC} 系统随机熵 + 自定义输入混合 ${GRAY}(建议：公平骰子结果，或随机大小写字母、数字、特殊符号；避免个人信息和常用句子)${NC}"
+    echo -e "  ${GREEN}1.${NC} 使用系统随机熵 ${GRAY}(日常使用推荐)${NC}"
+    echo -e "  ${GREEN}2.${NC} 系统随机熵 + 自定义输入混合 ${GRAY}(适合额外加入公平骰子结果或随机字符)${NC}"
     echo -e "${CYAN}-----------------------------------${NC}"
     echo -en "${BOLD}▶ 请选择 [1/2] : ${NC}"
     read -r entropy_choice
