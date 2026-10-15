@@ -12,6 +12,19 @@ if ! command -v argon2 >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1 
     fi
 fi
 
+# 确保 Termux/iSH 的 pkg 安装目录在 PATH 中（防止非交互 shell 下缺失）
+if [ -n "$PREFIX" ] && [ -d "$PREFIX/bin" ]; then
+    case ":$PATH:" in
+        *":$PREFIX/bin:"*) ;;
+        *) export PATH="$PREFIX/bin:$PATH" ;;
+    esac
+elif [ -d "/data/data/com.termux/files/usr/bin" ]; then
+    case ":$PATH:" in
+        *":/data/data/com.termux/files/usr/bin:"*) ;;
+        *) export PATH="/data/data/com.termux/files/usr/bin:$PATH" ;;
+    esac
+fi
+
 ############################
 # 颜色与样式
 ############################
@@ -167,6 +180,15 @@ resolve_openssl_cmd() {
     elif [ -x "$(which openssl 2>/dev/null)" ]; then
         echo "$(which openssl)"
     else
+        # 最后尝试：搜索常见前缀目录
+        for p in /data/data/com.termux/files/usr/bin/openssl \
+                 /data/data/com.termux/files/home/.termux/bin/openssl \
+                 "$PREFIX/bin/openssl" "$HOME/.termux/bin/openssl"; do
+            if [ -x "$p" ]; then
+                echo "$p"
+                return
+            fi
+        done
         echo ""
     fi
 }
