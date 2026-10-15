@@ -259,6 +259,7 @@ gen_mnemonic() {
 # 菜单 1：生成并加密
 ############################
 menu_generate() {
+    local n="" entropy_choice="" entropy_mode="" p1="" p2="" enc="" mnemonic=""
     secure_clear
     echo -e "${CYAN}====== [ 🆕 生成全新助记词 ] ======${NC}"
     echo -e "${YELLOW}请选择需要生成的单词数量：${NC}"
@@ -346,7 +347,12 @@ menu_generate() {
     fi
 
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
-    enc=$(encrypt_secure "$mnemonic" "$p1")
+    if ! enc=$(encrypt_secure "$mnemonic" "$p1"); then
+        unset mnemonic p1 p2
+        echo -e "\n${RED}❌ 加密失败，操作已取消！${NC}"
+        pause_return
+        return
+    fi
     unset mnemonic p1 p2
     secure_clear
 
@@ -356,12 +362,12 @@ menu_generate() {
     echo -e "${YELLOW}【 密文数据 】${NC}${GRAY}（请将此段完整文本安全保存/备份）${NC}"
     echo
     echo -e "${BOLD}${enc}${NC}"
-    echo
     echo -e "${CYAN}----------------------------------------------------${NC}"
     echo -e "${YELLOW}【 密文二维码 】${GRAY}（可用常用扫码工具保存文本）${NC}"
     print_qr "$enc"
     echo -e "${CYAN}====================================================${NC}"
 
+    unset enc
     pause_return
 }
 
@@ -369,6 +375,7 @@ menu_generate() {
 # 菜单 2：加密已有助记词
 ############################
 menu_encrypt_existing() {
+    local p1="" p2="" enc=""
     secure_clear
     echo -e "${CYAN}====== [ 🔐 加密已有助记词 ] ======${NC}"
     echo -e "${YELLOW}⚠️ 安全提示：推荐粘贴以空格分隔的一整行单词${NC}"
@@ -398,7 +405,12 @@ menu_encrypt_existing() {
     fi
 
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
-    enc=$(encrypt_secure "$mnemonic" "$p1")
+    if ! enc=$(encrypt_secure "$mnemonic" "$p1"); then
+        unset mnemonic p1 p2
+        echo -e "\n${RED}❌ 加密失败，操作已取消！${NC}"
+        pause_return
+        return
+    fi
     unset mnemonic p1 p2
     secure_clear
 
@@ -407,12 +419,12 @@ menu_encrypt_existing() {
     echo -e "${YELLOW}【 密文数据 】${NC}${GRAY}（请将此段完整数据安全保存/备份）${NC}"
     echo
     echo -e "${BOLD}${enc}${NC}"
-    echo
     echo -e "${CYAN}----------------------------------------------------${NC}"
     echo -e "${YELLOW}【 密文二维码 】${GRAY}（扫码结果即为密文文本）${NC}"
     print_qr "$enc"
     echo -e "${CYAN}====================================================${NC}"
 
+    unset enc
     pause_return
 }
 
@@ -421,6 +433,7 @@ menu_encrypt_existing() {
 ############################
 menu_decrypt() {
     secure_clear
+    local blob="" pass="" out=""
     echo -e "${CYAN}====== [ 🔓 解密助记词 ] ======${NC}"
     echo -e "${YELLOW}请在下方粘贴您此前生成的加密文本字符串：${NC}"
     echo -e "${CYAN}-----------------------------------${NC}"
@@ -433,11 +446,13 @@ menu_decrypt() {
 
     echo -e "\n${YELLOW}请输入加密时设置的密码：${NC}"
     echo -en "${BOLD}▶ 解密密码 : ${NC}"
-    read -s -r pass; echo
+    IFS= read -r -s pass || { unset pass; echo; echo -e "\n${RED}❌ 未读取到密码，操作已取消！${NC}"; pause_return; return; }
+    echo
 
     echo -e "\n${CYAN}⏳ 正在校验 HMAC 数据完整性与解密，请稍候...${NC}"
 
     if ! out=$(decrypt_secure "$blob" "$pass" 2>/dev/null); then
+        unset pass out
         echo -e "\n${RED}❌ 解密失败！密码错误或数据已损坏（被篡改）${NC}"
         pause_return
         return
@@ -474,6 +489,7 @@ menu_decrypt() {
     esac
     echo -e "${CYAN}=================================${NC}"
 
+    unset pass out blob
     pause_return
 }
 
