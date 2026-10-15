@@ -187,7 +187,7 @@ gen_mnemonic() {
             ts_hex=$(date +%s%3N 2>/dev/null | tr -cd '0-9a-f' | head -c 32) || ts_hex=""
             if [ -z "$ts_hex" ]; then ts_hex=$(openssl rand -hex 16) || return 1; fi
             mixed_hex=$(printf '%s%s' "$system_hex" "$ts_hex") || return 1
-            for (( iter=0; iter<200; iter++ )); do
+            for (( iter=0; iter<20; iter++ )); do
                 mixed_hex=$(printf '%s%s:%d' "$mixed_hex" "$custom_entropy" "$iter" | openssl dgst -sha256 -binary | xxd -p | tr -d '\n') || return 1
             done
             if [ ${#mixed_hex} -ne 64 ]; then
@@ -225,7 +225,6 @@ gen_mnemonic() {
 # 菜单 1：生成并加密
 ############################
 menu_generate() {
-    local n="" entropy_choice="" entropy_mode="" p1="" p2="" enc="" mnemonic=""
     secure_clear
     echo -e "${CYAN}====== [ 🆕 生成全新助记词 ] ======${NC}"
     echo -e "${YELLOW}请选择需要生成的单词数量：${NC}"
@@ -314,7 +313,7 @@ menu_generate() {
 
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
     enc=$(encrypt_secure "$mnemonic" "$p1")
-    unset mnemonic p1 p2 enc
+    unset mnemonic p1 p2
     secure_clear
 
     echo -e "${GREEN}✅ 助记词已成功生成并高强度加密！${NC}"
@@ -333,7 +332,6 @@ menu_generate() {
 # 菜单 2：加密已有助记词
 ############################
 menu_encrypt_existing() {
-    local p1="" p2="" enc=""
     secure_clear
     echo -e "${CYAN}====== [ 🔐 加密已有助记词 ] ======${NC}"
     echo -e "${YELLOW}⚠️ 安全提示：推荐粘贴以空格分隔的一整行单词${NC}"
@@ -368,7 +366,7 @@ menu_encrypt_existing() {
 
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
     enc=$(encrypt_secure "$mnemonic" "$p1")
-    unset mnemonic p1 p2 enc
+    unset mnemonic p1 p2
     secure_clear
 
     echo -e "${GREEN}✅ 助记词已成功高强度加密！${NC}"
@@ -393,7 +391,6 @@ menu_decrypt() {
     echo -en "${BOLD}▶ 粘贴加密文本 : ${NC}"
 
     local blob=""
-    local pass="" out=""
     while [[ -z "$blob" ]]; do
         read -r blob
         # 移除可能因为粘贴带来的多余空格、换行或回车符
@@ -402,13 +399,11 @@ menu_decrypt() {
 
     echo -e "\n${YELLOW}请输入加密时设置的密码：${NC}"
     echo -en "${BOLD}▶ 解密密码 : ${NC}"
-    IFS= read -r -s pass || { unset pass; echo; echo -e "\n${RED}❌ 未读取到密码，操作已取消！${NC}"; pause_return; return; }
-    echo
+    read -s -r pass; echo
 
     echo -e "\n${CYAN}⏳ 正在校验 HMAC 数据完整性与解密，请稍候...${NC}"
 
     if ! out=$(decrypt_secure "$blob" "$pass" 2>/dev/null); then
-        unset pass out
         echo -e "\n${RED}❌ 解密失败！密码错误或数据已损坏（被篡改）${NC}"
         pause_return
         return
@@ -423,7 +418,6 @@ menu_decrypt() {
     echo -e "${BOLD}${out}${NC}\n"
     echo -e "${CYAN}=================================${NC}"
 
-    unset pass out blob
     pause_return
 }
 
