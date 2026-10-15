@@ -5,7 +5,7 @@
 if ! command -v argon2 >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1 || ! command -v xxd >/dev/null 2>&1; then
     echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, libqrencode)..."
     pkg update >/dev/null 2>&1
-    pkg install ncurses-utils argon2 openssl xxd libqrencode -y
+    pkg install ncurses-utils argon2 openssl-tool xxd libqrencode -y
     if [ $? -ne 0 ]; then
          echo "❌ 依赖安装失败！请检查 Termux 网络连接或更换源。"
          exit 1
