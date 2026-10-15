@@ -3,9 +3,9 @@
 # Termux (Android) 环境初始化
 # ==========================================
 if ! command -v argon2 >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1 || ! command -v xxd >/dev/null 2>&1; then
-    echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, qrencode)..."
+    echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, libqrencode)..."
     pkg update >/dev/null 2>&1
-    pkg install ncurses-utils argon2 openssl xxd qrencode -y
+    pkg install ncurses-utils argon2 openssl xxd libqrencode -y
     if [ $? -ne 0 ]; then
          echo "❌ 依赖安装失败！请检查 Termux 网络连接或更换源。"
          exit 1
@@ -134,18 +134,41 @@ wordlist=(abandon ability able about above absent absorb abstract absurd abuse a
 # 任一源读取失败时自动降级为 openssl CSPRNG，保证可用性
 double_rand() {
     local bytes="$1"
+    local openssl_cmd="$(resolve_openssl_cmd)"
+    if [ -z "$openssl_cmd" ]; then
+        echo -e "${RED}❌ 找不到 openssl 命令，请先安装 openssl${NC}" >&2
+        return 1
+    fi
     local half=$(( bytes / 2 + 1 ))
     local r1="" r2=""
-    r1=$(openssl rand -hex "$half") || return 1
+    r1=$($openssl_cmd rand -hex "$half") || return 1
     # 第二熵源：若 /dev/urandom 可读则取一半字节，否则用独立 openssl 调用补足
     if [ -r /dev/urandom ]; then
         r2=$( head -c "$half" /dev/urandom | xxd -p | tr -d '\n' ) || r2=""
     fi
     if [ -z "$r2" ]; then
-        r2=$(openssl rand -hex "$half") || return 1
+        r2=$($openssl_cmd rand -hex "$half") || return 1
     fi
     # 两个熵源拼接后经 SHA-256 混合，截取所需字节数
-    printf '%s%s' "$r1" "$r2" | openssl dgst -sha256 -binary | xxd -p | tr -d '\n' | cut -c 1-$(( bytes * 2 ))
+    printf '%s%s' "$r1" "$r2" | $openssl_cmd dgst -sha256 -binary | xxd -p | tr -d '\n' | cut -c 1-$(( bytes * 2 ))
+}
+
+############################
+# 解析 openssl 命令路径（Termux/iSH 中可能不在默认 PATH）
+resolve_openssl_cmd() {
+    if command -v openssl >/dev/null 2>&1; then
+        echo openssl
+    elif [ -x "$PREFIX/bin/openssl" ]; then
+        echo "$PREFIX/bin/openssl"
+    elif [ -x "$HOME/.termux/bin/openssl" ]; then
+        echo "$HOME/.termux/bin/openssl"
+    elif [ -x "$HOME/.local/bin/openssl" ]; then
+        echo "$HOME/.local/bin/openssl"
+    elif [ -x "$(which openssl 2>/dev/null)" ]; then
+        echo "$(which openssl)"
+    else
+        echo ""
+    fi
 }
 
 hex2bin() {
