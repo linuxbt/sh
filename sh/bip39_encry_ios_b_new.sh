@@ -319,7 +319,7 @@ menu_generate() {
         pause_return
         return
     fi
-    unset mnemonic p1 p2 enc
+    unset mnemonic p1 p2
     secure_clear
 
     echo -e "${GREEN}✅ 助记词已成功生成并高强度加密！${NC}"
@@ -328,8 +328,8 @@ menu_generate() {
     echo -e "${YELLOW}【 密文数据 】${NC}${GRAY}（请将此段完整文本安全保存/备份）${NC}"
     echo
     echo -e "${BOLD}${enc}${NC}"
-    echo
     echo -e "${CYAN}====================================================${NC}"
+    unset enc mnemonic p1 p2
 
     pause_return
 }
@@ -372,8 +372,13 @@ menu_encrypt_existing() {
     fi
 
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
-    enc=$(encrypt_secure "$mnemonic" "$p1")
-    unset mnemonic p1 p2 enc
+    if ! enc=$(encrypt_secure "$mnemonic" "$p1"); then
+        unset mnemonic p1 p2
+        echo -e "\n${RED}❌ 加密失败，操作已取消！${NC}"
+        pause_return
+        return
+    fi
+    unset mnemonic p1 p2
     secure_clear
 
     echo -e "${GREEN}✅ 助记词已成功高强度加密！${NC}"
@@ -381,8 +386,8 @@ menu_encrypt_existing() {
     echo -e "${YELLOW}【 密文数据 】${NC}${GRAY}（请将此段完整数据安全保存/备份）${NC}"
     echo
     echo -e "${BOLD}${enc}${NC}"
-    echo
     echo -e "${CYAN}====================================================${NC}"
+    unset enc mnemonic p1 p2
 
     pause_return
 }
