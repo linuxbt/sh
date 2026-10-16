@@ -129,8 +129,8 @@ wordlist=(abandon ability able about above absent absorb abstract absurd abuse a
 # 十六进制转二进制字符串
 ############################
 ############################
-# 双熵源随机数（两个独立 CSPRNG 源组合，避免单一熵源漏洞）
-# 任一源读取失败时自动降级为 openssl CSPRNG，保证可用性
+# 全量 CSPRNG 随机数（单一可信 OpenSSL 源，底层为 OS 内核随机源）
+# 每次调用后由 check_entropy 验证熵质量；源退化时拒绝生成，不静默降级
 double_rand() {
     local bytes="$1"
     # 单一可信 CSPRNG（OpenSSL，底层为 OS 内核随机源），全量取 N 字节
