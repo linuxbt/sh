@@ -315,7 +315,7 @@ gen_mnemonic() {
             ts_hex=$(date +%s%3N 2>/dev/null | tr -cd '0-9a-f' | head -c 32) || ts_hex=""
             if [ -z "$ts_hex" ]; then ts_hex=$(openssl rand -hex 16) || return 1; fi
             mixed_hex=$(printf '%s%s' "$system_hex" "$ts_hex") || return 1
-            for (( iter=0; iter<200; iter++ )); do
+            for (( iter=0; iter<20; iter++ )); do
                 mixed_hex=$(printf '%s%s:%d' "$mixed_hex" "$custom_entropy" "$iter" | openssl dgst -sha256 -binary | xxd -p | tr -d '\n') || return 1
             done
             if [ ${#mixed_hex} -ne 64 ]; then
