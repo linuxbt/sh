@@ -3,7 +3,7 @@
 # Termux (Android) 环境初始化
 # ==========================================
 if ! command -v argon2 >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1 || ! command -v xxd >/dev/null 2>&1; then
-    echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, libqrencode)..."
+    echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, qrencode)..."
     pkg update >/dev/null 2>&1
     pkg install ncurses-utils argon2 openssl-tool xxd libqrencode -y
     if [ $? -ne 0 ]; then
@@ -143,28 +143,27 @@ wordlist=(abandon ability able about above absent absorb abstract absurd abuse a
 # 十六进制转二进制字符串
 ############################
 ############################
-# 双熵源随机数（两个独立 CSPRNG 源组合，避免单一熵源漏洞）
-# 任一源读取失败时自动降级为 openssl CSPRNG，保证可用性
+# 全量 CSPRNG 随机数（单一可信 OpenSSL 源，底层为 OS 内核随机源）
+# 每次调用后由 check_entropy 验证熵质量；源退化时拒绝生成，不静默降级
 double_rand() {
     local bytes="$1"
-    local openssl_cmd="$(resolve_openssl_cmd)"
+    # 单一可信 CSPRNG（OpenSSL，底层为 OS 内核随机源），全量取 N 字节
+    # 不假设多源独立性；若 OpenSSL 熵源质量无法确认，check_entropy 会拒绝生成
+    local openssl_cmd
+    openssl_cmd="$(resolve_openssl_cmd)"
     if [ -z "$openssl_cmd" ]; then
         echo -e "${RED}❌ 找不到 openssl 命令，请先安装 openssl${NC}" >&2
         return 1
     fi
-    local half=$(( bytes / 2 + 1 ))
-    local r1="" r2=""
-    r1=$($openssl_cmd rand -hex "$half") || return 1
-    # 第二熵源：若 /dev/urandom 可读则取一半字节，否则用独立 openssl 调用补足
-    if [ -r /dev/urandom ]; then
-        r2=$( head -c "$half" /dev/urandom | xxd -p | tr -d '\n' ) || r2=""
+    local hex
+    hex=$($openssl_cmd rand -hex "$bytes") || return 1
+    if [ ${#hex} -ne $(( bytes * 2 )) ]; then
+        echo -e "${RED}❌ openssl rand 输出长度异常，拒绝生成${NC}" >&2
+        return 1
     fi
-    if [ -z "$r2" ]; then
-        r2=$($openssl_cmd rand -hex "$half") || return 1
-    fi
-    # 两个熵源拼接后经 SHA-256 混合，截取所需字节数
-    printf '%s%s' "$r1" "$r2" | $openssl_cmd dgst -sha256 -binary | xxd -p | tr -d '\n' | cut -c 1-$(( bytes * 2 ))
+    printf '%s' "$hex"
 }
+
 
 ############################
 # 解析 openssl 命令路径（Termux/iSH 中可能不在默认 PATH）
@@ -192,6 +191,69 @@ resolve_openssl_cmd() {
         echo ""
     fi
 }
+
+############################
+# 熵自检：验证 CSPRNG 输出质量（system/custom 双模式均执行，失败即拒绝生成）
+# 算法：字节级卡方均匀性检验（df=255，保守阈值 600）+ 全零/全 F 退化检测
+# 样本量：128 字节（hex 字符串 256 字符），单次 awk 完成，跨平台稳定
+check_entropy() {
+    local openssl_cmd sample_hex
+    openssl_cmd="$(resolve_openssl_cmd)"
+    if [ -z "$openssl_cmd" ]; then
+        echo -e "${RED}❌ 找不到 openssl 命令，无法进行熵自检${NC}" >&2
+        return 1
+    fi
+    sample_hex=$($openssl_cmd rand -hex 128) || return 1
+    if [ ${#sample_hex} -ne 256 ]; then
+        echo -e "${RED}❌ 熵自检失败：openssl rand 输出长度异常（${#sample_hex}/256），拒绝生成${NC}" >&2
+        return 1
+    fi
+    # 单次 awk 完成：全零/全F 检查 + 卡方计算 + 结果输出
+    local result
+    result=$(printf '%s' "$sample_hex" | awk '
+        BEGIN { chi2 = 0; all_zero = 1; all_f = 1; n = 0 }
+        {
+            for (i = 1; i <= length($0); i += 2) {
+                byte = substr($0, i, 2)
+                if (byte != "00") all_zero = 0
+                if (byte != "ff") all_f = 0
+                cnt[byte]++
+                n++
+            }
+        }
+        END {
+            for (b in cnt) {
+                diff = cnt[b] - 1
+                chi2 += diff * diff
+            }
+            if (all_zero || all_f) {
+                print "DEGRADED"
+            } else if (chi2 > 600) {
+                print "NONUNIFORM " chi2
+            } else {
+                print "OK"
+            }
+        }') || return 1
+
+    case "$result" in
+        OK)
+            return 0
+            ;;
+        DEGRADED)
+            echo -e "${RED}❌ 熵自检失败：CSPRNG 输出全零或全 F，随机源已退化，拒绝生成${NC}" >&2
+            return 1
+            ;;
+        NONUNIFORM*)
+            echo -e "${RED}❌ 熵自检失败：字节均匀性异常（卡方值=${result#NONUNIFORM }，阈值=600），随机源可能降级，拒绝生成${NC}" >&2
+            return 1
+            ;;
+        *)
+            echo -e "${RED}❌ 熵自检失败：自检执行异常，拒绝生成${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
 
 hex2bin() {
     local hex="${1,,}"
@@ -224,11 +286,13 @@ gen_mnemonic() {
     case "$entropy_mode" in
         system)
             ent_hex=$(double_rand "$ent_bytes") || return 1
+            check_entropy || return 1
             ;;
         custom)
             local system_hex iter ts_hex mixed_hex
             # 双熵源系统熵
             system_hex=$(double_rand "$ent_bytes") || return 1
+            check_entropy || return 1
             # 时间戳注入（毫秒级，Termux 兼容性）+ 20 轮迭代混合，防止单一熵源可预测
             ts_hex=$(date +%s%3N 2>/dev/null | tr -cd '0-9a-f' | head -c 32) || ts_hex=""
             if [ -z "$ts_hex" ]; then ts_hex=$(openssl rand -hex 16) || return 1; fi
