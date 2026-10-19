@@ -223,8 +223,8 @@ check_entropy() {
         }
         END {
             for (b in cnt) {
-                diff = cnt[b] - 1
-                chi2 += diff * diff
+                diff = cnt[b] - 0.5
+                chi2 += diff * diff / 0.5
             }
             if (all_zero || all_f) {
                 print "DEGRADED"
@@ -293,9 +293,11 @@ gen_mnemonic() {
             # 双熵源系统熵
             system_hex=$(double_rand "$ent_bytes") || return 1
             check_entropy || return 1
-            # 时间戳注入（毫秒级，Termux 兼容性）+ 20 轮迭代混合，防止单一熵源可预测
-            ts_hex=$(date +%s%3N 2>/dev/null | tr -cd '0-9a-f' | head -c 32) || ts_hex=""
-            if [ -z "$ts_hex" ]; then ts_hex=$(openssl rand -hex 16) || return 1; fi
+            # 随机辅助值注入 + 20 轮迭代混合，防止单一熵源可预测
+            ts_hex=$(openssl rand -hex 16) || return 1
+            if [ ${#ts_hex} -ne 32 ]; then
+                return 1
+            fi
             mixed_hex=$(printf '%s%s' "$system_hex" "$ts_hex") || return 1
             for (( iter=0; iter<20; iter++ )); do
                 mixed_hex=$(printf '%s%s:%d' "$mixed_hex" "$custom_entropy" "$iter" | openssl dgst -sha256 -binary | xxd -p | tr -d '\n') || return 1
