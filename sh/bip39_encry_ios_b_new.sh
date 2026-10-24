@@ -254,6 +254,68 @@ hex2bin() {
     printf "%s" "$bin"
 }
 
+
+############################
+# 自定义熵质量下限校验（credit model）
+# 骰子结果按 log2(6)=2.585 bit/次；普通字符按 4 bit/字符（256 种可能）
+# 目标：12 词需 >=129 bit，18 词需 >=195 bit，24 词需 >=255 bit；低于阈值拒绝生成
+check_custom_entropy() {
+    local custom="${1:-}" n="${2:-}"
+    local required_bits=0
+    case "$n" in
+        12) required_bits=129 ;; 18) required_bits=195 ;; 24) required_bits=255 ;; *) return 0 ;;
+    esac
+    local len=${#custom}
+    if (( len < 30 )); then
+        echo -e "${YELLOW}⚠️  输入长度不足 30 字符，建议至少 30 个以上以提供足够熵（当前 ${len} 字符）${NC}" >&2
+    fi
+    local is_dice=1 i ch
+    for ((i=0; i<len; i++)); do
+        ch="${custom:i:1}"
+        if [[ ! "$ch" =~ [1-6] ]]; then is_dice=0; break; fi
+    done
+    local credited_bits=0
+    if (( is_dice == 1 )); then
+        credited_bits=$(( len * 2585 / 1000 ))
+        local run=1 longest=1 up=0 down=0 m=${#custom}
+        for ((i=1; i<m; i++)); do
+            local cur="${custom:i:1}" prv="${custom:i-1:1}"
+            if [ "$cur" == "$prv" ]; then run=$((run+1)); else run=1; fi
+            if (( run > longest )); then longest=$run; fi
+            if [ "$cur" == "$((prv + 1))" ]; then up=$((up+1)); fi
+            if [ "$cur" == "$((prv - 1))" ]; then down=$((down+1)); fi
+        done
+        local warn_msg=""
+        if (( longest >= 8 )); then
+            warn_msg="同数字连续出现 8 次以上（最长 ${longest} 次），可能非公平骰子"
+        elif (( 3 * up > m || 3 * down > m )); then
+            warn_msg="步长 +1 或 -1 出现过于频繁（如 123456），可能非随机输入"
+        fi
+        if [ -n "$warn_msg" ]; then
+            echo -e "${RED}⚠️  骰子输入健康度检查：${warn_msg}${NC}" >&2
+            echo -e "${YELLOW}   请重新输入或改用系统随机熵（选项 1）${NC}" >&2
+            return 1
+        fi
+    else
+        credited_bits=$(( len * 4 ))
+    fi
+    if (( credited_bits < required_bits )); then
+        echo -e "${RED}❌ 自定义熵质量不足：${credited_bits} bit < 所需 ${required_bits} bit（${n} 词）${NC}" >&2
+        echo -e "${YELLOW}   请增加输入长度或改用系统随机熵${NC}" >&2
+        return 1
+    fi
+    echo -e "${GREEN}✅ 自定义熵质量检查通过：${credited_bits} bit >= ${required_bits} bit${NC}" >&2
+    return 0
+}
+
+############################
+# commitment 计算：生成前显示承诺值，允许第三方独立复现校验
+# sha256("bip39 commit v1" || 输入) 取前 8 字节（16 字符 hex）
+compute_commitment() {
+    local data="$1"
+    printf '%s' "bip39 commit v1${data}" | openssl dgst -sha256 -binary | xxd -p | tr -d '\n' | head -c 16
+}
+
 ############################
 # 生成符合 BIP39 标准的助记词
 ############################
@@ -356,6 +418,7 @@ menu_generate() {
 
     local custom_entropy=""
     local custom_length
+    local commit_value="" show_commit="" 
     if [[ "$entropy_mode" == "custom" ]]; then
         echo -e "${YELLOW}请输入自定义输入（最多 4096 个字符，不含换行）：${NC}"
         echo -e "${GRAY}(输入时不会显示任何字符；字母、数字、空格及特殊字符均参与混合计算)${NC}"
@@ -375,11 +438,32 @@ menu_generate() {
             elif (( custom_length > 4096 )); then
                 echo -e "${RED}❌ 输入长度超过 4096 个字符，请重新输入！${NC}"
             else
+                # 质量下限校验（credit model），不合格则重新输入
+                if ! check_custom_entropy "$custom_entropy" "$n"; then
+                    unset custom_entropy
+                    echo -en "${BOLD}▶ 输入自定义熵 : ${NC}"
+                    continue
+                fi
                 break
             fi
             unset custom_entropy
             echo -en "${BOLD}▶ 输入自定义熵 : ${NC}"
         done
+    fi
+
+    # 生成前计算并显示 commitment
+    if [[ "$entropy_mode" == "custom" ]]; then
+        commit_value=$(compute_commitment "$custom_entropy") || commit_value=""
+    else
+        commit_value=$(compute_commitment "system_${n}w") || commit_value=""
+    fi
+    if [ -n "$commit_value" ]; then
+        echo -e "\n${CYAN}【 Commitment 值 】${NC}${GRAY}（记录此值，可事后独立复现校验熵来源）${NC}"
+        echo -e "  ${BOLD}${commit_value}${NC}"
+        echo -e "${GRAY}  格式: sha256(\"bip39 commit v1\" + 输入)[:16]${NC}"
+        echo -en "${YELLOW}  是否保存 commitment 以便后续校验？[Y/n]: ${NC}"
+        read -r show_commit
+        [[ "${show_commit,,}" == "n" ]] && show_commit="n" || show_commit="y"
     fi
 
     if ! mnemonic=$(gen_mnemonic "$n" "$entropy_mode" "$custom_entropy"); then
