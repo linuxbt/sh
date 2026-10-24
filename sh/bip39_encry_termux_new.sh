@@ -324,14 +324,6 @@ check_custom_entropy() {
 }
 
 ############################
-# commitment 计算：生成前显示承诺值，允许第三方独立复现校验
-# sha256("bip39 commit v1" || 输入) 取前 8 字节（16 字符 hex）
-compute_commitment() {
-    local data="$1"
-    printf '%s' "bip39 commit v1${data}" | openssl dgst -sha256 -binary | xxd -p | tr -d '\n' | head -c 16
-}
-
-############################
 # 生成符合 BIP39 标准的助记词
 ############################
 gen_mnemonic() {
@@ -433,7 +425,6 @@ menu_generate() {
 
     local custom_entropy=""
     local custom_length
-    local commit_value="" show_commit="" 
     if [[ "$entropy_mode" == "custom" ]]; then
         echo -e "${YELLOW}请输入自定义熵内容（最多 4096 个字符，不含换行）：${NC}"
         echo -e "${GRAY}(输入时不会显示任何字符；字母、数字、空格及特殊字符均按原样参与计算)${NC}"
@@ -464,21 +455,6 @@ menu_generate() {
             unset custom_entropy
             echo -en "${BOLD}▶ 输入自定义熵 : ${NC}"
         done
-    fi
-
-    # 生成前计算并显示 commitment
-    if [[ "$entropy_mode" == "custom" ]]; then
-        commit_value=$(compute_commitment "$custom_entropy") || commit_value=""
-    else
-        commit_value=$(compute_commitment "system_${n}w") || commit_value=""
-    fi
-    if [ -n "$commit_value" ]; then
-        echo -e "\n${CYAN}【 Commitment 值 】${NC}${GRAY}（记录此值，可事后独立复现校验熵来源）${NC}"
-        echo -e "  ${BOLD}${commit_value}${NC}"
-        echo -e "${GRAY}  格式: sha256(\"bip39 commit v1\" + 输入)[:16]${NC}"
-        echo -en "${YELLOW}  是否保存 commitment 以便后续校验？[Y/n]: ${NC}"
-        read -r show_commit
-        [[ "${show_commit,,}" == "n" ]] && show_commit="n" || show_commit="y"
     fi
 
     if ! mnemonic=$(gen_mnemonic "$n" "$entropy_mode" "$custom_entropy"); then
