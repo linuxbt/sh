@@ -51,7 +51,6 @@ set -euo pipefail
 # 说明：unset 仅解除变量引用，不保证物理内存立即擦除。
 ############################
 cleanup() {
-    rm -f bip39_qr.png 2>/dev/null || true
     unset mnemonic custom_entropy pass p1 p2 out enc blob original_blob 2>/dev/null || true
     unset key aes_key mac_key cipher mac salt iv raw_hex key_hex 2>/dev/null || true
     unset k1 k2 k1b test_plaintext test_password 2>/dev/null || true
@@ -85,9 +84,8 @@ secure_clear() {
 pause_return() {
     echo
     echo -e "${GRAY}────────────────────────────────────────────────────${NC}"
-    echo -en "${BOLD}▶ 按回车键 (Enter) 返回主菜单并彻底清除屏幕内容...${NC}"
+    echo -en "${BOLD}▶ 按回车键 (Enter) 返回主菜单并彻底清除屏幕与历史记录...${NC}"
     read -r -s || true
-    rm -f bip39_qr.png 2>/dev/null || true
     secure_clear
 }
 
@@ -110,26 +108,58 @@ safe_read() {
 # QR 输出（补齐：原 iSH 版整段缺失 print_qr 且未装 qrencode，
 # 与 Linux/Termux 版功能不一致；bootstrap 已加入 qrencode 包）
 ############################
+get_term_cols() {
+    local cols
+    cols=$(tput cols 2>/dev/null || stty size 2>/dev/null | awk '{print $2}')
+    if [[ -z "$cols" || "$cols" -le 0 ]]; then
+        cols="${COLUMNS:-80}"
+    fi
+    printf '%s' "$cols"
+}
+
+############################
+# QR 输出（纯终端瞬时内存渲染，严格遵循不下载、不生成任何文件原则）
+# 针对手机端窄屏折行撕裂问题：
+# 1. 采用 -l L (低纠错最小矩阵) + -m 1 (最小边距)，将二维码列宽压缩至极限 (~53 列)
+# 2. 动态检测终端列数，宽度不足时提供防撕裂引导（横屏或双指缩小字体）
+# 3. 采用 UTF8i 适配暗色终端，保证正向黑白对比度，避免白底负片导致扫描失败
+############################
 print_qr() {
     local text="$1"
-    if command -v qrencode >/dev/null 2>&1; then
-        echo -e "${YELLOW}📱【 移动端防撕裂扫码说明 】${NC}"
-        echo -e "${GRAY}• 终端渲染：若手机竖屏较窄导致二维码折行撕裂，请【双指捏合缩小字体】或【将手机横屏】查看。${NC}"
-        echo -e "${GRAY}• 高清文件：已同步在当前目录生成无损图片【 bip39_qr.png 】，可在 iOS【文件】App 中点开扫码！${NC}"
-        echo
-        # 使用 -m 1 紧凑边距渲染，大幅减少水平宽度，防止换行折断
-        printf "%s" "$text" | qrencode -m 1 -t ANSIUTF8 2>/dev/null || printf "%s" "$text" | qrencode -m 1 -t UTF8
-        echo
-        # 同步生成 Retina 级无损高清图片
-        local qr_file="bip39_qr.png"
-        if printf "%s" "$text" | qrencode -m 2 -s 8 -o "$qr_file" 2>/dev/null; then
-            echo -e "${GREEN}📸 已同步生成高清二维码图片: ${BOLD}${qr_file}${NC}"
-            echo -e "${CYAN}   👉 极简扫码指南: 切换到 iPhone 桌面 -> 打开【文件】App -> 浏览【iSH】-> 点击【${qr_file}】即可使用另一台设备扫码（绝不撕裂）。${NC}"
-            echo -e "${GRAY}   (提示：按回车返回主菜单时将自动销毁此临时图片)${NC}"
-        fi
-    else
-        echo -e "${YELLOW}（提示：未检测到 qrencode 命令，二维码功能暂不可用；可在终端执行 apk add libqrencode 启用）${NC}"
+    if ! command -v qrencode >/dev/null 2>&1; then
+        echo -e "${YELLOW}（提示：未安装 qrencode 命令，可在终端执行 apk add libqrencode 安装启用）${NC}"
+        return 0
     fi
+
+    # 动态检测当前终端可用宽度
+    local cols
+    cols=$(get_term_cols)
+    local min_cols=56
+
+    if (( cols < min_cols )); then
+        echo -e "${YELLOW}┌────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${YELLOW}│ 📱【 手机端防撕裂扫码提示 】                               │${NC}"
+        echo -e "${YELLOW}├────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "${YELLOW}│ 当前终端宽度为 ${RED}${cols}${YELLOW} 列，二维码矩阵需要至少 ${GREEN}${min_cols}${YELLOW} 列宽度。         │${NC}"
+        echo -e "${YELLOW}│ 若在当前宽度直接显示，行尾折断会导致【二维码横向撕裂】！   │${NC}"
+        echo -e "${YELLOW}│                                                            │${NC}"
+        echo -e "${CYAN}│ 👉 避坑操作（任选其一，立刻获得完整方正二维码）：          │${NC}"
+        echo -e "${GREEN}│   ①【手机横屏】直接将手机横放（宽度立增至 100+ 列）        │${NC}"
+        echo -e "${GREEN}│   ②【捏合缩字】在屏幕上用双指往内捏合缩小终端字体          │${NC}"
+        echo -e "${YELLOW}└────────────────────────────────────────────────────────────┘${NC}"
+        echo -en "${BOLD}▶ 旋转手机横屏或缩小字体后，按回车键 (Enter) 渲染二维码 : ${NC}"
+        read -r _
+    fi
+
+    echo
+    echo -e "${CYAN}────────────── [ 二维码（内存瞬时渲染·不写文件） ] ──────────────${NC}"
+    # 采用 -l L (最小化矩阵) + -m 1 (紧凑边距) + -t UTF8i (暗色背景反转模块，正向对比度)
+    if ! printf "%s" "$text" | qrencode -l L -m 1 -t UTF8i 2>/dev/null; then
+        if ! printf "%s" "$text" | qrencode -l L -m 1 -t ANSIUTF8 2>/dev/null; then
+            printf "%s" "$text" | qrencode -l L -m 1 -t UTF8
+        fi
+    fi
+    echo -e "${CYAN}──────────────────────────────────────────────────────────────────${NC}"
 }
 
 ############################
