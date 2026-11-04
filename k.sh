@@ -3101,7 +3101,7 @@ bip39_manage() {
       echo "K脚本为你提供：各种命令行工具脚本"
       echo -e "${huang}拒绝繁琐: 只需一键。"
       echo "------------------------"
-      echo "1. 安卓 | Termux 版本"
+      echo "1. 安卓 Termux 版本"
       echo "2. 苹果 | iSH 版本 -- 请先安装curl和bash"
       echo "苹果 iSH 环境必备依赖 -- 安装命令如下: "
       # echo "apk add curl bash openssl python3 coreutils"
