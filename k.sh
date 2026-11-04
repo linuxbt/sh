@@ -29,16 +29,40 @@ ENABLE_STATS="true"
 
 send_stats() {
 
-    if [ "$ENABLE_STATS" == "false" ]; then
-        return
+    if [ "$ENABLE_STATS" = "false" ]; then
+        return 0
     fi
 
-    country=$(curl -s ipinfo.io/country)
-    os_info=$(grep PRETTY_NAME /etc/os-release | cut -d '=' -f2 | tr -d '"')
+    country=$(curl -s --max-time 3 ipinfo.io/country 2>/dev/null || echo "Unknown")
+
+    # 自动识别操作系统信息
+    os_info="Unknown"
+
+    if [ -r /etc/os-release ]; then
+
+        os_info=$(
+            . /etc/os-release
+            printf '%s' "${PRETTY_NAME:-Unknown}"
+        )
+
+    elif [ -n "${PREFIX:-}" ] && [ -r "$PREFIX/etc/os-release" ]; then
+
+        os_info=$(
+            . "$PREFIX/etc/os-release"
+            printf '%s' "${PRETTY_NAME:-Unknown}"
+        )
+
+    elif command -v getprop >/dev/null 2>&1; then
+
+        android_version=$(getprop ro.build.version.release 2>/dev/null)
+        android_model=$(getprop ro.product.model 2>/dev/null)
+
+        os_info="Android ${android_version:-Unknown} ${android_model:-}"
+
+    fi
+
     cpu_arch=$(uname -m)
-#    curl -s -X POST "https://api.linuxbt.pro/api/log" \
-#         -H "Content-Type: application/json" \
-#         -d "{\"action\":\"$1\",\"timestamp\":\"$(date -u '+%Y-%m-%d %H:%M:%S')\",\"country\":\"$country\",\"os_info\":\"$os_info\",\"cpu_arch\":\"$cpu_arch\",\"version\":\"$sh_v\"}" &>/dev/null &
+
 }
 
 
