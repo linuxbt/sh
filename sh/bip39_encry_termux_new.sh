@@ -2,29 +2,6 @@
 # ==========================================
 # Termux (Android) 环境初始化
 # ==========================================
-if ! command -v argon2 >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1 || ! command -v xxd >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
-    echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, qrencode)..."
-    pkg update >/dev/null 2>&1
-    # 包名说明（Termux）：openssl 命令由 openssl-tool 包提供（openssl 包仅含库文件），
-    # qrencode 命令由 libqrencode 包提供——这两个包名本身是对的；
-    # 真正的风险是"装完没复检"，因此安装后一律以实际可执行文件为准逐一验证。
-    pkg install ncurses-utils argon2 openssl-tool xxd libqrencode -y
-    if [ $? -ne 0 ]; then
-         echo "❌ 依赖安装失败！请检查 Termux 网络连接或更换源。"
-         exit 1
-    fi
-    # 若 qrencode 仍不可用，再尝试独立包名 qrencode 兜底
-    if ! command -v qrencode >/dev/null 2>&1; then
-        pkg install qrencode -y >/dev/null 2>&1 || true
-    fi
-    for c in argon2 openssl xxd qrencode; do
-        if ! command -v "$c" >/dev/null 2>&1; then
-            echo "❌ 依赖安装后仍缺少命令: $c，请手动执行 pkg install 后重试。"
-            exit 1
-        fi
-    done
-fi
-
 # 确保 Termux/iSH 的 pkg 安装目录在 PATH 中（防止非交互 shell 下缺失）
 if [ -n "${PREFIX:-}" ] && [ -d "${PREFIX:-}/bin" ]; then
     case ":$PATH:" in
@@ -37,8 +14,53 @@ elif [ -d "/data/data/com.termux/files/usr/bin" ]; then
         *) export PATH="/data/data/com.termux/files/usr/bin:$PATH" ;;
     esac
 fi
+if ! command -v argon2 >/dev/null 2>&1 || ! command -v qrencode >/dev/null 2>&1 || ! command -v xxd >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
+    echo "▶ 首次运行：正在通过 pkg 下载安装必备组件 (argon2, openssl, xxd, qrencode)..."
+    if ! pkg update >/dev/null 2>&1; then
+        echo "⚠️ pkg update 失败（可能网络不稳定），继续尝试安装必备组件..."
+    fi
+    # 包名说明（Termux）：openssl 命令由 openssl-tool 包提供（openssl 包仅含库文件），
+    # qrencode 命令由 libqrencode 包提供——这两个包名本身是对的；
+    # 真正的风险是"装完没复检"，因此安装后一律以实际可执行文件为准逐一验证。
+    pkg install ncurses-utils argon2 openssl-tool xxd libqrencode -y
+    if [ $? -ne 0 ]; then
+         echo "❌ 依赖安装失败！请检查 Termux 网络连接或更换源。"
+         exit 1
+    fi
+    # 若 qrencode 仍不可用，再尝试独立包名 qrencode 兜底
+    if ! command -v qrencode >/dev/null 2>&1; then
+        pkg install qrencode -y >/dev/null 2>&1 || true
+    fi
+    for c in argon2 openssl xxd; do
+        if ! command -v "$c" >/dev/null 2>&1; then
+            echo "❌ 依赖安装后仍缺少核心命令: $c，请手动执行 pkg install 后重试。"
+            echo "▶ 按回车键退出..."
+            read -r _
+            exit 1
+        fi
+    done
+    if ! command -v qrencode >/dev/null 2>&1; then
+        echo "ℹ️  未安装 qrencode 命令，二维码展示将被跳过（核心助记词生成与加解密不受影响）。"
+    fi
+fi
 
-# 安全修复：原 Termux 版没有 set -euo pipefail，管道/命令失败会被静默吞掉，
+# 安全修复：原 Termux 版没有 set -euo pipefail
+
+############################
+# 异常退出与敏感变量清理（GPT6 P2）
+# 捕获 EXIT, SIGINT (Ctrl+C), SIGTERM 信号；
+# 尽力解除变量引用（unset）并清屏，降低敏感数据在内存保留的时间窗口。
+# 说明：unset 仅解除变量引用，不保证物理内存立即擦除。
+############################
+cleanup() {
+    unset mnemonic custom_entropy pass p1 p2 out enc blob original_blob 2>/dev/null || true
+    unset key aes_key mac_key cipher mac salt iv raw_hex key_hex 2>/dev/null || true
+    unset k1 k2 k1b test_plaintext test_password 2>/dev/null || true
+    secure_clear 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM，管道/命令失败会被静默吞掉，
 # 与 Linux/iSH 版统一启用严格模式（关键失败在各函数内另有显式检查，不只依赖它）
 set -euo pipefail
 
@@ -58,15 +80,25 @@ NC="\033[0m"
 # 安全清屏
 ############################
 secure_clear() {
-    printf "\033[2J\033[H"
+    clear 2>/dev/null || true
+    printf "\033[H\033[2J\033[3J"
 }
 
 pause_return() {
     echo
     echo -e "${GRAY}────────────────────────────────────────────────────${NC}"
     echo -en "${BOLD}▶ 按回车键 (Enter) 返回主菜单并清屏...${NC}"
-    read -r -s
+    read -r -s || true
     secure_clear
+}
+
+############################
+# 统一安全输入函数（GPT6 P2）：封装 EOF 处理，防止在 set -e 下遇 EOF 异常崩溃
+############################
+safe_read() {
+    local _var="$1"
+    shift
+    read -r "$@" "$_var" || return 1
 }
 
 ############################
@@ -78,8 +110,38 @@ pause_return() {
 ############################
 # QR 输出
 ############################
+get_term_cols() {
+    local cols
+    cols=$(tput cols 2>/dev/null || stty size 2>/dev/null | awk '{print $2}')
+    if [[ -z "$cols" || "$cols" -le 0 ]]; then
+        cols="${COLUMNS:-80}"
+    fi
+    printf '%s' "$cols"
+}
+
 print_qr() {
-    printf "%s" "$1" | qrencode -t UTF8
+    local text="$1"
+    if ! command -v qrencode >/dev/null 2>&1; then
+        echo -e "${YELLOW}（提示：未检测到 qrencode 命令，二维码功能暂不可用；可在 Termux 执行 pkg install libqrencode 启用）${NC}"
+        return 0
+    fi
+
+    local cols
+    cols=$(get_term_cols)
+    local min_cols=56
+
+    if (( cols < min_cols )); then
+        echo -e "${YELLOW}📱 提示：当前屏幕较窄（${cols} 列），若二维码折行撕裂，请将手机横屏或双指缩小字体。${NC}"
+    fi
+
+    echo
+    echo -e "${CYAN}────────────── [ 二维码（内存瞬时渲染·不写文件） ] ──────────────${NC}"
+    if ! printf "%s" "$text" | qrencode -l L -m 1 -t UTF8i 2>/dev/null; then
+        if ! printf "%s" "$text" | qrencode -l L -m 1 -t ANSIUTF8 2>/dev/null; then
+            printf "%s" "$text" | qrencode -l L -m 1 -t UTF8
+        fi
+    fi
+    echo -e "${CYAN}──────────────────────────────────────────────────────────────────${NC}"
 }
 
 ############################
@@ -88,36 +150,35 @@ print_qr() {
 derive_key() {
     local pass="$1" salt="$2"
     local raw_hex key_hex
-    # 安全修复（致命）：原实现带 -q 参数——多个发行版的 argon2 CLI 不支持 -q，
-    # 会直接报错且 stdout 为空；旧代码对派生结果零校验，于是空密钥被
-    # openssl enc 静默补零，沦为全零密钥（任意密码都能解密）。
-    # 现在：去掉 -q；输出归一化 + 严格校验，异常立即失败；
-    # 且全部调用点都显式检查返回值，绝不把空/短密钥带入后续步骤。
-    # -r 的输出形态随构建而异：可能为 64 字节 raw，也可能为 128 字符 hex 文本，
-    # 经 xxd -p 编码后分别为 128 / 256 个字符（带尾换行时为 130 / 258），逐一归一化。
+    # 安全加固说明（跨平台与跨构建兼容）：
+    # -r 输出形态因构建不同分为两类：
+    # 1. 64 字节原始二进制：经 xxd -p 编码后恰好为 128 字符十六进制（带换行则 130 字符以 0a 结尾）
+    # 2. 128 字符十六进制 ASCII 文本：经 xxd -p 二次编码后为 256 字符（带换行 258 字符以 0a 结尾）
+    # 经由 xxd -r -p 还原后的内容仅为纯 ASCII 字符 [0-9a-fA-F]，绝不含 NUL (0x00) 字节，存入 Bash 变量 100% 安全可靠。
     raw_hex=$(printf "%s" "$pass" | \
       argon2 "$salt" -id -t 3 -m 19 -p 4 -l 64 -r | \
       xxd -p | tr -d '\n') || return 1
+
     if [[ ${#raw_hex} -eq 258 && "$raw_hex" == *0a ]]; then
         raw_hex="${raw_hex:0:256}"
     fi
     if [[ ${#raw_hex} -eq 130 && "$raw_hex" == *0a ]]; then
-        # raw 输出带尾换行（65 字节）的构建：去掉尾部 0a
         raw_hex="${raw_hex:0:128}"
     fi
+
     case ${#raw_hex} in
         128)
             key_hex="$raw_hex"
             ;;
         256)
-            # argon2 输出的是 hex 文本、被 xxd 又编码了一层：解一层还原
             key_hex=$(printf "%s" "$raw_hex" | xxd -r -p) || return 1
             ;;
         *)
             return 1
             ;;
     esac
-    # 结果必须是恰好 128 位十六进制（64 字节），否则立即失败
+
+    # 最终严格防线：必须满足恰好 128 位有效十六进制字符（64 字节）
     [[ "$key_hex" =~ ^[0-9a-fA-F]{128}$ ]] || return 1
     printf "%s" "${key_hex,,}"
 }
@@ -137,6 +198,46 @@ kdf_selftest() {
     [[ "$k2" =~ ^[0-9a-f]{128}$ ]] || return 1
     [[ "$k1" != "$k2" ]] || return 1
     [[ "$k1" == "$k1b" ]] || return 1
+    return 0
+}
+
+############################
+# 完整加解密链路启动自检（GPT6 P1）
+# 不涉及真实助记词，使用固定测试向量验证：
+# 1. 正常加密与解密一致性
+# 2. HMAC 防篡改拦截（修改密文任意字符必须拒绝）
+# 3. 错误口令拒绝（返回失败且不产生有效明文）
+# 全部验证通过才允许进入系统。
+############################
+crypto_selftest() {
+    local test_plaintext="abandon ability able about above absent"
+    local test_password="crypto-selftest-pw-2026!@#"
+    local enc dec
+
+    # 1. 加解密一致性测试
+    enc=$(encrypt_secure "$test_plaintext" "$test_password") || return 1
+    [[ -n "$enc" ]] || return 1
+    dec=$(decrypt_secure "$enc" "$test_password" 2>/dev/null) || return 1
+    [[ "$dec" == "$test_plaintext" ]] || return 1
+
+    # 2. 密文篡改拦截测试（修改密文密文字符，HMAC 必须拦截）
+    local prefix="${enc%:*}:"
+    local cipher_part="${enc##*:}"
+    local tampered
+    if [[ "${cipher_part:0:1}" == "A" ]]; then
+        tampered="${prefix}B${cipher_part:1}"
+    else
+        tampered="${prefix}A${cipher_part:1}"
+    fi
+    if decrypt_secure "$tampered" "$test_password" 2>/dev/null; then
+        return 1
+    fi
+
+    # 3. 错误口令拒绝测试
+    if decrypt_secure "$enc" "wrong-crypto-password-xyz" 2>/dev/null; then
+        return 1
+    fi
+
     return 0
 }
 
@@ -332,7 +433,7 @@ validate_mnemonic() {
     local ent_hex hash_hex hash_bin cs_actual
     ent_hex=$(bin2hex "$ent_bin") || return 1
     hash_hex=$(printf "%s" "$ent_hex" | xxd -r -p | openssl dgst -sha256 -binary | xxd -p | tr -d '\n') || return 1
-    hash_bin=$(hex2bin "$hash_hex")
+    hash_bin=$(hex2bin "$hash_hex") || return 1
     cs_actual="${hash_bin:0:$cs_bits}"
     [[ "$cs_expected" == "$cs_actual" ]]
 }
@@ -525,11 +626,11 @@ check_custom_entropy() {
         credited_bits=$(( len * 2 ))
     fi
     if (( credited_bits < required_bits )); then
-        echo -e "${RED}❌ 自定义熵质量不足：${credited_bits} bit < 所需 ${required_bits} bit（${n} 词）${NC}" >&2
-        echo -e "${YELLOW}   请增加输入长度或改用系统随机熵${NC}" >&2
+        echo -e "${RED}❌ 自定义输入健康度不足：估算下限 ${credited_bits} bit < 所需 ${required_bits} bit（${n} 词）${NC}" >&2
+        echo -e "${YELLOW}   请增加输入长度或改用系统随机熵（系统 CSPRNG 为可信安全底线）${NC}" >&2
         return 1
     fi
-    echo -e "${GREEN}✅ 自定义熵质量检查通过：${credited_bits} bit >= ${required_bits} bit${NC}" >&2
+    echo -e "${GREEN}✅ 自定义输入健康度检查通过（估算下限 ${credited_bits} bit >= ${required_bits} bit，底层安全性由系统 CSPRNG 全量兜底）${NC}" >&2
     return 0
 }
 
@@ -582,10 +683,9 @@ gen_mnemonic() {
     local hash_hex
     hash_hex=$(printf "%s" "$ent_hex" | xxd -r -p | openssl dgst -sha256 -binary | xxd -p | tr -d '\n') || return 1
 
-    local ent_bin
-    ent_bin=$(hex2bin "$ent_hex")
-    local hash_bin
-    hash_bin=$(hex2bin "$hash_hex")
+    local ent_bin hash_bin
+    ent_bin=$(hex2bin "$ent_hex") || return 1
+    hash_bin=$(hex2bin "$hash_hex") || return 1
 
     csum_bits=$(( ent_bytes / 4 ))
     local csum_bin="${hash_bin:0:$csum_bits}"
@@ -697,6 +797,12 @@ menu_generate() {
         return
     fi
 
+    if (( ${#p1} < 8 )); then
+        echo -e "\n${RED}❌ 密码强度不足：长度至少需 8 个字符，操作已取消！${NC}"
+        pause_return
+        return
+    fi
+
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
     if ! enc=$(encrypt_secure "$mnemonic" "$p1"); then
         unset mnemonic p1 p2
@@ -771,6 +877,12 @@ menu_encrypt_existing() {
         return
     fi
 
+    if (( ${#p1} < 8 )); then
+        echo -e "\n${RED}❌ 密码强度不足：长度至少需 8 个字符，操作已取消！${NC}"
+        pause_return
+        return
+    fi
+
     echo -e "\n${CYAN}⏳ 正在通过 Argon2id 进行高强度加密运算，请稍候...${NC}"
     if ! enc=$(encrypt_secure "$mnemonic" "$p1"); then
         unset mnemonic p1 p2
@@ -820,14 +932,19 @@ menu_decrypt() {
 
     echo -e "\n${CYAN}⏳ 正在校验 HMAC 数据完整性与解密，请稍候...${NC}"
 
+    local original_blob="$blob"
     if ! out=$(decrypt_secure "$blob" "$pass" 2>/dev/null); then
-        unset pass out
+        unset pass out original_blob
         echo -e "\n${RED}❌ 解密失败！密码错误或数据已损坏（被篡改）${NC}"
         pause_return
         return
     fi
 
     secure_clear
+    # 解密后 BIP39 再验证（GPT6 P1）：校验明文是否为合法助记词与校验和
+    if ! validate_mnemonic "$out" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  警告：解密明文未通过 BIP39 校验（可能是旧版自定义文本或数据受损），请仔细确认。${NC}"
+    fi
     echo -e "${CYAN}-----------------------------------${NC}"
     echo -e "${YELLOW}请选择查看明文助记词的方式：${NC}"
     echo -e "  ${GREEN}1.${NC} 在本终端窗口直接打印明文"
@@ -856,7 +973,13 @@ menu_decrypt() {
     esac
     echo -e "${CYAN}=================================${NC}"
 
-    unset pass out blob
+    # v1→v2 升级建议（GPT6 建议）
+    if [[ "$original_blob" != v2:* && -n "$out" ]]; then
+        echo -e "\n${YELLOW}💡 格式升级提示：当前解密数据为 v1 格式。${NC}"
+        echo -e "${GRAY}   推荐使用主菜单【选项 2】对该助记词重新加密，升级为带防混淆认证的 v2 格式。${NC}"
+    fi
+
+    unset pass out blob original_blob
     pause_return
 }
 
@@ -881,7 +1004,10 @@ main_menu() {
         echo -e "${CYAN}====================================================${NC}"
         echo
         echo -en "${BOLD}▶ 请选择操作任务 [1/2/3/q] : ${NC}"
-        read -r c
+        if ! read -r c; then
+            echo
+            exit 0
+        fi
         case "$c" in
             1) menu_generate ;;
             2) menu_encrypt_existing ;;
@@ -897,11 +1023,21 @@ main_menu() {
 
 if ! check_wordlist; then
     echo -e "${RED}❌ 词表完整性自检失败（词数或 SHA256 指纹不符），词表可能已被篡改，拒绝运行！${NC}"
+    echo -en "${BOLD}▶ 按回车键退出...${NC}"
+    read -r _
     exit 1
 fi
 build_word_index
 if ! kdf_selftest; then
     echo -e "${RED}❌ KDF 自检失败：argon2 输出异常（参数不兼容或输出格式未知），拒绝运行以防密钥静默降级！${NC}"
+    echo -en "${BOLD}▶ 按回车键退出...${NC}"
+    read -r _
+    exit 1
+fi
+if ! crypto_selftest; then
+    echo -e "${RED}❌ 密码学全链路自检失败：AES/HMAC 检验或防篡改机制异常，拒绝运行以保资产安全！${NC}"
+    echo -en "${BOLD}▶ 按回车键退出...${NC}"
+    read -r _
     exit 1
 fi
 main_menu
