@@ -120,10 +120,22 @@ get_term_cols() {
 ############################
 # QR 输出（纯终端瞬时内存渲染，严格遵循不下载、不生成任何文件原则）
 # 针对手机端窄屏折行撕裂问题：
-# 1. 采用 -l L (低纠错最小矩阵) + -m 1 (最小边距)，将二维码列宽压缩至极限 (~53 列)
+# 1. 采用 -l L (低纠错最小矩阵) + -m 0 (零边距) 压缩列宽。实测：24 词密文 (350 字符) 矩阵 65 列、12 词 (242 字符) 57 列；旧版误按约 53 列设警告阈值 (56)，终端宽度在 57-66 列之间时不触发警告也会折行撕裂
 # 2. 动态检测终端列数，宽度不足时提供防撕裂引导（横屏或双指缩小字体）
 # 3. 采用 UTF8i 适配暗色终端，保证正向黑白对比度，避免白底负片导致扫描失败
 ############################
+# 按载荷长度估算二维码所需列宽：密文 blob 含小写字母与符号、必然走字节模式，
+# 下表为字节模式 + 低纠错 L 的版本容量 (字符数)，返回值 = 矩阵模块数，
+# 即 -m 0 时的实际渲染列宽。容量表已经过 qrencode 4.1.1 实测校准 (17-600 字符全对齐)。
+qr_required_cols() {
+    local len=$1 v=1
+    local caps=(17 32 53 78 106 134 154 192 230 271 321 367 425 458 520 586 644 718 792 858 929 1003 1074 1174 1248 1331 1423 1501 1587 1653 1782 1902 1990 2102 2215 2331 2451 2593 2727 2875)
+    while (( v < ${#caps[@]} && len > caps[v-1] )); do
+        v=$((v+1))
+    done
+    printf '%s' $(( 17 + 4 * v ))
+}
+
 print_qr() {
     local text="$1"
     if ! command -v qrencode >/dev/null 2>&1; then
@@ -134,13 +146,14 @@ print_qr() {
     # 动态检测当前终端可用宽度
     local cols
     cols=$(get_term_cols)
-    local min_cols=56
+    local req_cols
+    req_cols=$(qr_required_cols "${#text}")
 
-    if (( cols < min_cols )); then
+    if (( cols < req_cols )); then
         echo -e "${YELLOW}┌────────────────────────────────────────────────────────────┐${NC}"
         echo -e "${YELLOW}│ 📱【 手机端防撕裂扫码提示 】                               │${NC}"
         echo -e "${YELLOW}├────────────────────────────────────────────────────────────┤${NC}"
-        echo -e "${YELLOW}│ 当前终端宽度为 ${RED}${cols}${YELLOW} 列，二维码矩阵需要至少 ${GREEN}${min_cols}${YELLOW} 列宽度。         │${NC}"
+        echo -e "${YELLOW}│ 当前终端宽度为 ${RED}${cols}${YELLOW} 列，二维码矩阵需要至少 ${GREEN}${req_cols}${YELLOW} 列宽度。         │${NC}"
         echo -e "${YELLOW}│ 若在当前宽度直接显示，行尾折断会导致【二维码横向撕裂】！   │${NC}"
         echo -e "${YELLOW}│                                                            │${NC}"
         echo -e "${CYAN}│ 👉 避坑操作（任选其一，立刻获得完整方正二维码）：          │${NC}"
@@ -153,10 +166,10 @@ print_qr() {
 
     echo
     echo -e "${CYAN}────────────── [ 二维码（内存瞬时渲染·不写文件） ] ──────────────${NC}"
-    # 采用 -l L (最小化矩阵) + -m 1 (紧凑边距) + -t UTF8i (暗色背景反转模块，正向对比度)
-    if ! printf "%s" "$text" | qrencode -l L -m 1 -t UTF8i 2>/dev/null; then
-        if ! printf "%s" "$text" | qrencode -l L -m 1 -t ANSIUTF8 2>/dev/null; then
-            printf "%s" "$text" | qrencode -l L -m 1 -t UTF8
+    # 采用 -l L (最小化矩阵) + -m 0 (零边距) + -t UTF8i (暗色背景反转模块，正向对比度)
+    if ! printf "%s" "$text" | qrencode -l L -m 0 -t UTF8i 2>/dev/null; then
+        if ! printf "%s" "$text" | qrencode -l L -m 0 -t ANSIUTF8 2>/dev/null; then
+            printf "%s" "$text" | qrencode -l L -m 0 -t UTF8
         fi
     fi
     echo -e "${CYAN}──────────────────────────────────────────────────────────────────${NC}"
