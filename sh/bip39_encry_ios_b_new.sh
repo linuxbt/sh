@@ -27,9 +27,9 @@ if [ -z "$BASH_VERSION" ]; then
              read -r _
              exit 1
         fi
-        # 尝试安装可选二维码组件（Alpine 中包名为 libqrencode-tools）
-        echo "▶ 正在尝试安装可选二维码组件 (libqrencode-tools)..."
-        apk add libqrencode-tools --no-cache 2>/dev/null || true
+        # 尝试安装可选二维码组件（Alpine 3.14 中包名为 libqrencode）
+        echo "▶ 正在尝试安装可选二维码组件 (libqrencode)..."
+        apk add libqrencode --no-cache 2>/dev/null || apk add libqrencode-tools --no-cache 2>/dev/null || true
     elif ! command -v qrencode >/dev/null 2>&1; then
         # 核心组件都在，仅缺少二维码组件，尝试从官方 CDN 补充安装
         if [ -f /etc/apk/repositories ] && grep -q "apk.ish.app" /etc/apk/repositories 2>/dev/null; then
@@ -37,7 +37,7 @@ if [ -z "$BASH_VERSION" ]; then
             echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/community" >> /etc/apk/repositories
             apk update >/dev/null 2>&1 || true
         fi
-        apk add libqrencode-tools --no-cache 2>/dev/null || true
+        apk add libqrencode --no-cache 2>/dev/null || apk add libqrencode-tools --no-cache 2>/dev/null || true
     fi
     exec bash "$0" "$@"
 fi
@@ -110,7 +110,7 @@ print_qr() {
     if command -v qrencode >/dev/null 2>&1; then
         printf "%s" "$1" | qrencode -t UTF8
     else
-        echo -e "${YELLOW}（提示：未检测到 qrencode 命令，二维码功能暂不可用；可在联网后执行 apk add libqrencode-tools 启用）${NC}"
+        echo -e "${YELLOW}（提示：未检测到 qrencode 命令，二维码功能暂不可用；可在联网后执行 apk add libqrencode 启用）${NC}"
     fi
 }
 
@@ -983,9 +983,11 @@ done
 
 if ! command -v qrencode >/dev/null 2>&1; then
     echo -e "${YELLOW}ℹ️  提示：未安装 qrencode 命令，二维码功能将以文本提示代替（核心助记词生成与加解密不受影响）。${NC}"
-    echo -e "${GRAY}   如需在终端查看二维码，请手动执行: apk add libqrencode-tools${NC}"
-    sleep 1
+    echo -e "${GRAY}   如需在终端查看二维码，可在终端执行: apk add libqrencode${NC}"
 fi
+
+echo
+echo -e "${CYAN}▶ 正在进行密码学安全自检（iSH 模拟器运算中，约需数十秒，请稍候）...${NC}"
 
 if ! check_wordlist; then
     echo -e "${RED}❌ 词表完整性自检失败（词数或 SHA256 指纹不符），词表可能已被篡改，拒绝运行！${NC}"
@@ -993,17 +995,23 @@ if ! check_wordlist; then
     read -r _
     exit 1
 fi
+echo -e "${GRAY}  [1/3] BIP39 2048 词表 SHA-256 指纹校验通过${NC}"
 build_word_index
+
 if ! kdf_selftest; then
     echo -e "${RED}❌ KDF 自检失败：argon2 输出异常（参数不兼容或输出格式未知），拒绝运行以防密钥静默降级！${NC}"
     echo -en "${BOLD}▶ 按回车键退出...${NC}"
     read -r _
     exit 1
 fi
+echo -e "${GRAY}  [2/3] Argon2id 密钥派生引擎双向自检通过${NC}"
+
 if ! crypto_selftest; then
     echo -e "${RED}❌ 密码学全链路自检失败：AES/HMAC 检验或防篡改机制异常，拒绝运行以保资产安全！${NC}"
     echo -en "${BOLD}▶ 按回车键退出...${NC}"
     read -r _
     exit 1
 fi
+echo -e "${GREEN}  [3/3] AES-256-CBC 与 HMAC 防篡改链路校验通过！${NC}"
+sleep 1
 main_menu
