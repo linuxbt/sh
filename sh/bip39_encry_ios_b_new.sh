@@ -7,9 +7,14 @@ if [ -z "$BASH_VERSION" ]; then
     # 核心组件 (bash, argon2, openssl, xxd) 缺失时自动安装
     if ! command -v bash >/dev/null 2>&1 || ! command -v argon2 >/dev/null 2>&1 || ! command -v xxd >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
         echo "▶ 首次运行：正在通过 apk 安装核心必备组件 (bash, argon2, openssl, xxd)..."
-        # 尝试开启 Alpine community 源（Alpine 官方将 qrencode 放在 community 源中）
+        # 检查并配置 Alpine 官方镜像源（apk.ish.app 默认快照中未包含 community 扩展包）
         if [ -f /etc/apk/repositories ]; then
-            sed -i 's/^#\(.*\/community\)/\1/' /etc/apk/repositories 2>/dev/null || true
+            if grep -q "apk.ish.app" /etc/apk/repositories 2>/dev/null; then
+                echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/main" > /etc/apk/repositories
+                echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/community" >> /etc/apk/repositories
+            else
+                sed -i 's/^#\(.*\/community\)/\1/' /etc/apk/repositories 2>/dev/null || true
+            fi
         fi
         if ! apk update; then
             echo "⚠️ apk update 执行异常（可能网络未就绪），尝试继续安装..."
@@ -22,15 +27,17 @@ if [ -z "$BASH_VERSION" ]; then
              read -r _
              exit 1
         fi
-        # 尝试安装可选二维码组件（Alpine 中包名为 libqrencode-tools，非 qrencode）
+        # 尝试安装可选二维码组件（Alpine 中包名为 libqrencode-tools）
         echo "▶ 正在尝试安装可选二维码组件 (libqrencode-tools)..."
-        apk add libqrencode-tools --no-cache 2>/dev/null || apk add cmd:qrencode --no-cache 2>/dev/null || true
+        apk add libqrencode-tools --no-cache 2>/dev/null || true
     elif ! command -v qrencode >/dev/null 2>&1; then
-        # 核心组件都在，仅缺少二维码组件，尝试静默安装
-        if [ -f /etc/apk/repositories ]; then
-            sed -i 's/^#\(.*\/community\)/\1/' /etc/apk/repositories 2>/dev/null || true
+        # 核心组件都在，仅缺少二维码组件，尝试从官方 CDN 补充安装
+        if [ -f /etc/apk/repositories ] && grep -q "apk.ish.app" /etc/apk/repositories 2>/dev/null; then
+            echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/main" > /etc/apk/repositories
+            echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/community" >> /etc/apk/repositories
+            apk update >/dev/null 2>&1 || true
         fi
-        apk add libqrencode-tools --no-cache 2>/dev/null || apk add cmd:qrencode --no-cache 2>/dev/null || true
+        apk add libqrencode-tools --no-cache 2>/dev/null || true
     fi
     exec bash "$0" "$@"
 fi
@@ -113,25 +120,37 @@ print_qr() {
 derive_key() {
     local pass="$1" salt="$2"
     local raw_hex key_hex
-    # 安全修复（致命）：原实现带 -q 参数——多个发行版的 argon2 CLI 不支持 -q，
-    # 会直接报错且 stdout 为空；旧代码对派生结果零校验，于是空密钥被
-    # openssl enc 静默补零，沦为全零密钥（任意密码都能解密）。
-    # 现在：去掉 -q；输出归一化 + 严格校验，异常立即失败；
-    # 且全部调用点都显式检查返回值，绝不把空/短密钥带入后续步骤。
-    # -r 的输出形态随构建而异：可能为 64 字节 raw，也可能为 128 字符 hex 文本，
-    # 经 xxd -p 编码后分别为 128 / 256 个字符（带尾换行时为 130 / 258），逐一归一化。
+    # 安全加固说明（跨平台与跨构建兼容）：
+    # -r 输出形态因构建不同分为两类：
+    # 1. 64 字节原始二进制（Debian/Ubuntu 等）：经 xxd -p 编码后恰好为 128 字符十六进制（带换行则 130 字符以 0a 结尾）
+    # 2. 128 字符十六进制 ASCII 文本（Alpine iSH / Termux 部分版本）：经 xxd -p 二次编码后为 256 字符（带换行 258 字符以 0a 结尾）
+    # 经由 xxd -r -p 还原后的内容仅为纯 ASCII 字符 [0-9a-fA-F]，绝不含 NUL (0x00) 字节，因此存入 Bash 变量 100% 安全可靠。
     raw_hex=$(printf "%s" "$pass" | \
       argon2 "$salt" -id -t 3 -m 15 -p 1 -l 64 -r | \
       xxd -p | tr -d '\n') || return 1
-    # 统一要求：-r 输出原始 64 字节，经 xxd -p 转为 128 字符十六进制。
-    # 若构建带尾部换行（130 字符以 0a 结尾），去除尾部 0a。
-    # 彻底移除 256 字符的 xxd -r -p 分支，杜绝 Bash 变量因 NUL 字节截断导致的隐患（GPT6 P0）。
+
+    if [[ ${#raw_hex} -eq 258 && "$raw_hex" == *0a ]]; then
+        raw_hex="${raw_hex:0:256}"
+    fi
     if [[ ${#raw_hex} -eq 130 && "$raw_hex" == *0a ]]; then
         raw_hex="${raw_hex:0:128}"
     fi
-    [[ ${#raw_hex} -eq 128 ]] || return 1
-    [[ "$raw_hex" =~ ^[0-9a-fA-F]{128}$ ]] || return 1
-    key_hex="$raw_hex"
+
+    case ${#raw_hex} in
+        128)
+            key_hex="$raw_hex"
+            ;;
+        256)
+            # 还原 128 字符 ASCII 十六进制文本
+            key_hex=$(printf "%s" "$raw_hex" | xxd -r -p) || return 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    # 最终严格防线：必须满足恰好 128 位有效十六进制字符（64 字节）
+    [[ "$key_hex" =~ ^[0-9a-fA-F]{128}$ ]] || return 1
     printf "%s" "${key_hex,,}"
 }
 
