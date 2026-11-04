@@ -60,10 +60,9 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 130' INT
-trap 'exit 143' TERM，管道/命令失败会被静默吞掉，
-# 与 Linux/iSH 版统一启用严格模式（关键失败在各函数内另有显式检查，不只依赖它）
+trap 'exit 143' TERM
+# 与 Linux/iSH 版统一启用严格模式
 set -euo pipefail
-
 ############################
 # 颜色与样式
 ############################
