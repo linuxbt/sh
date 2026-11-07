@@ -23,12 +23,12 @@ yum install -y curl
 ***
 ### 一键脚本
 ```bash
-curl -sS -O https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && chmod +x k.sh && ./k.sh
+curl -fsSLO https://raw.githubusercontent.com/linuxbt/sh/main/k.sh && sh k.sh
 
 ```
 
 
 ***
 ### 觉得脚本还可以USTD TRC20打赏
-![Snipaste_2024-01-17_18-01-52](https://github.com/linuxbt/sh/assets/131984541/98cf2762-1bfb-4c33-af10-af0eda29fc20)
+
 
