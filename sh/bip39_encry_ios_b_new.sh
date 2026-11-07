@@ -117,13 +117,19 @@ do_bootstrap() {
             ;;
         termux)
             if ! need pkg; then echo "❌ 未检测到 Termux pkg 包管理器"; exit 1; fi
-            for c in "${CORE_DEPS[@]}"; do
-                if ! need "$c"; then
-                    echo "▶ 正在安装缺失依赖: $c ..."
-                    pkg install -y "$c" >/dev/null 2>&1 || echo "⚠️ $c 安装异常"
-                fi
-            done
-            if ! need qrencode; then pkg install -y qrencode >/dev/null 2>&1 || true; fi
+            # Termux 命令->包 映射 (命令名 != 包名):
+            #   openssl(CLI) <- openssl-tool   tput <- ncurses-utils   qrencode(CLI) <- libqrencode
+            local need_core=0
+            for c in argon2 openssl xxd; do need "$c" || need_core=1; done
+            if (( need_core )); then
+                echo "▶ 正在安装核心依赖 (ncurses-utils argon2 openssl-tool xxd)..."
+                pkg install -y ncurses-utils argon2 openssl-tool xxd 2>/dev/null \
+                    || echo "⚠️ 核心依赖安装异常 (需 openssl-tool 提供 openssl 命令)"
+            fi
+            if ! need qrencode; then
+                echo "▶ 安装可选二维码组件 (libqrencode)..."
+                pkg install -y libqrencode >/dev/null 2>&1 || pkg install -y qrencode >/dev/null 2>&1 || true
+            fi
             ;;
         *)
             # linux: 用户确认后才安装 (GPT6 P1: 不擅自 auto-update)
