@@ -110,14 +110,27 @@ do_bootstrap() {
     # 首次运行环境初始化 (iSH 走 apk; Termux 走 pkg; Linux 走 apt/dnf/pacman)
     case "$PLATFORM" in
         ios)
+            # 任一核心依赖缺失即触发自动安装 (bash/argon2/openssl/xxd)
+            local need_bootstrap=0
+            for c in bash argon2 openssl xxd; do command -v "$c" >/dev/null 2>&1 || need_bootstrap=1; done
             if [ -z "$BASH_VERSION" ]; then
-                echo "▶ 检测到 ash 环境，正在初始化..."; echo "▶ 安装核心组件 (bash, argon2, openssl, xxd)..."
-                if [ -f /etc/apk/repositories ] && grep -q "apk.ish.app" /etc/apk/repositories 2>/dev/null; then
-                    cp /etc/apk/repositories /etc/apk/repositories.bak.$(date +%s) 2>/dev/null || true
+                need_bootstrap=1  # ash 环境必须重新 exec bash
+            fi
+            if [ $need_bootstrap -eq 1 ]; then
+                echo "▶ 检测到环境需初始化，正在安装核心组件 (bash, argon2, openssl, xxd)..."
+                if ! grep -q "dl-cdn.alpinelinux.org" /etc/apk/repositories 2>/dev/null; then
+                    echo "▶ 默认仓库不可靠, 改写为官方 alpine v${alpine_ver} CDN..."
+                    cp /etc/apk/repositories "/etc/apk/repositories.bak.$(date +%s)" 2>/dev/null || true
+                    { echo "https://dl-cdn.alpinelinux.org/alpine/v${alpine_ver}/main"
+                      echo "https://dl-cdn.alpinelinux.org/alpine/v${alpine_ver}/community"; } > /etc/apk/repositories
                 fi
                 apk update >/dev/null 2>&1 || echo "⚠️ apk update 异常，继续..."
-                apk add bash argon2 openssl xxd --no-cache 2>/dev/null || { echo "❌ 核心依赖安装失败"; exit 1; }
+                apk add bash argon2 openssl xxd --no-cache 2>/dev/null || { echo "❌ 核心依赖安装失败(可手动: apk update && apk add bash argon2 openssl xxd)"; read -r _; exit 1; }
                 apk add libqrencode --no-cache 2>/dev/null || apk add libqrencode-tools --no-cache 2>/dev/null || true
+                # 若原本是 ash 环境, 必须 exec bash 重新加载
+                if [ -z "$BASH_VERSION" ]; then
+                    exec bash "$0" "$@"
+                fi
             fi
             ;;
         termux)
