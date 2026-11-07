@@ -100,13 +100,19 @@ do_bootstrap() {
             ;;
         termux)
             if ! need pkg; then echo "❌ 未检测到 Termux pkg 包管理器"; exit 1; fi
-            for c in "${CORE_DEPS[@]}"; do
-                if ! need "$c"; then
-                    echo "▶ 正在安装缺失依赖: $c ..."
-                    pkg install -y "$c" >/dev/null 2>&1 || echo "⚠️ $c 安装异常"
-                fi
-            done
-            if ! need qrencode; then pkg install -y qrencode >/dev/null 2>&1 || true; fi
+            # Termux 命令->包 映射 (命令名 != 包名):
+            #   openssl(CLI) <- openssl-tool   tput <- ncurses-utils   qrencode(CLI) <- libqrencode
+            local need_core=0
+            for c in argon2 openssl xxd; do need "$c" || need_core=1; done
+            if (( need_core )); then
+                echo "▶ 正在安装核心依赖 (ncurses-utils argon2 openssl-tool xxd)..."
+                pkg install -y ncurses-utils argon2 openssl-tool xxd 2>/dev/null \
+                    || echo "⚠️ 核心依赖安装异常 (需 openssl-tool 提供 openssl 命令)"
+            fi
+            if ! need qrencode; then
+                echo "▶ 安装可选二维码组件 (libqrencode)..."
+                pkg install -y libqrencode >/dev/null 2>&1 || pkg install -y qrencode >/dev/null 2>&1 || true
+            fi
             ;;
         *)
             # linux: 用户确认后才安装 (GPT6 P1: 不擅自 auto-update)
@@ -342,7 +348,7 @@ get_term_cols() {
 qr_fit_show() {
     local text="$1"
     if ! command -v qrencode >/dev/null 2>&1; then
-        echo -e "${YELLOW}（未检测到 qrencode，二维码不可用；可在终端执行 pkg install libqrencode 启用）${NC}"
+        echo -e "${YELLOW}（未检测到 qrencode，二维码不可用；请安装 qrencode 后启用：Termux=pkg install libqrencode / iSH=apk add libqrencode / Linux=apt install qrencode）${NC}"
         return 0
     fi
     local qr
@@ -384,16 +390,8 @@ qr_fit_show() {
 }
 
 print_qr() {
-    local text="$1"
-    case "$PLATFORM" in
-        ios)
-            echo -e "${YELLOW}（iOS 版已移除终端二维码功能，请抄录或经安全离线渠道传输此文本）${NC}"
-            return 0
-            ;;
-        *)
-            qr_fit_show "$text"
-            ;;
-    esac
+    # 三平台统一: 实测二维码宽度 + 循环等待终端够宽 + 文本兜底 (防撕裂)
+    qr_fit_show "$1"
 }
 ############################
 # BIP39 2048 词表 (内嵌, 无外部依赖)
