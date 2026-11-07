@@ -826,7 +826,11 @@ if read -r -t 3 _skip_ans 2>/dev/null; then
 fi
 echo
 
-# 词表 2048 指纹是加密正确性硬前置(决定词索引), 无论是否跳过都必做
+# 无论是否跳过, 核心依赖必须先就位 (check_wordlist 需 openssl; KDF 需 argon2)
+echo -e "${CYAN}▶ 确保核心依赖就位 (argon2/openssl/xxd)...${NC}"
+check_deps
+
+# 词表 2048 指纹是加密正确性硬前置(决定词索引), 必做
 echo -e "${CYAN}▶ 校验词表完整性指纹 (2048 词, 快速)...${NC}"
 if ! check_wordlist; then
     echo -e "${RED}❌ 词表完整性自检失败（词数或 SHA256 指纹不符），词表可能已被篡改，拒绝运行！${NC}"
@@ -835,8 +839,8 @@ fi
 build_word_index
 
 if [[ $SKIP_ALL -eq 1 ]]; then
-    echo -e "${GREEN}⚡ 已跳过全部自检，直接进入菜单 (词表指纹已核验)${NC}"
-    echo -e "${GRAY}  提示: 本次未做 KDF/全链路自检; 如需完整校验请再运行且 3 秒内不要按键${NC}"
+    echo -e "${GREEN}⚡ 已跳过全部自检，直接进入菜单 (依赖+词表指纹已核验)${NC}"
+    echo -e "${GRAY}  提示: 本次未做 KDF/全链路/二维码自检; 如需完整校验请再运行且 3 秒内不要按键${NC}"
     echo; sleep 2
     main_menu
 fi
