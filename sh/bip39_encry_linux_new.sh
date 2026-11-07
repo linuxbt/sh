@@ -324,15 +324,76 @@ init_progress() {
         "$out" "$pct" "$step" "$total" "$label"
     printf "\n"
 }
+
 ############################
-# 二维码输出 (Linux 原版: qrencode -t UTF8, 无宽度逻辑)
+# 二维码输出 (GPT6 原版 + 撕裂防护)
+#  - qrencode -l L -m 1 -t UTF8i (最小静区, 最窄终端渲染)
+#  - 渲染后实测二维码所需显示列; 终端不够宽 -> 循环提示缩字/横屏并每次重测,
+#    直到放得下才输出 (避免折行撕裂); 持续放不下 -> 退回纯文本兜底
 ############################
-print_qr() {
-    if command -v qrencode >/dev/null 2>&1; then
-        printf "%s" "$1" | qrencode -t UTF8
-    else
-        echo -e "${YELLOW}（提示：未检测到 qrencode 命令，二维码功能暂不可用；可安装 qrencode 软件包启用）${NC}"
+get_term_cols() {
+    local cols
+    cols=$(tput cols 2>/dev/null || stty size 2>/dev/null | awk '{print $2}')
+    if [[ -z "$cols" || "$cols" -le 0 ]]; then cols="${COLUMNS:-80}"; fi
+    printf '%s' "$cols"
+}
+
+# 渲染 + 列宽检测 + 循环等待 + 文本兜底
+qr_fit_show() {
+    local text="$1"
+    if ! command -v qrencode >/dev/null 2>&1; then
+        echo -e "${YELLOW}（未检测到 qrencode，二维码不可用；可在终端执行 pkg install libqrencode 启用）${NC}"
+        return 0
     fi
+    local qr
+    if ! qr=$(printf '%s' "$text" | qrencode -l L -m 1 -t UTF8i 2>/dev/null); then
+        # UTF8i 渲染失败则退化为普通渲染 (可能撕裂但保证可见)
+        printf '%s' "$text" | qrencode -l L -m 1 -t UTF8 2>/dev/null || \
+        echo -e "${RED}二维码渲染失败，请手动保存上方文本${NC}"
+        return 0
+    fi
+    # 实测二维码所需显示列: 取最宽行的字节数, 按 UTF8i 实测 ~2.6 字节/列,
+    # 用 /2.4 保守上取整 (略高估, 宁多提示不撕裂)
+    local bytew need
+    bytew=$(printf '%s\n' "$qr" | LC_ALL=C awk '{if (length($0)>m) m=length($0)} END{print m+0}')
+    need=$(( (bytew * 5 + 11) / 12 ))   # ≈ ceil(bytew / 2.4)
+    (( need < 8 )) && need=8
+
+    local cols tries=0 ans
+    while :; do
+        cols=$(get_term_cols)
+        if (( cols >= need )); then
+            break
+        fi
+        tries=$((tries+1))
+        echo -e "${YELLOW}📱 二维码需约 ${RED}${need}${YELLOW} 列完整显示，当前终端仅 ${RED}${cols}${YELLOW} 列，直接渲染会折行撕裂。${NC}"
+        echo -e "${CYAN}   请【双指缩小字体】或【旋转横屏】让终端宽度达到 ${need} 列以上，完成后按回车重新检测。${NC}"
+        echo -en "${BOLD}   ▶ 已调整按回车重试 / 输入 q 放弃二维码仅看文本 : ${NC}"
+        IFS= read -r ans || ans="q"
+        [[ "${ans,,}" == "q" || "${ans,,}" == "quit" || "${ans,,}" == "退出" ]] && { echo; echo -e "${YELLOW}已放弃二维码，请直接抄录上方文本（切勿 Ctrl+C 复制密文到联网设备）：${NC}"; echo -e "${BOLD}${text}${NC}"; return 0; }
+        if (( tries >= 5 )); then
+            echo; echo -e "${YELLOW}多次重试仍未达到所需宽度，转为纯文本展示（避免撕裂）：${NC}"
+            echo -e "${BOLD}${text}${NC}"
+            return 0
+        fi
+    done
+    echo
+    echo -e "${CYAN}────────────── [ 二维码（内存瞬时渲染·不写文件） ] ──────────────${NC}"
+    printf '%s\n' "$qr"
+    echo -e "${CYAN}──────────────────────────────────────────────────────────────────${NC}"
+}
+
+print_qr() {
+    local text="$1"
+    case "$PLATFORM" in
+        ios)
+            echo -e "${YELLOW}（iOS 版已移除终端二维码功能，请抄录或经安全离线渠道传输此文本）${NC}"
+            return 0
+            ;;
+        *)
+            qr_fit_show "$text"
+            ;;
+    esac
 }
 ############################
 # BIP39 2048 词表 (内嵌, 无外部依赖)
