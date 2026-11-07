@@ -341,117 +341,13 @@ init_progress() {
         "$out" "$pct" "$step" "$total" "$label"
     printf "\n"
 }
-
 ############################
-# 终端尺寸探测 (iOS 二维码宽高双检测)
-############################
-get_term_cols() {
-    local c
-    c=$(tput cols 2>/dev/null || stty size 2>/dev/null | awk '{print $2}')
-    [[ -z "$c" || "$c" -le 0 ]] && c="${COLUMNS:-80}"
-    printf '%s' "$c"
-}
-get_term_rows() {
-    local r
-    r=$(tput lines 2>/dev/null || stty size 2>/dev/null | awk '{print $1}')
-    [[ -z "$r" || "$r" -le 0 ]] && r="${LINES:-24}"
-    printf '%s' "$r"
-}
-
-# 估算 UTF8i 半高字符渲染所需列宽 (qrencode 4.1.1 实测容量表)
-qr_required_cols() {
-    local n="${#1}"
-    if   (( n <= 41 ));   then echo 29
-    elif (( n <= 77 ));   then echo 35
-    elif (( n <= 121 ));  then echo 41
-    elif (( n <= 185 ));  then echo 49
-    elif (( n <= 281 ));  then echo 57
-    elif (( n <= 403 ));  then echo 65
-    else echo 73; fi
-}
-# 估算所需行数 (UTF8i 半高字符: 每 2 个模块行 = 1 终端行; 矩阵近方形, 用列宽估算行高)
-qr_required_rows() {
-    local reqc; reqc=$(qr_required_cols "$1")
-    echo $(( reqc / 2 + 6 ))
-}
-
-############################
-# 二维码输出 (按平台分支; iOS: 宽+高双检测, 调整后重测, 专用全屏布局)
+# 二维码功能 (iOS: 已按用户要求移除)
+# print_qr 仅为兼容菜单调用的存根, 不再渲染二维码
 ############################
 print_qr() {
-    local text="$1"
-    if ! command -v qrencode >/dev/null 2>&1; then
-        echo -e "${YELLOW}（未安装 qrencode，二维码暂不可用；核心加解密不受影响）${NC}"
-        return 0
-    fi
-    local qr_cmd
-    case "$PLATFORM" in
-        ios)
-            qr_cmd="qrencode -l L -m 0 -t UTF8i"
-            qr_ios_show "$text"
-            ;;
-        termux)
-            qr_cmd="qrencode -l L -m 1 -t UTF8i"
-            qr_adaptive_show "$text" "$qr_cmd"
-            ;;
-        *)
-            qr_adaptive_show "$text" "qrencode -l L -m 4 -t UTF8"
-            ;;
-    esac
+    echo -e "${YELLOW}（iOS 版已移除终端二维码功能，请抄录或经安全离线渠道传输此文本）${NC}"
 }
-
-# 通用: 按当前终端列宽提示 (Termux/Linux 用, 不做高度)
-qr_adaptive_show() {
-    local text="$1" qr_cmd="$2" cols reqc
-    cols=$(get_term_cols); reqc=$(qr_required_cols "${#text}")
-    if (( cols < reqc )); then
-        echo -e "${YELLOW}⚠️ 终端宽 ${cols} 列 < 二维码需 ${reqc} 列。建议缩小字体或加宽终端后重新选择二维码。${NC}"
-        read -r -s _
-    fi
-    printf "%s" "$text" | eval "$qr_cmd" 2>/dev/null \
-        || printf "%s" "$text" | qrencode -l L -t UTF8 2>/dev/null \
-        || echo -e "${RED}二维码渲染失败${NC}"
-}
-
-# iOS 专用: 宽+高双检测, 字体调整后重测, 完整边界可见才渲染
-qr_ios_show() {
-    local text="$1"
-    local cols rows reqc reqr
-    while true; do
-        cols=$(get_term_cols); rows=$(get_term_rows)
-        reqc=$(qr_required_cols "${#text}"); reqr=$(qr_required_rows "${#text}")
-        if (( cols >= reqc && rows >= reqr )); then
-            break
-        fi
-        echo -e "${CYAN}┌──────────────────────────────────────────────┐${NC}"
-        echo -e "${CYAN}│  BIP39 二维码 (完整显示)                       │${NC}"
-        echo -e "${CYAN}│  当前终端: 宽 ${cols} 行 ${rows}                            │${NC}"
-        echo -e "${CYAN}│  需要:     宽 ${reqc} 行 ${reqr}                            │${NC}"
-        echo -e "${CYAN}│  空间不足。请${BOLD}双指缩小字体${NC}${CYAN}(优先)或旋转横屏:       │${NC}"
-        echo -e "${CYAN}│  (横屏会增加列数但可能减少行数, 视空间而定)     │${NC}"
-        echo -e "${CYAN}│  调整完成后按回车重新检测...                     │${NC}"
-        echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
-        read -r -s _
-    done
-    # 二次确认尺寸仍满足 (用户缩字体后终端尺寸已变化)
-    cols=$(get_term_cols); rows=$(get_term_rows)
-    reqc=$(qr_required_cols "${#text}"); reqr=$(qr_required_rows "${#text}")
-    if (( cols < reqc || rows < reqr )); then
-        echo -e "${RED}❌ 重测后仍不满足 (宽 ${cols}/${reqc} 行 ${rows}/${reqr})，为免撕裂本次不渲染。请再缩小字体。${NC}"
-        return 0
-    fi
-    echo -e "${GRAY}扫描请使用离线设备。按回车返回主菜单:${NC}"
-    # 全屏布局: 只留二维码本身, 不加边框装饰 (GPT6 P2)
-    if ! printf "%s" "$text" | qrencode -l L -m 0 -t UTF8i 2>/dev/null; then
-        printf "%s" "$text" | qrencode -l L -m 0 -t ANSIUTF8 2>/dev/null || \
-        printf "%s" "$text" | qrencode -l L -m 0 -t UTF8 2>/dev/null || \
-        echo -e "${RED}二维码渲染失败${NC}"
-    fi
-    echo -e "${GRAY}────────────────────────────────────────────────────${NC}"
-    read -r -s _
-}
-
-
 ############################
 # BIP39 2048 词表 (内嵌, 无外部依赖)
 ############################
@@ -729,8 +625,7 @@ menu_generate() {
     echo -e "${YELLOW}【 密文数据 】${GRAY}（完整保存/备份这段）${NC}"
     echo; echo -e "${BOLD}${enc}${NC}"
     echo -e "${CYAN}----------------------------------------------------${NC}"
-    echo -e "${YELLOW}【 密文二维码 】${NC}"
-    print_qr "$enc"
+    echo -e "${GRAY}（iOS 版已移除二维码，请抄录上方密文或经安全离线渠道备份）${NC}"
     echo -e "${CYAN}====================================================${NC}"
     unset enc
     pause_return
@@ -768,7 +663,7 @@ menu_encrypt_existing() {
     echo -e "${CYAN}====================================================${NC}"
     echo -e "${YELLOW}【 密文数据 】${NC}"; echo; echo -e "${BOLD}${enc}${NC}"
     echo -e "${CYAN}----------------------------------------------------${NC}"
-    echo -e "${YELLOW}【 密文二维码 】${NC}"; print_qr "$enc"
+    echo -e "${GRAY}（iOS 版已移除二维码，请抄录上方密文或经安全离线渠道备份）${NC}"
     echo -e "${CYAN}====================================================${NC}"
     unset enc
     pause_return
@@ -802,28 +697,11 @@ menu_decrypt() {
     fi
     echo -e "${RED}⚠️ 请确认背后无摄像头、无他人在旁窥视！${NC}"
     echo -e "${CYAN}-----------------------------------${NC}"
-    echo -e "${YELLOW}请选择查看明文助记词的方式：${NC}"
-    echo -e "  ${GREEN}1.${NC} 在本终端直接打印明文"
-    echo -e "  ${GREEN}2.${NC} 在终端生成二维码 ${GRAY}(推荐离线设备扫码)${NC}"
-    echo -e "  ${GRAY}(空输入=取消, 不显示任何明文)${NC}"
-    echo -e "${CYAN}-----------------------------------${NC}"
-    echo -en "${BOLD}▶ 请选择 [1/2] : ${NC}"; read -r o
-    secure_clear
+    echo -e "${CYAN}===================================${NC}"
     echo -e "${CYAN}====== [ 🔒 极密数据展示 ] ======${NC}"
-    case "$o" in
-        1)
-            echo -e "${YELLOW}您的助记词明文如下：${NC}"
-            echo -e "${RED}⚠️ 【 严重警告 】请用纸笔手抄，切勿 Ctrl+C 复制（剪贴板可被嗅探窃取）${NC}"
-            echo -e "${BOLD}${out}${NC}\n"
-            ;;
-        2)
-            echo -e "${YELLOW}请用不联网的备用设备扫码提取（严禁微信等后台上传类软件）：${NC}\n"
-            print_qr "$out"
-            ;;
-        *)
-            echo -e "${RED}⚠️ 未选择展示方式，为安全已忽略并清屏。${NC}"
-            ;;
-    esac
+    echo -e "${YELLOW}您的助记词明文如下（iOS 版已移除二维码，仅终端明文展示）：${NC}"
+    echo -e "${RED}⚠️ 【 严重警告 】请用纸笔手抄，切勿 Ctrl+C 复制（剪贴板可被嗅探窃取）${NC}"
+    echo -e "${BOLD}${out}${NC}\n"
     echo -e "${CYAN}=================================${NC}"
     case "$original_blob" in
         v1:*|"") if [[ "$original_blob" != v2:* && "$original_blob" != v3:* ]]; then
