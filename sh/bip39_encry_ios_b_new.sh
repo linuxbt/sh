@@ -4,8 +4,18 @@ if [ -z "$BASH_VERSION" ]; then
     echo "▶ 检测到 ash 环境，正在初始化 iSH 环境..."
     if ! command -v bash 2>/dev/null || ! command -v argon2 2>/dev/null || ! command -v openssl 2>/dev/null || ! command -v xxd 2>/dev/null; then
         echo "▶ 首次运行: 通过 apk 安装核心组件 (bash, argon2, openssl, xxd)..."
+        # iSH 默认仓库(apk.ish.app 快照)常离线 -> apk update/add 失败(需手动装)。
+        # 改写到官方 alpine CDN; 版本号从 /etc/alpine-release 自动探测, 不写死(iSH 升级也不用改脚本)
+        alpine_ver=$(head -1 /etc/alpine-release 2>/dev/null | cut -d. -f1-2)
+        [ -n "$alpine_ver" ] || alpine_ver="3.14"
+        if ! grep -q "dl-cdn.alpinelinux.org" /etc/apk/repositories 2>/dev/null; then
+            echo "▶ 默认仓库不可靠, 改写为官方 alpine v${alpine_ver} CDN..."
+            cp /etc/apk/repositories "/etc/apk/repositories.bak.$(date +%s)" 2>/dev/null || true
+            { echo "https://dl-cdn.alpinelinux.org/alpine/v${alpine_ver}/main"
+              echo "https://dl-cdn.alpinelinux.org/alpine/v${alpine_ver}/community"; } > /etc/apk/repositories
+        fi
         apk update >/dev/null 2>&1 || echo "⚠️ apk update 异常，继续..."
-        apk add bash argon2 openssl xxd --no-cache 2>/dev/null || { echo "❌ 核心依赖安装失败"; read -r _; exit 1; }
+        apk add bash argon2 openssl xxd --no-cache 2>/dev/null || { echo "❌ 核心依赖安装失败(可手动: apk update && apk add bash argon2 openssl xxd)"; read -r _; exit 1; }
         apk add libqrencode --no-cache 2>/dev/null || apk add libqrencode-tools --no-cache 2>/dev/null || true
     fi
     exec bash "$0" "$@"
