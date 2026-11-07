@@ -4,11 +4,11 @@ if [ -z "$BASH_VERSION" ]; then
     echo "▶ 检测到 ash 环境，正在初始化 iSH 环境..."
     if ! command -v bash 2>/dev/null || ! command -v argon2 2>/dev/null || ! command -v openssl 2>/dev/null || ! command -v xxd 2>/dev/null; then
         echo "▶ 首次运行: 通过 apk 安装核心组件 (bash, argon2, openssl, xxd)..."
-        if [ -f /etc/apk/repositories ] && grep -q "apk.ish.app" /etc/apk/repositories 2>/dev/null; then
-            cp /etc/apk/repositories "/etc/apk/repositories.bak.$(date +%s)" 2>/dev/null || true
-            echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/main" > /etc/apk/repositories
-            echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/community" >> /etc/apk/repositories
-        fi
+        # if [ -f /etc/apk/repositories ] && grep -q "apk.ish.app" /etc/apk/repositories 2>/dev/null; then
+        #     cp /etc/apk/repositories "/etc/apk/repositories.bak.$(date +%s)" 2>/dev/null || true
+        #     echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/main" > /etc/apk/repositories
+        #     echo "https://dl-cdn.alpinelinux.org/alpine/v3.14/community" >> /etc/apk/repositories
+        # fi
         apk update >/dev/null 2>&1 || echo "⚠️ apk update 异常，继续..."
         apk add bash argon2 openssl xxd --no-cache 2>/dev/null || { echo "❌ 核心依赖安装失败"; read -r _; exit 1; }
         apk add libqrencode --no-cache 2>/dev/null || apk add libqrencode-tools --no-cache 2>/dev/null || true
