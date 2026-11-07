@@ -67,7 +67,7 @@ trap 'echo; echo -e "${YELLOW}⚠️ 收到 SIGHUP，安全退出并清理...${N
 # 颜色
 ############################
 RED="\033[31;1m"; GREEN="\033[32;1m"; YELLOW="\033[33;1m"; MAGENTA="\033[35;1m"
-CYAN="\033[36;1m"; GRAY="\033[90m"; BOLD="\033[1m"; NC="\033[0m"
+CYAN="\033[36;1m"; GRAY="\033[90m"; BOLD="\033[1m"; BLUE="\033[34;1m"; NC="\033[0m"
 
 secure_clear() {
     clear 2>/dev/null || true
@@ -831,7 +831,7 @@ echo -e "${CYAN}====================================================${NC}"
 echo
 
 # 跳过自检: 3 秒内按回车 -> 跳过全部自检直接进菜单; 超时未操作 -> 完整自检
-echo -en "${YELLOW}⚡ 本次是否跳过全部自检直接进入菜单？ [按回车=跳过 | 3秒不操作=完整自检]${NC} "
+echo -en "${BLUE}⚡ 本次是否跳过全部自检直接进入菜单？ [按回车=跳过 | 3秒不操作=完整自检]${NC} "
 SKIP_ALL=0
 if read -r -t 3 _skip_ans 2>/dev/null; then
     SKIP_ALL=1
