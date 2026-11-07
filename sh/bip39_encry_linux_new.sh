@@ -809,13 +809,8 @@ main_menu() {
 
 
 ############################
-# 启动自检 (带进度条; -f/--fast 仅跳过重复性 KDF 联合自检)
+# 启动自检 (带进度条; 开头 3 秒内按回车可跳过全部自检)
 ############################
-FAST_START=0
-for arg in "$@"; do
-    [[ "$arg" == "-f" || "$arg" == "--fast" ]] && FAST_START=1
-done
-
 TOTAL_STEPS=6
 echo -e "${CYAN}====================================================${NC}"
 echo -e "${BOLD}${MAGENTA}       🛡️ BIP39 助记词安全管理器 · V3 初始化${NC}"
@@ -823,6 +818,30 @@ echo -e "${GRAY}  平台: ${PLATFORM_NAME}   参数: $CIPHER_SUITE${NC}"
 echo -e "${CYAN}====================================================${NC}"
 echo
 
+# 跳过自检: 3 秒内按回车 -> 跳过全部自检直接进菜单; 超时未操作 -> 完整自检
+echo -en "${YELLOW}⚡ 本次是否跳过全部自检直接进入菜单？ [按回车=跳过 | 3秒不操作=完整自检]${NC} "
+SKIP_ALL=0
+if read -r -t 3 _skip_ans 2>/dev/null; then
+    SKIP_ALL=1
+fi
+echo
+
+# 词表 2048 指纹是加密正确性硬前置(决定词索引), 无论是否跳过都必做
+echo -e "${CYAN}▶ 校验词表完整性指纹 (2048 词, 快速)...${NC}"
+if ! check_wordlist; then
+    echo -e "${RED}❌ 词表完整性自检失败（词数或 SHA256 指纹不符），词表可能已被篡改，拒绝运行！${NC}"
+    echo -en "${BOLD}▶ 按回车键退出...${NC}"; read -r _; exit 1
+fi
+build_word_index
+
+if [[ $SKIP_ALL -eq 1 ]]; then
+    echo -e "${GREEN}⚡ 已跳过全部自检，直接进入菜单 (词表指纹已核验)${NC}"
+    echo -e "${GRAY}  提示: 本次未做 KDF/全链路自检; 如需完整校验请再运行且 3 秒内不要按键${NC}"
+    echo; sleep 2
+    main_menu
+fi
+
+# ---- 完整自检流程 ----
 # 步骤 1/6: 依赖
 echo -e "${CYAN}▶ 初始化 1/6: 检查核心依赖 (argon2/openssl/xxd)...${NC}"
 check_deps
@@ -837,26 +856,19 @@ fi
 build_word_index
 init_progress 2 6 "词表指纹"
 
-# 步骤 3/6: KDF 自检 (fast 模式跳过)
-if [[ $FAST_START -eq 1 ]]; then
-    echo -e "${GREEN}⚡ 极速启动模式：跳过重复 KDF/全链路自检（词表指纹已核验）${NC}"
-    init_progress 3 6 "KDF自检(跳过)"
-    init_progress 4 6 "全链路(跳过)"
-    init_progress 5 6 "依赖复检"
-else
-    echo -e "${CYAN}▶ 初始化 3/6: KDF 确定性自检 (Argon2id ${KDF_M}/${KDF_P})...${NC}"
-    if ! kdf_selftest; then
-        echo -e "${RED}❌ KDF 自检失败：argon2 输出异常（参数/构建不兼容），拒绝运行以防密钥静默降级！${NC}"
-        echo -en "${BOLD}▶ 按回车键退出...${NC}"; read -r _; exit 1
-    fi
-    init_progress 3 6 "KDF自检"
-    echo -e "${CYAN}▶ 初始化 4/6: 密码学全链路自检 (v3 加密/解密/篡改/错口令)...${NC}"
-    if ! crypto_selftest; then
-        echo -e "${RED}❌ 全链路自检失败：AES/HMAC 或防篡改异常，拒绝运行！${NC}"
-        echo -en "${BOLD}▶ 按回车键退出...${NC}"; read -r _; exit 1
-    fi
-    init_progress 4 6 "全链路自检"
+# 步骤 3/6: KDF 自检
+echo -e "${CYAN}▶ 初始化 3/6: KDF 确定性自检 (Argon2id ${KDF_M}/${KDF_P})...${NC}"
+if ! kdf_selftest; then
+    echo -e "${RED}❌ KDF 自检失败：argon2 输出异常（参数/构建不兼容），拒绝运行以防密钥静默降级！${NC}"
+    echo -en "${BOLD}▶ 按回车键退出...${NC}"; read -r _; exit 1
 fi
+init_progress 3 6 "KDF自检"
+echo -e "${CYAN}▶ 初始化 4/6: 密码学全链路自检 (v3 加密/解密/篡改/错口令)...${NC}"
+if ! crypto_selftest; then
+    echo -e "${RED}❌ 全链路自检失败：AES/HMAC 或防篡改异常，拒绝运行！${NC}"
+    echo -en "${BOLD}▶ 按回车键退出...${NC}"; read -r _; exit 1
+fi
+init_progress 4 6 "全链路自检"
 
 # 步骤 5/6: 二维码依赖 (可选)
 if ! command -v qrencode >/dev/null 2>&1; then
@@ -867,7 +879,6 @@ init_progress 5 6 "二维码依赖"
 # 步骤 6/6: 就绪
 init_progress 6 6 "就绪"
 echo -e "${GREEN}✅ 初始化完成，所有安全自检通过！${NC}"
-echo -e "${GRAY}  提示: 后续启动如需秒开可加参数 -f (跳过重复 KDF 自检)${NC}"
-echo; sleep 0.5
+echo; sleep 2
 
 main_menu
